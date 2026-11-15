@@ -9,7 +9,7 @@
 - 결정: 모집글 공통 분석(모집 대상, 마감, 분야 등)은 ETL에서 한 번만 하고 모든 학생이 재사용한다.
 - 결정: 학생별 분석은 ETL과 따로 두고 학생별 비공개로 저장한다. 분석 결과(발견, 역량 근거)는 공개하지 않는다.
 ### 2026-10-08 | 프로토타입 코드는 GitHub에서 관리
-- 프로토타입 코드는 GitHub 비공개 저장소 [zest-sw/ssa-kingo-companion](https://github.com/zest-sw/ssa-kingo-companion)에서 관리한다. 버전은 태그 prototype-v0.3~v0.7로 남긴다.
+- 프로토타입 코드는 GitHub 비공개 저장소 [zest-sw/ssa-kingo-companion](https://github.com/zest-sw/ssa-kingo-companion)에서 관리한다. 버전은 태그 prototype-v0.3~v0.7로 남긴다. (2026-11-15) 공개를 위해 개인 계정 저장소 [tapetapetap/ssa-kingo-companion](https://github.com/tapetapetap/ssa-kingo-companion)으로 옮겼다. 커밋 기록은 유지한다.
 - Figma Make 파일(v0.3~v0.7)은 보존본으로 두고, 이후 코드 변경은 GitHub에서 한다.
 ### 2026-10-08 | 다음 방향: 학생은 마지막 결정만
 - 방향: 활동 안내부터 신청 직전 준비까지 에이전트가 맡고, 학생은 마지막 결정만 한다.
