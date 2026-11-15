@@ -39,7 +39,7 @@ npm run audit:design   # AI 티 스캐너 (출력만 본다)
 npm run audit:entries  # 같은 목적지로 가는 진입점 수 검사
 ```
 
-`main` 은 `check` 와 `build` 가 통과하는 상태로 둔다. CI(`.github/workflows/ci.yml`)가 PR 마다 `check`, `build`, `audit:layout`, `audit:copy` 를 돌린다. 작업은 브랜치에서 하고 PR 로 병합한다. 커밋 메시지는 `영역: 무엇을 왜` 한 줄이다.
+`main` 은 `check` 와 `build` 가 통과하는 상태로 둔다. CI(`.github/workflows/ci.yml`)가 PR 마다 `check`, `build`, `audit:layout`, `audit:copy` 를 돌린다. PR 마다 Claude Code 의 code-review 플러그인(`.github/workflows/claude-review.yml`)이 정확성·보안 리뷰를 인라인 댓글로 남긴다(저장소 시크릿 `CLAUDE_CODE_OAUTH_TOKEN` 과 Claude GitHub App 필요). 작업은 브랜치에서 하고 PR 로 병합한다. 커밋 메시지는 `영역: 무엇을 왜` 한 줄이다.
 
 폭별 확인은 `/qa-frame.html?w=1440&path=%23%2Frecommend` 로 한다(1280, 1440, 1920 에서 완성, 1024 는 깨지지만 않으면 된다).
 
