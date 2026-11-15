@@ -10,7 +10,7 @@ export const SOURCE = 'https://cse.skku.edu/cse/notice.do';
 export const listUrl = (offset: number) => `${SOURCE}?mode=list&articleLimit=100&article.offset=${offset}`;
 export const viewUrl = (no: number) => `${SOURCE}?mode=view&articleNo=${no}`;
 /** 저장소 주소만 담는다. 이메일 같은 개인정보는 넣지 않는다 */
-export const USER_AGENT = 'ssa-kingo-companion-etl (+https://github.com/zest-sw/ssa-kingo-companion)';
+export const USER_AGENT = 'ssa-kingo-companion-etl (+https://github.com/tapetapetap/ssa-kingo-companion)';
 /** 받은 원문 보관함(.gitignore). 실행 위치와 상관없이 etl/.cache/cse */
 export const CACHE_DIR = fileURLToPath(new URL('../.cache/cse', import.meta.url));
 

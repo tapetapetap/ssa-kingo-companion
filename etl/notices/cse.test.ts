@@ -166,7 +166,7 @@ describe('makeGet', () => {
     expect(Date.now() - start).toBeGreaterThanOrEqual(55);
     await expect(get('https://example.test/bad')).rejects.toThrow('500');
     expect(seen.every(ua => ua === USER_AGENT)).toBe(true);
-    expect(USER_AGENT).toContain('https://github.com/zest-sw/ssa-kingo-companion');
+    expect(USER_AGENT).toContain('https://github.com/tapetapetap/ssa-kingo-companion');
     expect(USER_AGENT).not.toContain('@');
   });
 });
