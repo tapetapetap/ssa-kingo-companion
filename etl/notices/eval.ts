@@ -160,7 +160,7 @@ export const sampleBySha1 = (ids: string[], n: number) =>
   ids.map(id => [createHash('sha1').update(id).digest('hex'), id]).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).slice(0, n).map(([, id]) => id);
 
 /** 한글은 터미널에서 두 칸을 차지한다 */
-const pad = (s: string, n: number) => s + ' '.repeat(Math.max(0, n - [...s].reduce((w, ch) => w + (/[가-힣]/.test(ch) ? 2 : 1), 0)));
+export const pad = (s: string, n: number) => s + ' '.repeat(Math.max(0, n - [...s].reduce((w, ch) => w + (/[가-힣]/.test(ch) ? 2 : 1), 0)));
 
 function formatScore(ms: Metric[]): string {
   const rows = [['지표', '값', '기준', '판정', ''], ...ms.map(m => [

@@ -1,13 +1,15 @@
 // 분야 목록 3안 비교 명령(contracts/cli.md). `node etl/notices/compare.ts <check | sample | judge | label-input | gold | score | choose> …`
-import { appendFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COURSE_ROWS, findChosen, isTaxonomyId, listChars, readList, TAXONOMY_DIR, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { CACHE_DIR } from './cse.ts';
-import { EMBED_CACHE_DIR, makeEmbed } from './embed.ts';
-import { countField, FIELD_CACHE_DIR, fieldPart, makeFieldAsk, newStats, type FieldAsk } from './fields.ts';
-import { cachedBody, devOpportunities, rowOf } from './gold.ts';
+import { EMBED_CACHE_DIR, EMBED_K, EMBED_MODEL, makeEmbed, readFieldVectors, readNoticeVector, topCandidates } from './embed.ts';
+import { pad } from './eval.ts';
+import { countField, FIELD_CACHE_DIR, fieldFolder, fieldPart, fieldVersion, makeFieldAsk, newStats, readFieldAnswer, type FieldAnswer, type FieldAsk } from './fields.ts';
+import { cachedBody, devOpportunities, gold, labelInput, noOf, readGoldFile, readSample, rowOf, sample, type GoldLabel } from './gold.ts';
 import { DEFAULT_MODEL, modelDir, type Gate } from './llm.ts';
+import { pct, pickRun, ratio, scoreTaxonomy, type RunLine, type TaxonomyScore } from './score.ts';
 import { createThrottle, type LoadSummary } from './throttle.ts';
 
 /** 시험에서만 바꾼다(모두 선택). 폴더가 없으면 저장소 기본 자리다. fieldAsk·gate·load는 진입 줄이 throttle 하나로 만든다 */
@@ -85,6 +87,78 @@ async function judge(t: Taxonomy, limit: number | null, c: Ctx): Promise<number>
   return 0;
 }
 
+const isRun = (o: unknown): o is RunLine => {
+  if (typeof o !== 'object' || o === null) return false;
+  const r = o as Record<string, unknown>;
+  return typeof r.start === 'string' && typeof r.end === 'string' && (r.limit === null || typeof r.limit === 'number')
+    && ['cached', 'fresh', 'failed', 'requests', 'requestMs'].every(k => typeof r[k] === 'number');
+};
+const readRuns = (file: string): RunLine[] => (existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean) : []).flatMap(l => {
+  try {
+    const o: unknown = JSON.parse(l);
+    return isRun(o) ? [o] : [];
+  } catch {
+    return [];
+  }
+});
+
+const ROWS: [string, (e: TaxonomyScore) => string][] = [
+  ['핵심 정밀도', e => pct(e.metrics.corePrecision)], ['핵심 재현율', e => pct(e.metrics.coreRecall)],
+  ['전체 재현율', e => pct(e.metrics.totalRecall)], ['관련 정밀도', e => pct(e.metrics.relatedPrecision)],
+  ['후보 적중률(핵심)', e => pct(e.metrics.candidateCore)], ['후보 적중률(전체)', e => pct(e.metrics.candidateAll)],
+  ['후보 비율', e => pct(ratio(Math.min(EMBED_K, e.fields), e.fields))], // 분야가 적은 안일수록 적중률이 높게 나와 함께 본다(research R10)
+  ['라벨러 일치(같음)', e => pct(e.metrics.agreeExact)], ['라벨러 일치(겹침)', e => pct(e.metrics.agreeOverlap)],
+  ['핵심 빈칸', e => pct(e.metrics.blankCore)], ['모두 빈칸', e => pct(e.metrics.blankAll)], ['상위 3 쏠림', e => pct(e.metrics.top3Share)],
+  ['안 쓰인 분야', e => pct(e.metrics.unusedShare)], ['실패율', e => pct(e.metrics.failRate)],
+  ['글당 시간', e => (e.metrics.secPerAsk === null ? '-' : `${e.metrics.secPerAsk}초`)], ['전체 시간', e => `${e.metrics.wallMinutes}분`],
+  ['교과 지도 연결', e => `${e.metrics.courseMapRows}/12`]
+];
+
+/** 세 안의 보관 답·벡터·실행 기록·정답으로 지표를 계산한다. 요청은 보내지 않는다. 무엇이 없으면 모두 내고 1이다 */
+function score(c: Ctx): number {
+  const lists = TAXONOMY_IDS.map(id => listOf(id, c));
+  const nos = devOpportunities(c.goldDir).map(g => noOf(g.id));
+  const items = readSample(c.goldDir);
+  const docs = new Map(items.map(x => [x.no, { link: x.link, title: x.title }]));
+  const problems: string[] = [];
+  const entries: TaxonomyScore[] = [];
+  for (const t of lists) {
+    let labels = new Map<number, GoldLabel>();
+    try {
+      labels = readGoldFile(t, c.goldDir);
+    } catch (e) {
+      problems.push(messageOf(e));
+    }
+    const open = [...labels.values()].filter(l => l.split === 'O').length;
+    if (open) problems.push(`${t.id}: 갈림 O가 ${open}건 남았어요(셋째 라벨러의 답으로 gold를 다시 돌려요)`);
+    const gold = new Map(items.flatMap(x => { const l = labels.get(x.no); return l ? [[x.no, l] as const] : []; }));
+    if (labels.size && gold.size < items.length) problems.push(`${t.id}: 정답 파일에 표본 글 ${items.length - gold.size}건이 없어요`);
+    const run = pickRun(readRuns(join(fieldFolder(t, c.model, c.llmDir), 'runs.jsonl')));
+    if (!run) problems.push(`${t.id}: 전체 실행 기록이 없어요(judge ${t.id}를 --limit 없이 돌려요)`);
+    const all = t.fields.length <= EMBED_K; // 30개 이하면 모두 후보라 벡터를 읽지 않는다
+    const fv = all ? null : readFieldVectors(t, EMBED_MODEL, c.embedDir);
+    if (!all && !fv) problems.push(`${t.id}: 분야 벡터 파일이 없어요(벡터 보관만 지웠다면 그 안의 답 폴더도 지우고 judge를 다시 돌려요)`);
+    if (problems.length || !run) continue;
+    const candidates = new Map(items.map(x => {
+      const v = fv ? readNoticeVector(EMBED_MODEL, x.no, c.embedDir) : null;
+      return [x.no, all ? t.fields.map(f => f.id) : fv && v ? topCandidates(fv, v) : []]; // 공지 벡터가 없는 글은 후보가 없는 것으로 센다
+    }));
+    const answers = new Map(nos.flatMap(no => { const a = readFieldAnswer(t, c.model, no, c.llmDir); return a ? [[no, a] as [number, FieldAnswer]] : []; }));
+    entries.push(scoreTaxonomy({ t, prompt: fieldVersion(t), listChars: listChars(t), nos, answers, gold, candidates, docs, run }));
+  }
+  if (problems.length) {
+    console.error(problems.join('\n'));
+    return 1;
+  }
+  const out = { at: c.now().toISOString(), model: c.model, embed: { model: EMBED_MODEL, k: EMBED_K }, total: nos.length, sample: items.length, taxonomies: entries };
+  mkdirSync(dirname(c.outFile), { recursive: true });
+  writeFileSync(`${c.outFile}.tmp`, `${JSON.stringify(out, null, 2)}\n`);
+  renameSync(`${c.outFile}.tmp`, c.outFile);
+  const table = [['지표', ...entries.map(e => e.id)], ...ROWS.map(([name, value]) => [name, ...entries.map(value)])];
+  console.log(table.map(r => r.map((cell, i) => pad(cell, i === 0 ? 20 : 22)).join('').trimEnd()).join('\n'));
+  return 0;
+}
+
 /** 안 id를 확인하고 목록을 읽어 검사한다. 위반은 던진다(main이 1로 끝낸다) */
 function listOf(id: string, c: Ctx): Taxonomy {
   if (!isTaxonomyId(id)) throw new Error(`없는 안이에요: ${id} (${TAXONOMY_IDS.join(', ')})`);
@@ -99,6 +173,10 @@ export async function main(args: string[], deps: CompareDeps = {}): Promise<numb
     if (cmd === 'check' && rest.length === 0) return check(c.taxonomyDir);
     const limited = rest.length === 3 && rest[1] === '--limit' && /^[1-9]\d*$/.test(rest[2]);
     if (cmd === 'judge' && (rest.length === 1 || limited)) return judge(listOf(rest[0], c), limited ? Number(rest[2]) : null, c);
+    if (cmd === 'sample' && rest.length === 0) return sample(c.goldDir);
+    if (cmd === 'label-input' && rest.length === 2) return labelInput(listOf(rest[0], c), rest[1], c);
+    if (cmd === 'gold' && (rest.length === 3 || rest.length === 4)) return gold(listOf(rest[0], c), rest[1], rest[2], rest[3], c);
+    if (cmd === 'score' && rest.length === 0) return score(c);
     return null;
   };
   try {

@@ -205,17 +205,17 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 ### Tests for User Story 3
 
-- [ ] T029 [US3] `etl/notices/gold.test.ts`에 `sample` 시험을 쓴다. compare.ts의 main으로 부른다.
+- [x] T029 [US3] `etl/notices/gold.test.ts`에 `sample` 시험을 쓴다. compare.ts의 main으로 부른다.
   - 실제 종류 수(채용 182, 특강 88, 교육·캠프 53, 교과 25, 대회·공모전 24, 장학 14, 해커톤 13, 멘토링 6, 글로벌 3, 동아리·학회 3, 봉사 1)의 가짜 정답셋으로 배분이 research R9 숫자와 같다(합 120).
   - 같은 입력이면 같은 출력이다. 칸·줄 순서·종류 이름이 data-model 4와 같다.
-- [ ] T030 [US3] `gold.test.ts`에 `label-input`·`gold` 시험을, `compare.test.ts`에 `score` 거절 시험을 쓴다. label-input·gold는 T029와 같은 파일이라 이어서 한다.
+- [x] T030 [US3] `gold.test.ts`에 `label-input`·`gold` 시험을, `compare.test.ts`에 `score` 거절 시험을 쓴다. label-input·gold는 T029와 같은 파일이라 이어서 한다.
   - score 거절(1, 무엇이 없는지 출력): 정답 파일 없음이나 갈림 `O` 남음, 전체 실행 기록 없음, 분야 벡터 파일 없음. 분야가 30개 이하인 안(시험용 ncs 목록, 분야 3개)은 벡터 없이 통과한다.
   - label-input: 저장소 안 폴더는 아무것도 쓰지 않고 1이다. 본문이 없는 표본 글이 있으면 1이다. 40건씩 3묶음이고, body는 `clip` 결과다.
   - gold: A.json의 폴더가 저장소 안이면 읽기 전에 1이다.
   - gold의 A·B 출력 검사(research R9): 표본 글 빠짐, 표본 밖 글, 같은 글 두 번, 칸 안 id 중복, 목록 밖 id, 핵심 3개, 관련 6개, 겹침. 위반마다 글 번호와 이유를 내고 1이며 CSV를 쓰지 않는다.
   - C 없이 돌린 gold: CSV를 쓰고, 갈린 글은 갈림 `O`·최종 빈칸, 같은 글은 `X`·최종 = A다. split 줄 꼴은 data-model 5이고, '분야 없음'은 `-`다. split에 넣을 본문이 없으면 1이다.
   - C가 있는 gold: C에 빠진 글이나 남는 글이 있으면 1이다. C가 '분야 없음'으로 정한 글은 최종 `-`·갈림 `C`이고 완성으로 친다.
-- [ ] T031 [P] [US3] `etl/notices/score.test.ts`에 지표 시험을 쓴다. 작은 고정 표본으로 research R10을 손으로 계산한 값과 비교한다.
+- [x] T031 [P] [US3] `etl/notices/score.test.ts`에 지표 시험을 쓴다. 작은 고정 표본으로 research R10을 손으로 계산한 값과 비교한다.
   - `ratio`·`passes`·`pct`: 84/100은 미달, 85/100은 통과, 147/173은 `84.9% (147/173)`(내림), 분모 0은 `해당 없음`
   - `scoreTaxonomy`: 맞은 비율 넷(micro), 후보 적중률 둘(candidates에 없는 글은 적중 0), 라벨러 일치도(둘 다 빈 핵심은 두 비율 모두 '맞음'), 빈칸 둘, 상위 3 비율, unused·unusedIds, 실패율(보관 없는 글은 실패, 표본에서는 빈 답), courseMapRows(개수)
   - 보고서 목록: top 10(같은 수는 id 순), misses·splits(글 번호 순, 10건 제한)
@@ -224,7 +224,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] 라벨 기준 한 장 `specs/20261116-212003-field-taxonomy-compare/label-guide.md`를 쓴다. 세 안이 함께 쓴다.
+- [x] T032 [US3] 라벨 기준 한 장 `specs/20261116-212003-field-taxonomy-compare/label-guide.md`를 쓴다. 세 안이 함께 쓴다.
   - 분야는 '무엇에 관한 것인가'이고, 종류(채용·특강 등)는 분야가 아니다.
   - 핵심: 확신하는 것만 0~2개, 가까운 순. 관련: 조금이라도 관련 있으면 0~5개, 핵심과 겹치지 않음
   - 회사 이름만으로 고르지 않고 하는 일·배우는 것으로 고른다. 맞는 분야가 없으면 비운다(빈 배열).
@@ -232,10 +232,10 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
   - LLM 답과 다른 라벨러 답은 보지 않는다. 출력 꼴은 data-model 5이고 분야는 id다.
   - 메모(note)에는 본문 문장을 옮기지 않고 판단 이유만 한 줄로 쓴다(FR-024).
   - 예시 2~3개: 예시 글 규칙을 지킨다.
-- [ ] T033 [US3] `etl/notices/gold.ts`에 `sample`, `label-input`, `gold`를 만들고 compare.ts 하위 명령 표에 잇는다(contracts/cli.md, data-model 4·5, plan G3).
+- [x] T033 [US3] `etl/notices/gold.ts`에 `sample`, `label-input`, `gold`를 만들고 compare.ts 하위 명령 표에 잇는다(contracts/cli.md, data-model 4·5, plan G3).
   - 저장소 안 폴더 검사(심볼릭 링크를 푼 경로가 `repoRoot` 아래)는 함수 하나로 두 명령이 함께 쓴다.
   - T029와 T030의 label-input·gold 사례가 통과해야 한다(score 거절 사례는 T034).
-- [ ] T034 [US3] `etl/notices/score.ts`와 `compare.ts score`를 만든다(research R10·R16, data-model 6). T031이 통과해야 한다.
+- [x] T034 [US3] `etl/notices/score.ts`와 `compare.ts score`를 만든다(research R10·R16, data-model 6). T031이 통과해야 한다.
   - score.ts의 꼴
     - `ratio(num, den)` → `{ num, den }`, `passes(r, pct = 85)`, `pct(r)`(표시 글자)
     - `pickRun(lines)` → 고른 줄 또는 null
@@ -245,7 +245,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
     - 세 안마다 보관 답(`readFieldAnswer`), 벡터(`readFieldVectors`·`readNoticeVector` → `topCandidates`, 분야 30개 이하면 모두), 실행 기록, 정답을 읽어 넣는다.
     - `etl/out/fields-compare.json`을 쓰고 지표 표를 낸다. `listChars`는 `listChars(t)`다.
     - 거절(1): 정답 없음·갈림 `O` 남음, 전체 실행 기록 없음, 분야 벡터 파일 없음(분야 30개 이하 안은 보지 않는다)
-- [ ] T035 [US3] `node etl/notices/compare.ts sample`로 `etl/gold/fields/sample.csv`를 만든다. 종류별 배분을 '실행 기록'에 남긴다.
+- [x] T035 [US3] `node etl/notices/compare.ts sample`로 `etl/gold/fields/sample.csv`를 만든다. 종류별 배분을 '실행 기록'에 남긴다.
 - [ ] T036 [US3] 세 안 412건 판정을 `custom` → `ncs` → `csrankings` 순으로 돌린다. 안을 섞지 않는다(R5).
   1. 안마다 전체 실행(`--limit` 없이)을 한 번 돌린다. 첫 안이 끝나면 실제 글당 시간으로 남은 시간을 다시 잰다. 세 안 합이 3시간을 넘을 것 같으면 보고서에 적고 계속한다(SC-006, R13).
   2. 실패와 못 물음이 남으면 그 안만 한 번 더 돌려 채운다. 이 실행은 cached가 커서 시간 계산에 쓰이지 않는다(R16).
@@ -434,3 +434,13 @@ ncs 분야 판정 1(보관 0 · 새로 1 · 실패 0 · 못 물음 0 · 분야 �
 
 - T036 예상(쉼 1/4 포함, 온도 대기 제외): custom 392건 × 4.7초 × 1.25 ≈ 39분, ncs 407건 × 5.6초 × 1.25 ≈ 47분, csrankings 407건 × 5.3초 × 1.25 ≈ 45분, 합계 약 2시간 10분(SC-006 3시간 안). 공지 벡터는 첫 안(custom)이 받고 뒤 두 안은 보관 벡터를 쓴다.
 - 짧은 실행이라 GPU 표본이 적다. ncs 5건의 GPU 평균이 78.2%로 80%에 가까우니 T036에서 안마다 부하 줄을 본다(SC-005).
+
+### T035 (2026-11-17)
+
+```text
+$ node etl/notices/compare.ts sample
+표본 120건: 채용 53 · 특강 25 · 교육·캠프 15 · 교과 7 · 대회·공모전 7 · 장학 4 · 해커톤 4 · 멘토링 2 · 글로벌 1 · 동아리·학회 1 · 봉사 1
+```
+
+- research R9의 배분과 같다. 두 번 돌려도 같은 파일이다(md5 `1aa6ed51…`).
+- 표본 120건과 판정 대상 412건 모두 본문 보관본이 있다(쓰지 않고 확인). label-input(T037)이 막히지 않는다.
