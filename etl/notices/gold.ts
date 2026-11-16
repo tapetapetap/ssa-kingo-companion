@@ -232,7 +232,9 @@ export async function gold(t: Taxonomy, aFile: string, bFile: string, cFile: str
 export type GoldLabel = { a: FieldAnswer; b: FieldAnswer; final: FieldAnswer | null; split: 'X' | 'O' | 'C' };
 const isMark = (s: string): s is GoldLabel['split'] => s === 'X' || s === 'O' || s === 'C';
 
-/** score가 읽는다. '-'는 분야 없음, 빈칸은 안 정함이다. 목록 밖 id나 꼴이 틀린 줄은 던진다 */
+/** score가 읽는다. '-'는 분야 없음, 빈칸은 안 정함이다. 사람이 고친 파일도 들어오므로 칸이 모자라거나
+ *  data-model 5의 규칙(A·B·최종 모두 핵심 2개·관련 5개까지, 칸 안 중복과 핵심·관련 겹침 없음, 목록 안 id)을 어긴 줄은 던진다.
+ *  줄 번호는 스프레드시트 행 번호다(머리줄이 1, eval.ts와 같다) */
 export function readGoldFile(t: Taxonomy, goldDir: string): Map<number, GoldLabel> {
   const file = join(goldDir, 'fields', `${t.id}.csv`);
   if (!existsSync(file)) throw new Error(`${t.id}: 정답 파일이 없어요 (${file})`);
@@ -244,13 +246,20 @@ export function readGoldFile(t: Taxonomy, goldDir: string): Map<number, GoldLabe
     const [x, y] = [ids(core), ids(related)];
     return x && y ? { core: x, related: y } : null;
   };
+  const valid = (p: FieldAnswer | null) => {
+    if (!p) return true; // 최종 빈칸(안 정함)은 갈림 표시와 함께 본다
+    const all = [...p.core, ...p.related];
+    return p.core.length <= 2 && p.related.length <= 5 && new Set(all).size === all.length && all.every(id => known.has(id));
+  };
   const out = new Map<number, GoldLabel>();
-  for (const [link, , ac, ar, bc, br, fc, fr, mark] of rows.filter(r => r.some(Boolean))) {
-    const no = noFromLink(link);
+  for (const [i, r] of rows.entries()) {
+    if (!r.some(Boolean)) continue;
+    const bad = () => new Error(`${t.id}: 정답 파일의 ${i + 2}번 줄 꼴이 틀려요 (${file})`);
+    if (r.length < GOLD_HEAD.length) throw bad();
+    const [link, , ac, ar, bc, br, fc, fr, mark] = r;
     const [a, b, final] = [pair(ac, ar), pair(bc, br), pair(fc, fr)];
-    const all = [a, b, final].flatMap(p => (p ? [...p.core, ...p.related] : []));
-    if (!a || !b || !isMark(mark) || (mark !== 'O') !== (final !== null) || !all.every(id => known.has(id))) throw new Error(`${t.id}: 정답 파일의 ${no}번 줄 꼴이 틀려요 (${file})`);
-    out.set(no, { a, b, final, split: mark });
+    if (!a || !b || !isMark(mark) || (mark !== 'O') !== (final !== null) || ![a, b, final].every(valid)) throw bad();
+    out.set(noFromLink(link), { a, b, final, split: mark });
   }
   return out;
 }

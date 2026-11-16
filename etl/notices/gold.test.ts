@@ -6,7 +6,7 @@ import { validList } from '../taxonomy/fixtures.ts';
 import { saveTaxonomy, TAXONOMY_IDS } from '../taxonomy/taxonomy.ts';
 import { main } from './compare.ts';
 import { decodeCsv, readCsv, sampleBySha1, writeCsv } from './eval.ts';
-import { allocate } from './gold.ts';
+import { allocate, readGoldFile } from './gold.ts';
 import { clip } from './llm.ts';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'gold-'));
@@ -223,5 +223,37 @@ describe('gold', () => {
     expect(await main(['gold', 'csrankings', write(dir, 'a.json', A(s.nos)), write(dir, 'b.json', B(s.nos))], s)).toBe(1);
     expect(said(err)).toContain('1002');
     expect(existsSync(join(s.goldDir, 'fields', 'csrankings.csv'))).toBe(false);
+  });
+});
+
+// score가 읽는 정답 파일(data-model 5). 사람이 고친 파일도 들어올 수 있어 줄마다 검사한다
+describe('readGoldFile', () => {
+  const t = validList('csrankings');
+  const HEAD = ['링크', '제목', 'A 핵심', 'A 관련', 'B 핵심', 'B 관련', '최종 핵심', '최종 관련', '갈림', '메모'];
+  const ok = (no: number) => [link(no), `제목 ${no}`, 'ai', 'backend', 'ai', 'backend', 'ai', 'backend', 'X', ''];
+  /** 2번 줄은 맞는 줄, 3번 줄이 bad다 */
+  const goldWith = (bad: string[]) => {
+    const dir = tmp();
+    mkdirSync(join(dir, 'fields'));
+    writeFileSync(join(dir, 'fields', 'csrankings.csv'), writeCsv([HEAD, ok(1001), bad]));
+    return dir;
+  };
+  const split = (core: string, related: string) => [...ok(1002).slice(0, 6), core, related, 'C', ''];
+
+  it('맞는 줄은 글 번호로 읽는다. -는 분야 없음이다', () => {
+    const labels = readGoldFile(t, goldWith(split('-', '-')));
+    expect(labels.get(1001)).toEqual({ a: { core: ['ai'], related: ['backend'] }, b: { core: ['ai'], related: ['backend'] }, final: { core: ['ai'], related: ['backend'] }, split: 'X' });
+    expect(labels.get(1002)?.final).toEqual({ core: [], related: [] });
+  });
+
+  it.each<[string, string[]]>([
+    ['칸이 모자란 줄', [link(1002), '제목 1002', 'ai']],
+    ['최종 핵심 3개', split('ai|vision|nlp', '-')],
+    ['최종 관련 6개', split('ai', 'vision|nlp|arch|comm|sec|mod')],
+    ['최종 칸 안 중복', split('ai|ai', '-')],
+    ['최종 핵심·관련 겹침', split('ai', 'ai')],
+    ['최종 목록 밖 id', split('quantum', '-')]
+  ])('거절: %s면 정답 파일의 줄 번호(머리줄이 1)를 내고 던진다', (_name, bad) => {
+    expect(() => readGoldFile(t, goldWith(bad))).toThrow(`csrankings: 정답 파일의 3번 줄 꼴이 틀려요`);
   });
 });
