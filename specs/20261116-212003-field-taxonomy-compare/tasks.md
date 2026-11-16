@@ -331,7 +331,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
     - label-input과 gold의 저장소 안 폴더 거절, 학교 서버 간격
     - 지시문·라벨 기준·목록 설명의 예시 제목이 `etl/gold/dev-501.csv`에 없는지
   - 고치지 않는 것은 이유를 적는다.
-- [ ] T049 tasks.md를 완료 표시로 고치고 커밋한다. 커밋은 `영역: 무엇을 왜` 한 줄이고, 한 커밋에 한 가지 이유다.
+- [x] T049 tasks.md를 완료 표시로 고치고 커밋한다. 커밋은 `영역: 무엇을 왜` 한 줄이고, 한 커밋에 한 가지 이유다.
 - [ ] T050 PR을 올리고 머지한다(CLAUDE.local.md).
   - `tape`에 push하고 PR을 연다.
   - CI(check·build·audit:layout·audit:copy)와 Claude 리뷰를 확인하고, 고치거나 이유를 답한다.
