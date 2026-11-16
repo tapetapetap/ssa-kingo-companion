@@ -187,7 +187,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
   - 본문: 보관본만 읽는다. `cse.ts`의 `bodyOf`에 늘 거절하는 get을 넣어 부르고, 학교 서버에는 묻지 않는다(FR-027).
   - 판정: `deps.fieldAsk(t)`를 차례로 부른다. 끝나면 `deps.load()`로 부하 값을 받아 `runs.jsonl`에 쓰고 요약을 낸다.
   - 진입 줄: throttle 하나, 문 하나, 그 문으로 `makeEmbed`와 `makeFieldAsk`를 만든다. `finally`에서 `t.stop()`이다.
-- [ ] T028 [US2] quickstart S3을 이 맥에서 돌린다. 출력을 '실행 기록'에 남긴다.
+- [x] T028 [US2] quickstart S3을 이 맥에서 돌린다. 출력을 '실행 기록'에 남긴다.
   - `judge custom --limit 5`를 두 번 돌린다(두 번째는 `새로 0 · … · 글당 -`). 벡터 파일에 본문 글자가 없는지 본다.
   - 설명 한 글자를 바꿔 돌리면 `새로 5`다. 바꾼 것은 되돌린다.
   - `OLLAMA_HOST=127.0.0.1:1 … judge custom --limit 10`이면 `보관 5 · 새로 0 · 실패 0 · 못 물음 5`이고 0으로 끝난다.
@@ -395,3 +395,42 @@ $ npx vitest run etl/taxonomy
 
 - 받은 표는 소분류 274·세분류 1,109개다(공식 소개는 270·1,096개). 받은 표를 따른다(research R7).
 - NCS 교과 지도 대응(`NCS_COURSE_MAP`): 인공지능 → 인공지능(200107), 보안 → 정보보호(200106)만 넣었다. 개인정보보호는 보안의 일부라, 유선·무선통신구축은 설비 공사 직무라 네트워크 줄과 애매해 넣지 않았다.
+
+### T028 (2026-11-17 04:20~04:25 KST, 이 맥, gemma4:12b + bge-m3, Ollama 0.32.0, 부하 제한 켬)
+
+```text
+$ node etl/notices/compare.ts judge custom --limit 5
+custom 분야 판정 5(보관 0 · 새로 5 · 실패 0 · 못 물음 0 · 분야 없음 1) · 글당 5.8초 · 39초
+부하: GPU 평균 69% · 칩 최고 39.3°C
+$ node etl/notices/compare.ts judge custom --limit 5                  # 두 번째
+custom 분야 판정 5(보관 5 · 새로 0 · 실패 0 · 못 물음 0 · 분야 없음 1) · 글당 - · 0초
+$ node etl/notices/compare.ts judge custom --limit 5                  # custom.json 첫 분야 설명 끝에 '.'을 더함(뒤에 되돌림)
+custom 분야 판정 5(보관 0 · 새로 5 · 실패 0 · 못 물음 0 · 분야 없음 1) · 글당 2.8초 · 19초
+부하: GPU 평균 65.3% · 칩 최고 44°C
+$ OLLAMA_HOST=127.0.0.1:1 node etl/notices/compare.ts judge custom --limit 10   # 종료 코드 0
+custom 분야 판정 10(보관 5 · 새로 0 · 실패 0 · 못 물음 5 · 분야 없음 1) · 글당 - · 0초
+부하: GPU 평균 - · 칩 최고 45.3°C
+$ node etl/notices/compare.ts judge ncs --limit 1
+ncs 분야 판정 1(보관 0 · 새로 1 · 실패 0 · 못 물음 0 · 분야 없음 0) · 글당 8.1초 · 12초
+부하: GPU 평균 92.5% · 칩 최고 44.8°C
+```
+
+- 설명을 바꾼 실행은 새 판정 판 폴더(`custom-142ecb51`)에 답했고, 되돌린 뒤에는 원래 판(`custom-3d79bafa`)의 보관 답을 쓴다.
+- 벡터 보관(`etl/.cache/embed/bge-m3/`): `custom-<목록 sha>.json`(분야 90)과 `notices/<번호>.json`. 벡터와 sha만 있고 본문 글자가 없다(본문 낱말로 grep해 확인).
+- 문맥 길이(research R5): ncs 1건의 `promptTokens`는 1,627로 `num_ctx` 32,768의 5%다(70% 기준 22,937). 그래서 `FIELD_OPTIONS.num_ctx`는 32,768 그대로 둔다. 아래 추가 실행까지 받은 35건의 최댓값도 ncs 3,015(9%)다.
+- 글당 시간을 더 정확히 재려고 작은 실행을 더 돌렸다(모두 `--limit`이라 score는 쓰지 않는다).
+
+  ```text
+  $ node etl/notices/compare.ts judge custom --limit 20
+  custom 분야 판정 20(보관 5 · 새로 15 · 실패 0 · 못 물음 0 · 분야 없음 4) · 글당 4.7초 · 2분
+  부하: GPU 평균 71% · 칩 최고 60°C
+  $ node etl/notices/compare.ts judge csrankings --limit 5
+  csrankings 분야 판정 5(보관 0 · 새로 5 · 실패 0 · 못 물음 0 · 분야 없음 1) · 글당 5.3초 · 35초
+  부하: GPU 평균 64.7% · 칩 최고 60.2°C
+  $ node etl/notices/compare.ts judge ncs --limit 5
+  ncs 분야 판정 5(보관 1 · 새로 4 · 실패 0 · 못 물음 0 · 분야 없음 1) · 글당 5.6초 · 29초
+  부하: GPU 평균 78.2% · 칩 최고 60.7°C
+  ```
+
+- T036 예상(쉼 1/4 포함, 온도 대기 제외): custom 392건 × 4.7초 × 1.25 ≈ 39분, ncs 407건 × 5.6초 × 1.25 ≈ 47분, csrankings 407건 × 5.3초 × 1.25 ≈ 45분, 합계 약 2시간 10분(SC-006 3시간 안). 공지 벡터는 첫 안(custom)이 받고 뒤 두 안은 보관 벡터를 쓴다.
+- 짧은 실행이라 GPU 표본이 적다. ncs 5건의 GPU 평균이 78.2%로 80%에 가까우니 T036에서 안마다 부하 줄을 본다(SC-005).
