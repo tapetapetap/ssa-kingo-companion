@@ -400,6 +400,23 @@ describe('main: 분야 칸 (스펙 3 data-model 7)', () => {
     expect(log.mock.calls).toEqual([[`${LINE}\n${reason}`]]);
   });
 
+  it('분야 단계가 던지면 먼저 쓴 기회 결과 파일이 남고, 그 오류는 요약의 이유 한 줄이다', async () => {
+    const { log } = quiet();
+    const dir = tmp();
+    const out = join(dir, 'out.json');
+    let written = false;
+    const broken: FieldAsk = Object.assign(async (): Promise<FieldOutcome> => {
+      written = existsSync(out);
+      throw new Error('보관 폴더에 쓰지 못했어요');
+    }, { model: 'gemma4:12b', version: '1a2b3c4d', taxonomyId: 'custom' as const });
+    expect(await main(['2026-10-01'], fakeBoard([3, 2, 1]).get, out, join(dir, 'cache'), jobAsk(), { field: { ask: broken } })).toBe(0);
+    expect(written).toBe(true);
+    const file = JSON.parse(readFileSync(out, 'utf8')) as ResultFile;
+    expect(Object.keys(file)).toEqual(['source', 'collectedAt', 'since', 'opportunities', 'review']);
+    expect(file.opportunities.map(o => o.id)).toEqual(['cse:3', 'cse:2', 'cse:1']);
+    expect(log.mock.calls).toEqual([[`${LINE}\n분야 판정을 마치지 못해 분야를 넣지 않았어요 (보관 폴더에 쓰지 못했어요)`]]);
+  });
+
   it('기회 아님으로 판정된 글에는 분야를 묻지 않는다(US2 시나리오 2)', async () => {
     quiet();
     const seen: number[] = [];

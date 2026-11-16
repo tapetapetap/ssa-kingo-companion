@@ -24,6 +24,7 @@ Node 22.18 이상에서 TypeScript 파일을 바로 돌린다(타입 제거 실�
   - 진입 줄이 `findChosen`으로 `etl/taxonomy/*.json`에서 고른 안을 찾는다. 둘 이상이면 `고른 안이 둘 이상이에요: custom, ncs`를 표준 오류에 내고 1로 끝난다.
   - 고른 안이 있으면 그 안의 판정기를 만들고 `fieldGate`(research R12)를 본다.
   - 통과하면 `buildResult`가 남긴 기회마다 분야를 판정해 결과 파일에 `taxonomy`, `fields`, `fieldRule`을 더한다(data-model 7). 머리의 taxonomy는 `{ id: ask.taxonomyId, prompt: ask.version }`이다.
+    - 결과 파일은 분야 판정 전에 한 번 먼저 쓴다. 분야 판정이 도중에 던지면 그 파일(분야 칸 없음)을 그대로 두고 요약에 `분야 판정을 마치지 못해 분야를 넣지 않았어요 (<오류>)`를 낸다.
   - 통과하지 못하면 분야 판정을 하지 않고 요약에 이유를 한 줄 낸다.
     - `고른 안 custom을 고른 뒤 판정 판이 바뀌어(1a2b3c4d → 5e6f7a8b) 분야를 넣지 않았어요. 다시 재고 고르세요`
     - `고른 안 custom은 gemma4:12b로 쟀는데 지금 모델은 <모델>이라 분야를 넣지 않았어요`

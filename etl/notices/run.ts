@@ -98,6 +98,8 @@ export function buildResult(judged: Judgement[], opts: { since: string; collecte
   };
 }
 
+export const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
 export const llmPart = (l: LlmStats) => `LLM 판정 ${l.cached + l.fresh}(보관 ${l.cached} · 새로 ${l.fresh} · 실패 ${l.failed})`;
 
 /** 요약에 붙는 줄(스펙 3 contracts/cli.md). llmNoTemp·fieldNoTemp는 기회 판정 문·분야 판정 문의 noTemp, field는 분야 판정 줄이나 넣지 않은 이유, load는 부하 줄 */
@@ -197,10 +199,18 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
     const { rows, bodies, fetched } = await collect(since, get, dir);
     const { judged, llm } = await judgeAll(rows, rows.map(r => bodies.get(r.no) ?? null), ask);
     const built = buildResult(judged, { since, collectedAt: new Date().toISOString(), fetched });
+    writeResult(out, built.file); // 분야 단계가 던져도 기회 결과는 남게 먼저 쓴다
     const f = x.field && 'ask' in x.field ? x.field : null;
-    const added = f && (await addFields(built.file, new Map(rows.map(r => [r.no, r])), bodies, f.ask));
-    writeResult(out, added ? added.file : built.file);
-    const field = added ? fieldPart(added.stats) : x.field && 'reason' in x.field ? x.field.reason : undefined;
+    let field = x.field && 'reason' in x.field ? x.field.reason : undefined;
+    if (f) {
+      try {
+        const added = await addFields(built.file, new Map(rows.map(r => [r.no, r])), bodies, f.ask);
+        writeResult(out, added.file);
+        field = fieldPart(added.stats);
+      } catch (e) {
+        field = `분야 판정을 마치지 못해 분야를 넣지 않았어요 (${messageOf(e)})`;
+      }
+    }
     console.log(formatSummary(built.summary, llm, { llmNoTemp: x.gate?.noTemp, fieldNoTemp: f?.gate?.noTemp, field, load: x.load?.().line }));
     return 0;
   } catch (e) {
@@ -230,7 +240,7 @@ if (import.meta.main) {
     try {
       field = chosenField(t);
     } catch (e) {
-      console.error(e instanceof Error ? e.message : String(e));
+      console.error(messageOf(e));
     }
     process.exitCode = field === null ? 1 : await main(process.argv.slice(2), makeGet(), OUT_FILE, CACHE_DIR, makeAsk({ gate }), { gate, field, load: t.stop });
   } finally {
