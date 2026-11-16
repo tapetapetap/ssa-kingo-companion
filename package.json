@@ -3,7 +3,7 @@
   "version": "0.7.0",
   "private": true,
   "type": "module",
-  "description": "킹고 컴패니언: 성균관대 비교과 에이전트 큐레이션 프로토타입 (SSA)",
+  "description": "킹고 컴패니언: 성균관대 비교과·교과 선택을 돕는 에이전트 프로토타입 (SSA)",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },

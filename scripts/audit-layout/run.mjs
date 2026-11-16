@@ -48,6 +48,12 @@ const STEPS = [
     }
   },
   {
+    // 교과 지도: 진로 방향을 고르면 지도 아래에 이 길의 과목·연구실이 붙는다(주소가 아니라 상태라서 단계로 본다)
+    match: /^courses$/, steps: {
+      direction: async page => { await page.getByRole('combobox', { name: '진로 방향' }).selectOption('search'); await settle(page); }
+    }
+  },
+  {
     match: /^activities\/records\/interview\/[^/]+$/, steps: {
       preview: async page => { await toPreview(page); },
       done: async page => { await toPreview(page); await saveRetro(page); }

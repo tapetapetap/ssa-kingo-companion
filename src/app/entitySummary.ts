@@ -4,10 +4,10 @@ import type { Activity, Field, Program, RecordItem } from '../domain/types';
 import { STATUS_LABEL } from '../domain/vocab';
 
 /** 어디서 눌러도 같은 서랍이 열리는 대상 */
-export type EntityKind = 'opportunity' | 'activity' | 'record';
+export type EntityKind = 'opportunity' | 'activity' | 'record' | 'course';
 export type EntityRef = { kind: EntityKind; id: string };
 
-export const ENTITY_LABEL: Record<EntityKind, string> = { opportunity: '기회', activity: '내 활동', record: '기록' };
+export const ENTITY_LABEL: Record<EntityKind, string> = { opportunity: '기회', activity: '내 활동', record: '기록', course: '과목' };
 
 export type EntitySummary = {
   eyebrow: string;
@@ -40,6 +40,8 @@ export function entitySummary(ref: EntityRef, src: Sources): EntitySummary | und
     if (a.prep) facts.push(['준비', `${a.prep.done} / ${a.prep.total}`]);
     return { eyebrow, title: a.title, field: a.field, facts, href: 'activities/schedule' };
   }
+  // 과목 서랍은 교과 화면이 그린다(CourseEntity). 기본 서랍은 과목표에 없는 학수번호일 때 '찾지 못했어요'만 보인다.
+  if (ref.kind === 'course') return undefined;
   const r = src.records.find(x => x.id === ref.id);
   return r && {
     eyebrow, title: r.title, field: r.field,

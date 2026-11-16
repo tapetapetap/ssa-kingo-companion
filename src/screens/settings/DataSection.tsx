@@ -3,7 +3,6 @@ import { useApp } from '../../app/AppState';
 import { navigate } from '../../app/router';
 import { Badge, Button, Card, Modal, Switch, useToast } from '../../components';
 import { SCHOOL_DATA } from '../../data/settings';
-import { exportText } from '../../domain/exportData';
 import type { Settings } from '../../domain/types';
 import { Group, Row } from './Row';
 import { useStartOver } from './useStartOver';
@@ -21,7 +20,9 @@ export function DataSection() {
   const [school, setSchool] = useState<(typeof SCHOOL_DATA)[number] | null>(null);
   const [erase, setErase] = useState(false);
 
-  const download = () => {
+  // 내려받기에 교과 데이터(과목 이름)가 들어서, 누를 때만 받는다. 설정 화면 덩어리가 교과 데이터에 묶이지 않게
+  const download = async () => {
+    const { exportText } = await import('../../domain/exportData');
     const url = URL.createObjectURL(new Blob([exportText(state)], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url; a.download = 'kingo-companion-내-데이터.json'; a.click();
@@ -61,7 +62,7 @@ export function DataSection() {
         </Group>
         <Group title="내보내기·지우기">
           <ul className="st-rows">
-            <Row title="내 데이터 내려받기" sub="입력한 정보, 활동, 기록, 설정을 파일 하나로 받아요">
+            <Row title="내 데이터 내려받기" sub="입력한 정보, 활동, 기록, 들은 과목, 설정을 파일 하나로 받아요">
               <Button size="sm" icon="doc" onClick={download}>내려받기</Button>
             </Row>
             <Row title="내 데이터 지우기" sub="이 브라우저에 남긴 것을 모두 지우고 가입 인터뷰부터 다시 해요">
@@ -92,7 +93,7 @@ export function DataSection() {
         onClose={() => setErase(false)}
         actions={<><Button onClick={() => setErase(false)}>취소</Button><Button variant="primary" onClick={wipe}>지우기</Button></>}
       >
-        프로필, 활동, 기록, 설정이 모두 지워져요. 남겨 두려면 먼저 내려받아 주세요.
+        프로필, 활동, 기록, 들은 과목, 설정이 모두 지워져요. 남겨 두려면 먼저 내려받아 주세요.
       </Modal>
     </div>
   );

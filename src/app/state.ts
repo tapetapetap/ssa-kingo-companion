@@ -7,11 +7,12 @@ import { pruneByKeys } from '../domain/interview/prune';
 import { activityOfRecord, recordedPatch, unrecordedPatch } from '../domain/interview/transitions';
 import { prepProgress } from '../domain/recommend-flow/flow';
 import type { RecruitPost } from '../domain/social';
+import type { CourseState, Term } from '../domain/courses/types';
 import type { Activity, ActivityStatus, Axis, CandidateChoice, Confirm, Discovery, DislikeKind, Field, LastDone, NotifyPrefs, PrepItem, Profile, RecordItem, Settings, Visibility } from '../domain/types';
 import { DID_AXES } from '../domain/vocab';
 import { INITIAL_REQ_EVIDENCE, PROGRAM_BY_ID } from '../data/catalog';
 import { EXAMPLE_MY_POSTS } from '../data/friends';
-import { EMPTY_PROFILE, EXAMPLE_CHALLENGE_AT, EXAMPLE_CONFIRM, EXAMPLE_EDGE_ANSWERS, EXAMPLE_PROFILE, EXAMPLE_VISIBILITY, SEED_ACTIVITIES, SEED_RECORDS } from '../data/seed';
+import { EMPTY_PROFILE, EXAMPLE_CHALLENGE_AT, EXAMPLE_COURSES, EXAMPLE_CONFIRM, EXAMPLE_EDGE_ANSWERS, EXAMPLE_PROFILE, EXAMPLE_VISIBILITY, SEED_ACTIVITIES, SEED_RECORDS } from '../data/seed';
 
 export type AppState = {
   /** 예시 학생의 활동·기록·친구로 둘러보는 중인지. false 면 가입 인터뷰를 마친 새 학생이다(활동·기록 0, 기회만 있음) */
@@ -46,6 +47,8 @@ export type AppState = {
   challengeAt: Record<string, number>;
   /** 내가 올린 팀원 모집 글. 새 글이 앞이다 */
   recruitPosts: RecruitPost[];
+  /** 교과 지도: 지금 학년·학기, 들은 과목, 고른 진로 방향 */
+  courses: CourseState;
 };
 
 export type Action =
@@ -73,6 +76,9 @@ export type Action =
   | { type: 'settings/toggle'; key: keyof Settings }
   | { type: 'notify/set'; patch: Partial<NotifyPrefs> }
   | { type: 'visibility/set'; patch: Partial<Visibility> }
+  | { type: 'courses/term'; term: Term }
+  | { type: 'courses/taken'; code: string }
+  | { type: 'courses/direction'; direction: string | null }
   /** 되돌리기: 그 행동이 바꾼 조각만 이전 값으로 돌린다 */
   | { type: 'undo'; patch: Partial<AppState> }
   | { type: 'reset' };
@@ -103,7 +109,8 @@ export const INITIAL_STATE: AppState = {
   drafts: {},
   edgeAnswers: EXAMPLE_EDGE_ANSWERS,
   challengeAt: EXAMPLE_CHALLENGE_AT,
-  recruitPosts: EXAMPLE_MY_POSTS
+  recruitPosts: EXAMPLE_MY_POSTS,
+  courses: EXAMPLE_COURSES
 };
 
 /** 처음 연 앱과 가입 인터뷰를 마친 새 학생: 활동·기록·도전 과제·친구 0, 기회(추천 후보)만 있다 */
@@ -118,11 +125,12 @@ export const NEW_STUDENT_STATE: AppState = {
   reqEvidence: {},
   challengeAt: {},
   edgeAnswers: {},
-  recruitPosts: []
+  recruitPosts: [],
+  courses: { term: null, taken: [], direction: null }
 };
 
 /** 학생 데이터 조각(활동·기록·고른 것·답한 것·공개 범위)만 예시 또는 빈 값으로 바꾼다. 예시 학생은 공개, 새 학생은 비공개로 시작한다 */
-const DATA_KEYS = ['visibility', 'activities', 'records', 'reqEvidence', 'choices', 'laterUntil', 'dislikedFields', 'preferEasier', 'confirm', 'lastDone', 'drafts', 'edgeAnswers', 'challengeAt', 'recruitPosts'] as const;
+const DATA_KEYS = ['visibility', 'activities', 'records', 'reqEvidence', 'choices', 'laterUntil', 'dislikedFields', 'preferEasier', 'confirm', 'lastDone', 'drafts', 'edgeAnswers', 'challengeAt', 'recruitPosts', 'courses'] as const;
 export const dataOf = (demo: boolean): Pick<AppState, (typeof DATA_KEYS)[number] | 'demo'> => {
   const base = demo ? INITIAL_STATE : NEW_STUDENT_STATE;
   return { demo, ...Object.fromEntries(DATA_KEYS.map(k => [k, base[k]])) } as Pick<AppState, (typeof DATA_KEYS)[number] | 'demo'>;
@@ -246,6 +254,15 @@ export function reducer(state: AppState, action: Action): AppState {
       if (!visibility.profilePublic) visibility.hallOfFameConsent = false;
       return { ...state, visibility };
     }
+
+    case 'courses/term':
+      return { ...state, courses: { ...state.courses, term: action.term } };
+    case 'courses/taken': {
+      const taken = state.courses.taken;
+      return { ...state, courses: { ...state.courses, taken: taken.includes(action.code) ? without(taken, action.code) : [...taken, action.code] } };
+    }
+    case 'courses/direction':
+      return { ...state, courses: { ...state.courses, direction: action.direction } };
 
     case 'undo':
       return { ...state, ...action.patch };

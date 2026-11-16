@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { canonicalPath, inProfile, movedPath, NAV, navMatch, parentLink, parseHash, queryOf, screenLabel, SECTION_TABS, sectionTabs, withQuery } from './router';
 
 describe('메뉴 트리', () => {
-  it('사이드바는 메인 4개 1단, 하위 화면 6개는 구역 탭에 (프로필은 메뉴가 아니라 학생 카드)', () => {
-    expect(NAV.map(n => n.label)).toEqual(['홈', '추천', '내 활동', '나의 분석']);
+  it('사이드바는 메인 5개 1단, 하위 화면 6개는 구역 탭에 (프로필은 메뉴가 아니라 학생 카드)', () => {
+    expect(NAV.map(n => n.label)).toEqual(['홈', '추천', '교과 지도', '내 활동', '나의 분석']);
     expect(NAV.every(n => !('children' in n))).toBe(true);
     expect(Object.values(SECTION_TABS).flatMap(t => t.slice(1)).length).toBe(6);
     expect(SECTION_TABS.activities.map(t => t.label)).toEqual(['한눈에', '일정', '기록']);

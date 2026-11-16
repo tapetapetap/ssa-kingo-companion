@@ -25,6 +25,7 @@ function deferred<P extends object>(load: () => Promise<Mod<P>>) {
 
 const LAZY = {
   recommend: deferred(() => import('../screens/recommend')),
+  courses: deferred(() => import('../screens/courses')),
   activities: deferred(() => import('../screens/activities')),
   analysis: deferred(() => import('../screens/analysis')),
   profile: deferred(() => import('../screens/profile')),
@@ -34,12 +35,12 @@ const LAZY = {
 
 export const SCREEN: Record<RouteName, ComponentType<ScreenProps>> = {
   home: Home,
-  recommend: LAZY.recommend.View, activities: LAZY.activities.View, analysis: LAZY.analysis.View,
+  recommend: LAZY.recommend.View, courses: LAZY.courses.View, activities: LAZY.activities.View, analysis: LAZY.analysis.View,
   profile: LAZY.profile.View, settings: LAZY.settings.View, _kit: LAZY._kit.View
 };
 
 /** 미리 받을 차례: 사이드바 순서. 컴포넌트 목록(_kit)은 개발용이라 미리 받지 않는다. */
-export const PRELOAD_ORDER = ['recommend', 'activities', 'analysis', 'profile', 'settings'] as const;
+export const PRELOAD_ORDER = ['recommend', 'courses', 'activities', 'analysis', 'profile', 'settings'] as const;
 
 /** 그 화면 덩어리를 받기 시작한다. 이미 받았거나 받는 중이면 아무것도 안 한다. */
 export function preloadScreen(name: RouteName): Promise<unknown> {
@@ -47,7 +48,7 @@ export function preloadScreen(name: RouteName): Promise<unknown> {
 }
 
 /**
- * 서랍(활동·기회·기록)은 홈에서도 연다. 서랍 코드는 그 화면 덩어리 안에 있어서, 덩어리를 받기 전에는 받아 오는 자리표를 등록해 둔다.
+ * 서랍(활동·기회·기록·과목)은 홈에서도 연다. 서랍 코드는 그 화면 덩어리 안에 있어서, 덩어리를 받기 전에는 받아 오는 자리표를 등록해 둔다.
  * 받으면 그 모듈이 진짜 서랍을 등록하는데, 자리표를 다시 등록해 둔다: 열려 있는 서랍이 다른 컴포넌트로 바뀌어 새로 붙지 않게.
  */
 function deferEntity(kind: EntityKind, load: () => Promise<unknown>) {
@@ -65,3 +66,4 @@ function deferEntity(kind: EntityKind, load: () => Promise<unknown>) {
 deferEntity('activity', () => import('../screens/activities/ActivityEntity'));
 deferEntity('opportunity', () => import('../screens/recommend/OppEntity'));
 deferEntity('record', () => import('../screens/records/RecordEntity'));
+deferEntity('course', () => import('../screens/courses/CourseEntity'));

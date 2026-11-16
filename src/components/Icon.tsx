@@ -5,6 +5,7 @@ const PATHS = {
   compass: <><circle cx="12" cy="12" r="8.5" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></>,
   board: <><rect x="4" y="4.5" width="4" height="15" rx="1.2" /><rect x="10" y="4.5" width="4" height="9" rx="1.2" /><rect x="16" y="4.5" width="4" height="6" rx="1.2" /></>,
   records: <><rect x="5" y="3.5" width="14" height="17" rx="2" /><path d="M5 14.5h14" /></>,
+  book: <><path d="M12 6.5C10.5 5.3 8.3 4.5 4 4.5v13c4.3 0 6.5.8 8 2 1.5-1.2 3.7-2 8-2v-13c-4.3 0-6.5.8-8 2z" /><path d="M12 6.5v13" /></>,
   analysis: <><path d="M4 18.5 9.5 11l4 4L20 6.5" /><circle cx="9.5" cy="11" r="1" /><circle cx="13.5" cy="15" r="1" /></>,
   trophy: <><path d="M8 4.5h8v5a4 4 0 0 1-8 0z" /><path d="M8 6.5H5a3 3 0 0 0 3 3.5M16 6.5h3a3 3 0 0 1-3 3.5M12 13.5V17M8.5 20h7M10 17h4" /></>,
   friends: <><circle cx="9" cy="9" r="3" /><path d="M3.5 19c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5" /><circle cx="16.5" cy="9.5" r="2.5" /><path d="M16 14.5c2.3 0 4 1.2 4.5 4" /></>,

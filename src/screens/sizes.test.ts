@@ -18,6 +18,7 @@ describe('skeletonOf', () => {
     expect(skeletonOf({ name: 'recommend' })).toBe('list');
     expect(skeletonOf({ name: 'recommend', sub: 'open/p-interview' })).toBe('list');
     expect(skeletonOf({ name: 'recommend', sub: 'prepare/p-interview' })).toBe('flow');
+    expect(skeletonOf({ name: 'courses' })).toBe('panel');
     expect(skeletonOf({ name: 'activities', sub: 'records/interview/a-hackathon' })).toBe('flow');
     expect(skeletonOf({ name: 'activities' })).toBe('week');
     expect(skeletonOf({ name: 'activities', sub: 'schedule/board' })).toBe('panel');

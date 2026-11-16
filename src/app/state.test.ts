@@ -196,3 +196,20 @@ describe('새 학생과 예시 데이터', () => {
     expect(reducer(back, { type: 'data/mode', demo: false })).toBe(back);
   });
 });
+
+describe('교과 지도 상태', () => {
+  it('들었어요는 눌러 넣고 다시 눌러 뺀다, 학년·학기와 방향을 바꾼다', () => {
+    const s1 = reducer(NEW_STUDENT_STATE, { type: 'courses/taken', code: 'SWE3004' });
+    expect(s1.courses.taken).toEqual(['SWE3004']);
+    expect(reducer(s1, { type: 'courses/taken', code: 'SWE3004' }).courses.taken).toEqual([]);
+    const s2 = reducer(reducer(s1, { type: 'courses/term', term: '3-1' }), { type: 'courses/direction', direction: 'search' });
+    expect(s2.courses).toEqual({ term: '3-1', taken: ['SWE3004'], direction: 'search' });
+  });
+  it('예시는 3학년 2학기에서 시작하고, 예시↔새 학생 전환과 처음부터 다시에 함께 움직인다', () => {
+    expect(INITIAL_STATE.courses.term).toBe('3-2');
+    expect(NEW_STUDENT_STATE.courses).toEqual({ term: null, taken: [], direction: null });
+    const mine = reducer(NEW_STUDENT_STATE, { type: 'courses/direction', direction: 'search' });
+    expect(reducer(mine, { type: 'data/mode', demo: true }).courses).toEqual(INITIAL_STATE.courses);
+    expect(reducer(mine, { type: 'reset' }).courses).toEqual(NEW_STUDENT_STATE.courses);
+  });
+});

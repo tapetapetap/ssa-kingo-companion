@@ -199,6 +199,17 @@ async function main() {
           await page.waitForFunction(() => !document.querySelector('.ui-loading'), null, { timeout: 8000 }).catch(() => {});
           await page.evaluate(() => document.fonts.ready);
           res.issues = issuesOf(await page.evaluate(collect));
+          // 교과 지도는 진로 방향을 하나씩 고른 화면(들을 과목·연구실)도 본다. 방향은 주소가 아니라 상태다. 같은 문제는 한 번만 센다
+          if (path === 'courses') {
+            const box = page.getByRole('combobox', { name: '진로 방향' });
+            const ids = await box.locator('option').evaluateAll(os => os.map(o => o.value).filter(Boolean));
+            const seen = new Set(res.issues.map(i => JSON.stringify(i)));
+            for (const id of ids) {
+              await box.selectOption(id);
+              await page.locator('#cm-plan-title').waitFor();
+              for (const i of issuesOf(await page.evaluate(collect))) if (!seen.has(JSON.stringify(i))) { seen.add(JSON.stringify(i)); res.issues.push(i); }
+            }
+          }
         } catch (e) { res.error = String(e.message || e).split('\n')[0].slice(0, 120); }
         const seen = net.list();
         res.consoleErrors = seen.filter(o => o.level === 'fail').map(o => o.text.slice(0, 160));

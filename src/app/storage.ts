@@ -3,6 +3,8 @@ import { parseDrafts, type InterviewDraft } from '../domain/interview/draft';
 import { FIELD_GROUP, GROUP_ORDER } from '../domain/vocab';
 import type { Activity, Axis, CandidateChoice, Field, Interest, NotifyHour, NotifyPrefs, Profile, RecordItem, Settings, Visibility } from '../domain/types';
 import { SEED_ACTIVITIES } from '../data/seed';
+import { isTerm, type CourseState } from '../domain/courses/types';
+import { COURSES } from '../data/courses/catalog';
 import { DEFAULT_NOTIFY, DEFAULT_SETTINGS, DEFAULT_VISIBILITY, INITIAL_STATE, NEW_STUDENT_STATE, type AppState } from './state';
 
 // 학생이 고른 것만 브라우저에 남긴다: 프로필, 공개 설정, 데이터·알림 설정, 추천에서 고른 것, 신청 준비로 만든 활동, 쓰던 회고 초안, 분석에서 답한 것.
@@ -29,6 +31,8 @@ export type Saved = {
   edgeAnswers?: EdgeAnswers;
   settings?: Settings;
   notify?: NotifyPrefs;
+  /** 새 학생의 교과 지도. 예시로 볼 때는 남기지 않는다 */
+  courses?: CourseState;
 };
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
@@ -51,6 +55,17 @@ const isRecord = (r: unknown): r is RecordItem =>
   isObj(r) && typeof r.id === 'string' && typeof r.title === 'string' && typeof r.field === 'string' && typeof r.did === 'string' && typeof r.semester === 'string' && Array.isArray(r.axes);
 
 const HOURS: readonly unknown[] = [9, 12, 19] satisfies NotifyHour[];
+
+/**
+ * 교과 지도 상태: 학년·학기, 과목표에 있는 학수번호(겹침 없이), 방향은 글자만 본다.
+ * 과목표(학수번호·이름 95줄)만 첫 화면 덩어리에 들어가고, 방향·연구실 데이터는 교과 덩어리에 남는다(없는 방향은 화면이 '방향 없음'으로 본다).
+ */
+const COURSE_CODES = new Set(COURSES.map(c => c.code));
+function parseCourses(raw: unknown, base: CourseState): CourseState {
+  if (!isObj(raw)) return base;
+  const taken = Array.isArray(raw.taken) ? [...new Set(raw.taken.filter((c): c is string => typeof c === 'string' && COURSE_CODES.has(c)))] : [];
+  return { term: isTerm(raw.term) ? raw.term : null, taken, direction: typeof raw.direction === 'string' ? raw.direction : null };
+}
 
 /** 기본값에 있는 켬/끔 키 중 불린인 것만 */
 const pickFlags = (raw: unknown, base: object): Record<string, boolean> =>
@@ -89,7 +104,8 @@ export function restoreSaved(s: unknown, legacy: { answers?: unknown } = {}): Ap
     records,
     drafts: Object.fromEntries(Object.entries(parseDrafts(saved.drafts)).filter(([id]) => ended.has(id))),
     // 저장하지 않는 기록을 가리키던 연결 답은 버린다.
-    edgeAnswers: pruneAnswers((answers !== undefined && parseAnswers(answers)) || {}, [...recordIds])
+    edgeAnswers: pruneAnswers((answers !== undefined && parseAnswers(answers)) || {}, [...recordIds]),
+    courses: demo ? base.courses : parseCourses(saved.courses, base.courses)
   };
 }
 
@@ -101,7 +117,8 @@ export function toSaved(state: AppState): Saved {
     choices: state.choices, laterUntil: state.laterUntil, dislikedFields: state.dislikedFields, preferEasier: state.preferEasier,
     addedActivities: state.activities.filter(a => !SEED_IDS.has(a.id)),
     drafts: state.drafts, edgeAnswers: state.edgeAnswers,
-    settings: state.settings, notify: state.notify
+    settings: state.settings, notify: state.notify,
+    courses: state.demo ? undefined : state.courses
   };
 }
 
