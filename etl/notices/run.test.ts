@@ -325,3 +325,27 @@ describe('judgeAll (스펙 2)', () => {
     expect(log.mock.calls).toEqual([['새 글 2 · 기회 2 · 기회 아님 0 · 확인 필요 0 · 합친 중복 0 · 마감 빈칸 0 · LLM 판정 2(보관 1 · 새로 1 · 실패 0)']]);
   });
 });
+
+// 스펙 3: 부하 제한. 문(gate)과 부하 요약(load)은 가짜라 센서와 Ollama를 부르지 않는다
+describe('main: 부하 제한 (스펙 3 contracts/cli.md)', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+  const LINE3 = '새 글 3 · 기회 3 · 기회 아님 0 · 확인 필요 0 · 합친 중복 0 · 마감 빈칸 0 · LLM 판정 0(보관 0 · 새로 0 · 실패 0)';
+  const downAsk = (): Ask => Object.assign(async () => 'down' as const, { model: 'm' });
+  const gate = (noTemp: number) => ({ before: async () => true, after: async () => {}, noTemp });
+  const load = (line: string) => () => ({ requests: line ? 1 : 0, requestMs: 10, gpuAvg: null, tempMax: null, logFile: null, line });
+
+  it('온도 때문에 못 물은 글(N)은 연결 줄의 K에서 빼고 온도 줄로 알린다. 부하 줄은 끝에 붙고 요약은 한 번에 찍는다', async () => {
+    const { log } = quiet();
+    const dir = tmp();
+    const x = { gate: gate(2), load: load('부하: GPU 평균 50% · 칩 최고 60°C') };
+    expect(await main(['2026-10-01'], fakeBoard([3, 2, 1]).get, join(dir, 'out.json'), join(dir, 'cache'), downAsk(), x)).toBe(0);
+    expect(log.mock.calls).toEqual([[`${LINE3}\nLLM에 연결하지 못해 1건은 규칙만 썼어요 (m)\n온도를 읽지 못해 2건은 묻지 않았어요\n부하: GPU 평균 50% · 칩 최고 60°C`]]);
+  });
+
+  it('모두 온도 때문이면 연결 줄이 없고, 부하 줄이 빈 글자면 그 줄도 없다', async () => {
+    const { log } = quiet();
+    const dir = tmp();
+    expect(await main(['2026-10-01'], fakeBoard([3, 2, 1]).get, join(dir, 'out.json'), join(dir, 'cache'), downAsk(), { gate: gate(3), load: load('') })).toBe(0);
+    expect(log.mock.calls).toEqual([[`${LINE3}\n온도를 읽지 못해 3건은 묻지 않았어요`]]);
+  });
+});

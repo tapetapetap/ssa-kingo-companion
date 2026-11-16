@@ -9,7 +9,7 @@ import type { NoticeRow } from './cse.ts';
 /** 검사를 통과한 LLM 답. X면 종류·주최는 null */
 export type LlmAnswer = { verdict: 'O' | 'X'; kind: Kind | null; host: string | null; sure: boolean };
 /** 'fail'은 이 글만 실패(보관 안 함), 'down'은 서버에 닿지 못함·모델 없음 */
-export type LlmOutcome = { answer: LlmAnswer; cached: boolean } | 'fail' | 'down';
+export type LlmOutcome = Outcome<LlmAnswer>;
 export type Ask = ((row: NoticeRow, lines: string[]) => Promise<LlmOutcome>) & { readonly model: string };
 export type LlmStats = { model: string; cached: number; fresh: number; failed: number; skipped: number };
 
@@ -143,65 +143,113 @@ const isAnswer = (a: unknown): a is LlmAnswer => {
   return kindOk && (r.host === null || typeof r.host === 'string') && typeof r.sure === 'boolean';
 };
 
-/** 보관한 답. 없거나 꼴이 틀리면(손으로 고친 파일 등) null이라 다시 묻는다 */
-function readKept(file: string): LlmAnswer | null {
+/** 보관한 답. 없거나 꼴이 틀리면(손으로 고친 파일 등) null이라 다시 묻는다. 칸이 늘어도 answer만 읽어 옛 파일도 쓴다 */
+export function readKept<T>(file: string, isValid: (a: unknown) => a is T): T | null {
   if (!existsSync(file)) return null;
   try {
     const a: unknown = (JSON.parse(readFileSync(file, 'utf8')) as { answer?: unknown }).answer;
-    return isAnswer(a) ? a : null;
+    return isValid(a) ? a : null;
   } catch {
     return null;
   }
 }
 
-export type Post = (url: string, body: string, signal: AbortSignal) => Promise<{ status: number; text: () => Promise<string> }>;
+/** 보관 폴더에 쓰는 모델 이름: 영숫자·._- 밖은 _ */
+export const modelDir = (model: string) => model.replace(/[^A-Za-z0-9._-]/g, '_');
 
-/** 글 하나씩 묻는 Ask. 보관함을 먼저 읽고, 서버에 닿지 못하거나 모델이 없으면(down) 그 뒤로 서버를 부르지 않는다 */
-export function makeAsk(o: { model?: string; host?: string; dir?: string; post?: Post } = {}): Ask {
-  const model = o.model ?? (process.env.KINGO_LLM_MODEL || DEFAULT_MODEL);
-  const base = ollamaBase(o.host ?? process.env.OLLAMA_HOST);
-  const dir = join(o.dir ?? LLM_CACHE_DIR, model.replace(/[^A-Za-z0-9._-]/g, '_'), PROMPT_VERSION);
-  const post: Post = o.post ?? ((url, body, signal) => fetch(url, { method: 'POST', body, signal }));
-  let down = false;
-  const ask = async (row: NoticeRow, lines: string[]): Promise<LlmOutcome> => {
-    const file = join(dir, `${row.no}.json`);
-    const kept = readKept(file);
-    if (kept) return { answer: kept, cached: true };
-    if (down) return 'down';
-    const body = JSON.stringify({
-      model, stream: false, think: false, keep_alive: '10m', options: OPTIONS, format: SCHEMA,
-      messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: userMessage(row, lines) }]
-    });
+export type Post = (url: string, body: string, signal: AbortSignal) => Promise<{ status: number; text: () => Promise<string> }>;
+export const fetchPost: Post = (url, body, signal) => fetch(url, { method: 'POST', body, signal });
+
+/** 부하 제한의 문(throttle.ts). 실제 요청 앞뒤에만 건다: before()가 false면 보내지 않고, 보낸 뒤에는 결과와 상관없이 after(ms) */
+export type Gate = { before(): Promise<boolean>; after(ms: number): Promise<void>; readonly noTemp: number };
+
+/** 요청 하나. 응답 전 오류(연결 거부, 주소 해석·연결 제한 시간, 끊김, 틀린 주소)는 서버에 닿지 못한 것(unreachable)이고,
+ *  120초 시간 초과는 서버에 닿은 뒤 이 요청만 오래 걸린 것(timeout)이다. 본문을 읽다 끊기면 text가 null이다(이 요청만 실패) */
+export async function postOnce(post: Post, url: string, body: string, gate?: Gate): Promise<{ status: number; text: string | null } | 'timeout' | 'unreachable'> {
+  const t0 = performance.now();
+  try {
     let res: Awaited<ReturnType<Post>>;
     try {
-      res = await post(`${base}/api/chat`, body, AbortSignal.timeout(120_000));
+      res = await post(url, body, AbortSignal.timeout(120_000));
     } catch (e) {
-      // 응답 전의 fetch 오류(연결 거부, 주소 해석·연결 제한 시간, 끊김, 틀린 주소)는 서버에 닿지 못한 것이다.
-      // 120초 시간 초과는 서버에 닿은 뒤 이 글만 오래 걸린 것이다
-      if (e instanceof Error && e.name === 'TimeoutError') return 'fail';
-      down = true;
-      return 'down';
+      return e instanceof Error && e.name === 'TimeoutError' ? 'timeout' : 'unreachable';
     }
-    if (res.status === 404) {
-      down = true;
-      return 'down';
-    }
-    if (res.status < 200 || res.status >= 300) return 'fail';
-    let answer: LlmAnswer | null = null;
+    let text: string | null = null;
     try {
-      answer = parseAnswer((JSON.parse(await res.text()) as { message?: { content?: string } }).message?.content ?? '');
+      text = await res.text();
     } catch {
-      // 본문을 읽다 끊기거나 JSON이 아니면 이 글만 실패다
+      // 본문을 읽다 끊기면 이 요청만 실패다
     }
-    if (!answer) return 'fail';
+    return { status: res.status, text };
+  } finally {
+    await gate?.after(performance.now() - t0);
+  }
+}
+
+export type Outcome<T> = { answer: T; cached: boolean } | 'fail' | 'down';
+/** 글 하나의 요청 내용. 분야 판정은 후보가 글마다 달라 지시문·스키마·답 검사도 글마다 다르다 */
+export type ChatRequest<T> = { system: string; user: string; schema: object; parse: (text: string) => T | null };
+
+/** 두 판정(기회, 분야)이 함께 쓰는 요청·보관 몸통(스펙 3 research R2).
+ *  순서: 보관 → 잠긴 down → request → gate.before → post → gate.after → 답 검사·잘림 막기 → 보관.
+ *  서버에 닿지 못하거나 모델이 없으면(down) 그 뒤로 서버를 부르지 않는다. request·gate가 막은 down은 잠그지 않는다 */
+export function makeChat<T>(o: {
+  model: string; host?: string; dir: string; sub: string; meta: Record<string, string>; post?: Post;
+  options: { temperature: number; num_ctx: number }; isValid: (a: unknown) => a is T;
+  request: (row: NoticeRow, lines: string[]) => Promise<ChatRequest<T> | 'fail' | 'down'>; gate?: Gate;
+}): (row: NoticeRow, lines: string[]) => Promise<Outcome<T>> {
+  const base = ollamaBase(o.host ?? process.env.OLLAMA_HOST);
+  const dir = join(o.dir, modelDir(o.model), o.sub);
+  const post = o.post ?? fetchPost;
+  let down = false;
+  return async (row, lines) => {
+    const file = join(dir, `${row.no}.json`);
+    const kept = readKept(file, o.isValid);
+    if (kept) return { answer: kept, cached: true };
+    if (down) return 'down';
+    const req = await o.request(row, lines);
+    if (req === 'fail' || req === 'down') return req;
+    if (o.gate && !(await o.gate.before())) return 'down';
+    const body = JSON.stringify({
+      model: o.model, stream: false, think: false, keep_alive: '10m', options: o.options, format: req.schema,
+      messages: [{ role: 'system', content: req.system }, { role: 'user', content: req.user }]
+    });
+    const res = await postOnce(post, `${base}/api/chat`, body, o.gate);
+    if (res === 'timeout') return 'fail';
+    if (res === 'unreachable' || res.status === 404) {
+      down = true;
+      return 'down';
+    }
+    if (res.status < 200 || res.status >= 300 || res.text === null) return 'fail';
+    let answer: T | null = null;
+    let promptTokens: number | null = null;
+    try {
+      const r = JSON.parse(res.text) as { message?: { content?: string }; prompt_eval_count?: unknown };
+      promptTokens = typeof r.prompt_eval_count === 'number' ? r.prompt_eval_count : null;
+      answer = req.parse(r.message?.content ?? '');
+    } catch {
+      // JSON이 아니면 이 글만 실패다
+    }
+    // 잘림 막기: 문맥이 거의 찼으면 Ollama가 지시문 앞부분을 오류 없이 잘랐을 수 있다(research R5). 값이 없으면(시험의 가짜 답) 보지 않는다
+    if (!answer || (promptTokens !== null && promptTokens * 100 >= 95 * o.options.num_ctx)) return 'fail';
     try {
       mkdirSync(dir, { recursive: true });
-      writeFileSync(`${file}.tmp`, JSON.stringify({ model, prompt: PROMPT_VERSION, at: new Date().toISOString(), answer }));
+      writeFileSync(`${file}.tmp`, JSON.stringify({ model: o.model, ...o.meta, at: new Date().toISOString(), promptTokens, answer }));
       renameSync(`${file}.tmp`, file);
     } catch {
       // 보관만 못 한 것이다(디스크, 권한, 같은 글을 동시에 쓴 실행). 답은 쓰고 다음 실행에서 다시 묻는다
     }
     return { answer, cached: false };
   };
+}
+
+/** 글 하나씩 묻는 기회 판정. 폴더와 파일의 prompt 칸은 같은 판(PROMPT_VERSION)이다 */
+export function makeAsk(o: { model?: string; host?: string; dir?: string; post?: Post; gate?: Gate } = {}): Ask {
+  const model = o.model ?? (process.env.KINGO_LLM_MODEL || DEFAULT_MODEL);
+  const ask = makeChat<LlmAnswer>({
+    model, host: o.host, dir: o.dir ?? LLM_CACHE_DIR, sub: PROMPT_VERSION, meta: { prompt: PROMPT_VERSION }, post: o.post,
+    options: OPTIONS, isValid: isAnswer, gate: o.gate,
+    request: async (row, lines) => ({ system: SYSTEM, user: userMessage(row, lines), schema: SCHEMA, parse: parseAnswer })
+  });
   return Object.assign(ask, { model });
 }

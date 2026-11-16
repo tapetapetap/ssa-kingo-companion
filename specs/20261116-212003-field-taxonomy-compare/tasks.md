@@ -108,7 +108,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] `etl/notices/fields.test.ts`에 시험을 먼저 쓴다(contracts/field-llm.md).
+- [x] T013 [P] [US2] `etl/notices/fields.test.ts`에 시험을 먼저 쓴다(contracts/field-llm.md).
   - 지시문: 후보만 나오고, 묶음 순서대로 `## 묶음 경로`와 `- LLM용 이름: 설명` 줄이다. 이름이 겹친 분야는 줄에도 '이름 (묶음 이름)'이 나와 enum과 같다.
   - 스키마: enum이 후보의 LLM용 이름이고, maxItems가 2와 5다.
   - 답 정리: 후보 밖 이름(목록 안이어도)·JSON 아님은 null, 중복은 하나로, 겹치면 핵심에만, 넘치면 앞에서부터
@@ -120,26 +120,26 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
     - 공지 벡터가 'fail'이면 'fail', 'down'이면 'down'이고 post를 부르지 않는다.
     - 분야 벡터는 판정기 하나에 한 번만 갖추고, 성공과 'fail'만 기억한다.
   - `readFieldAnswer`: makeFieldAsk가 쓴 파일을 읽는다. 꼴 틀림·목록 밖 id·다른 판이면 null이다.
-- [ ] T014 [P] [US2] `etl/notices/embed.test.ts`에 시험을 먼저 쓴다(research R17).
+- [x] T014 [P] [US2] `etl/notices/embed.test.ts`에 시험을 먼저 쓴다(research R17).
   - 요청: `/api/embed`에 `{ model, input, truncate: true, keep_alive }`를 보낸다. 분야 글은 32개씩 나눠 보낸다.
   - 실패 구분: 시간 초과·HTTP 오류·꼴 틀림(개수, 차원)은 'fail'. 연결 실패·404는 'down'이고 그 뒤로 부르지 않는다. gate.before()가 false면 'down'이고 잠그지 않는다. post 뒤에는 결과와 상관없이 gate.after(ms)다.
   - 글: 분야는 '묶음 경로 > 이름: 설명', 공지는 '제목\n본문 앞 1,500자'(본문이 없으면 제목만)
   - 보관: 분야는 `<모델>/<안 id>-<목록 sha>.json`(설명이 바뀌면 sha가 바뀐다), 공지는 `<모델>/notices/<번호>.json`(글 sha가 다르면 다시 받는다). 두 파일에 본문 글자가 없다.
   - 후보: 코사인 상위 30개, 같은 점수는 목록 순서, 30개 이하면 모두
   - `readFieldVectors`·`readNoticeVector`: 요청 없이 읽고, 없거나 꼴이 틀리면 null이다.
-- [ ] T015 [P] [US2] `etl/notices/throttle.test.ts`에 시험을 먼저 쓴다. 가짜 시계·잠·센서를 넣는다(research R6).
+- [x] T015 [P] [US2] `etl/notices/throttle.test.ts`에 시험을 먼저 쓴다. 가짜 시계·잠·센서를 넣는다(research R6).
   - 쉼: `after(ms)`가 ms/4를 쉰다. 실패한 요청 뒤에도 같다.
   - 온도 대기: 온도 + 가장 큰 오름폭이 80 이상이면 5초마다 다시 읽고, 내려가면 true다. 오름폭은 0에서 시작하고 max(지금 값, after 온도 − before 온도)로만 갱신된다(온도가 내려간 요청 뒤에도 줄지 않는다).
   - 문 둘(`gate()` 두 번): 가장 큰 오름폭과 온도 못 읽음은 함께 쓰고, noTemp는 따로 센다.
   - 온도를 한 번 못 읽으면 그 뒤 `before()`가 늘 false다. 센서는 다시 부르지 않고, 그 문의 noTemp가 부를 때마다 하나씩 는다.
   - 기록: 첫 실제 요청(before()가 true) 전에는 시작하지 않는다. 가짜 `every`로 5초 표본을 손으로 돌리면 1분마다 한 줄(평균 GPU, 최고 온도, 최고 GPU 온도)로 모이고, 못 읽은 표본은 뺀다. stop() 때 1분이 안 찬 마지막 묶음도 한 줄로 남는다.
   - `stop()`: requests·requestMs(after로 받은 개수·합), gpuAvg, tempMax(before·after 읽기와 표본 모두의 최고), logFile, line을 돌려준다. 두 번 불러도 같은 값이다. 요청이 0이면 gpuAvg·tempMax·logFile은 null이고 line은 빈 글자다. GPU를 못 읽었으면 `GPU 평균 -`, 리눅스면 `CPU 최고`다.
-- [ ] T016 [P] [US2] `etl/notices/sensors.test.ts`에 시험을 먼저 쓴다. 고정 문자열과 임시 폴더를 쓴다(research R18).
+- [x] T016 [P] [US2] `etl/notices/sensors.test.ts`에 시험을 먼저 쓴다. 고정 문자열과 임시 폴더를 쓴다(research R18).
   - darwin: `parseThermal`은 `PMU tdie*` 줄의 최댓값이고 다른 센서는 무시한다. `parseIoreg`는 `"Device Utilization %"=n`을 읽는다.
   - linux: `parseZones`는 `x86_pkg_temp`만 보고 밀리도를 도로 바꾸며 여럿이면 최댓값이다. `parseSensors`는 `sensors -j` 꼴에서 coretemp `Package id`를 읽는다. `parseNvidiaSmi`는 `45, 62` 줄을 읽고 여럿이면 최댓값, `N/A`·빈 글자는 null이다.
   - `readTemp('linux', { sys, run })`: 임시 폴더의 thermal_zone 둘(하나만 x86_pkg_temp)이면 그 값, 없으면 가짜 `sensors -j` 출력, 둘 다 없으면 null이다. `readGpu('linux', { run })`: nvidia-smi 출력이면 `{ util, temp }`, 실패면 null이다. 그 밖의 platform은 null이다.
   - `readTemp('darwin', { run, bin, src })`: bin이 src보다 새로우면 clang을 부르지 않고 bin 출력을 읽는다. bin이 없거나 src보다 오래됐으면 clang을 부른 뒤 읽는다. clang이 null이면 null이다. `readGpu('darwin', { run })`: ioreg 출력이면 `{ util, temp: null }`, 실패면 null이다(research R18).
-- [ ] T017 [P] [US2] `etl/notices/llm.test.ts`에 사례를 더한다. 기존 사례는 그대로 둔다(research R2).
+- [x] T017 [P] [US2] `etl/notices/llm.test.ts`에 사례를 더한다. 기존 사례는 그대로 둔다(research R2).
   - `makeChat`을 직접 불러, 다른 request·isValid·`sub`·`meta`를 넣어도 같은 보관·down 규칙이 지켜진다.
   - request가 'fail'이나 'down'이면 post 없이 그 결과이고 down을 잠그지 않는다.
   - `gate.before()`가 false면 요청 없이 'down'이고 잠그지 않는다. 다음 글에서 before()를 다시 부르고, true면 보낸다.
@@ -149,40 +149,40 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] `etl/notices/llm.ts`에서 `makeAsk` 몸통을 `makeChat<T>`로 뺀다(research R2).
+- [x] T018 [US2] `etl/notices/llm.ts`에서 `makeAsk` 몸통을 `makeChat<T>`로 뺀다(research R2).
   - 넣는 것: model, host, dir, sub, meta, post, options, isValid, request, gate
   - `makeAsk`는 `sub = PROMPT_VERSION`, `meta = { prompt: PROMPT_VERSION }`, 기존 지시문·스키마를 넣는 몇 줄이 된다. 인자에 `gate?`를 더한다.
   - 기존 `llm.test.ts`·`run.test.ts`·`eval.test.ts`가 고치지 않고 통과하고(SC-008), T017도 통과해야 한다.
-- [ ] T019 [US2] `etl/notices/embed.ts`를 만든다(research R17). T014가 통과해야 한다.
+- [x] T019 [US2] `etl/notices/embed.ts`를 만든다(research R17). T014가 통과해야 한다.
   - 상수: `EMBED_MODEL = 'bge-m3'`, `EMBED_K = 30`, `NOTICE_CHARS = 1500`, `EMBED_CACHE_DIR = etl/.cache/embed`, `CANDIDATE_RULE`
   - `makeEmbed({ model?, host?, post?, gate? })` → `((texts) => Promise<number[][] | 'fail' | 'down'>) & { model }`
   - `fieldText(t, f)`, `noticeText(row, lines)`, `fieldVectors(t, embed, dir?)`, `noticeVector(row, lines, embed, dir?)`, `readFieldVectors(t, model, dir?)`, `readNoticeVector(model, no, dir?)`, `topCandidates(fv, vector, k = EMBED_K)`
-- [ ] T020 [US2] `etl/notices/fields.ts`를 만든다. T018·T019 뒤에 하고 T013이 통과해야 한다.
+- [x] T020 [US2] `etl/notices/fields.ts`를 만든다. T018·T019 뒤에 하고 T013이 통과해야 한다.
   - 상수: `FIELD_OPTIONS = { temperature: 0, num_ctx: 32768 }`, `FIELD_CACHE_DIR = etl/.cache/llm-fields`
   - 함수: `systemFor(t, ids)`, `schemaFor(t, ids)`, `fieldParts(t)`(재료는 contracts/field-llm.md '판정 판'), `fieldVersion(t) = versionOf(fieldParts(t))`, `parseFieldAnswer(text, t, ids)`, `isFieldAnswer(t)`, `readFieldAnswer(t, model, no, dir?)`
   - `makeFieldAsk({ taxonomy, embed, model?, host?, dir?, embedDir?, post?, gate? })`: makeChat을 쓰고 `.model`·`.version`·`.taxonomyId`를 가진다. 본문은 llm.ts의 `userMessage`를 그대로 쓴다.
   - 지시문은 contracts/field-llm.md의 8가지다. 예시 글 규칙을 지킨다.
-- [ ] T021 [P] [US2] `etl/notices/thermal.c`를 research 부록 A의 코드 그대로 쓴다.
-- [ ] T022 [US2] `etl/notices/sensors.ts`를 만든다(research R18). T016이 통과해야 한다.
+- [x] T021 [P] [US2] `etl/notices/thermal.c`를 research 부록 A의 코드 그대로 쓴다.
+- [x] T022 [US2] `etl/notices/sensors.ts`를 만든다(research R18). T016이 통과해야 한다.
   - 해석 함수 다섯과 `readTemp(platform = process.platform, o?)`, `readGpu(platform = process.platform, o?)`. o는 `{ run, sys, bin, src }`이고 시험에서만 바꾼다. 꼴과 기본값은 research R18이다.
   - darwin: `etl/.cache/bin/thermal`이 없거나 `thermal.c`보다 오래됐으면 `clang -O2 -framework IOKit -framework CoreFoundation`으로 빌드한다. 실패하면 null이다.
-- [ ] T023 [US2] `etl/notices/throttle.ts`를 만든다(research R6). T015가 통과해야 한다.
+- [x] T023 [US2] `etl/notices/throttle.ts`를 만든다(research R6). T015가 통과해야 한다.
   - `createThrottle(deps?)` → `{ gate(), stop() }`. 문은 `{ before, after, noTemp }`, stop은 `LoadSummary`를 돌려준다.
   - deps(`now`·`sleep`·`every`·`readTemp`·`readGpu`·`logDir`·`platform`, 꼴은 research R6)는 시험에서만 바꾼다. 기본 `every`는 setInterval에 `unref()`, 1분 기록은 `etl/.cache/load/<시작 시각>.jsonl`이다.
-- [ ] T024 [P] [US2] `run.test.ts`·`eval.test.ts`에 사례를 먼저 더한다. 기존 사례는 그대로 둔다.
+- [x] T024 [P] [US2] `run.test.ts`·`eval.test.ts`에 사례를 먼저 더한다. 기존 사례는 그대로 둔다.
   - run: `x.gate`에 noTemp 2, 가짜 ask가 'down' 3건이면 연결 줄의 K가 1이고 온도 줄 N이 2다. `x.load`의 line은 끝에 붙고, 빈 글자면 줄이 없다. 줄 순서는 contracts/cli.md이고 `console.log`는 한 번이다.
   - eval: `x.load`의 부하 줄이 표준 오류에 나온다. 온도 때문에 못 물은 글이 있으면 `온도를 읽지 못한 글이 N건이라 비교하지 않았어요`를 내고 1이다.
-- [ ] T025 [US2] `run.ts`·`eval.ts`를 고친다(contracts/cli.md). T024가 통과해야 한다.
+- [x] T025 [US2] `run.ts`·`eval.ts`를 고친다(contracts/cli.md). T024가 통과해야 한다.
   - main에 선택 인자 x를 더한다. run은 `{ gate?, field?, load? }`(field는 T045에서 채운다), eval은 `{ gate?, load? }`다.
   - `formatSummary(s, llm, x?)`에 셋째 인자를 더해 새 줄을 붙인다. 기존 두 인자 호출은 그대로다.
   - 진입 줄에서만 `createThrottle()` 하나와 문 하나를 만들어 `makeAsk({ gate })`와 x에 넘긴다. main이 어떻게 끝나든 `finally`에서 `t.stop()`을 부른다.
-- [ ] T026 [US2] `compare.test.ts`에 `judge` 시험을 더한다.
+- [x] T026 [US2] `compare.test.ts`에 `judge` 시험을 더한다.
   - 가짜 정답셋(기회 3건, 기회 아님 1건), 가짜 본문(하나는 없음), 가짜 fieldAsk·gate·load를 쓴다.
   - 요약 숫자(보관·새로·실패·못 물음·분야 없음)를 본다. 보관본이 없는 글은 못 물음이고, 그 글에는 판정기(fieldAsk가 만든 함수)를 부르지 않는다.
   - `--limit` 동작, 판정 판 폴더의 `runs.jsonl` 한 줄(data-model 3, limit은 값 또는 null)
   - '글당 n초'는 requestMs / (새로 + 실패)이고, 둘 다 0이면 '글당 -'다. 온도 줄(noTemp가 있을 때)과 부하 줄(line이 있을 때)이 붙는다.
   - 모두 못 물음이어도 0이다. 목록 검사 실패·없는 안은 1, 쓰는 법 틀림은 2다.
-- [ ] T027 [US2] `compare.ts`에 `judge <id> [--limit N]`을 더한다(contracts/cli.md). T026이 통과해야 한다.
+- [x] T027 [US2] `compare.ts`에 `judge <id> [--limit N]`을 더한다(contracts/cli.md). T026이 통과해야 한다.
   - 정답셋: `eval.ts`의 `readCsv`·`decodeCsv`·`parseGold`로 `etl/gold/dev-501.csv`의 기회만 고른다.
   - 본문: 보관본만 읽는다. `cse.ts`의 `bodyOf`에 늘 거절하는 get을 넣어 부르고, 학교 서버에는 묻지 않는다(FR-027).
   - 판정: `deps.fieldAsk(t)`를 차례로 부른다. 끝나면 `deps.load()`로 부하 값을 받아 `runs.jsonl`에 쓰고 요약을 낸다.

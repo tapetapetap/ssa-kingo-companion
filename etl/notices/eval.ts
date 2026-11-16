@@ -6,8 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { KIND_LABEL, type Kind } from './classify.ts';
 import { BoardError, bodyOf, CACHE_DIR, listSince, makeGet, SOURCE, viewUrl, type Get } from './cse.ts';
 import { readDates } from './deadline.ts';
-import { makeAsk, type Ask } from './llm.ts';
+import { makeAsk, type Ask, type Gate } from './llm.ts';
 import { isDay, judgeAll, llmPart, type Judgement } from './run.ts';
+import { createThrottle, type LoadSummary } from './throttle.ts';
 
 export type GoldRow = {
   id: string; board: string; title: string; postedAt: string; opportunity: boolean;
@@ -202,8 +203,11 @@ async function draft(from: string, to: string, n: number | undefined, get: Get, 
   return 0;
 }
 
+/** gate는 ask를 만든 문, load는 throttle의 stop(스펙 3). 없으면 스펙 2와 같다 */
+export type EvalExtra = { gate?: Gate; load?: () => LoadSummary };
+
 /** run.ts와 같은 판정 경로(judgeAll: 규칙, LLM, 보관한 답)로 CSV의 제목·게시판·게시일과 보관한 본문을 판정해 정답과 비교한다 */
-async function compare(path: string, get: Get, cacheDir: string, ask?: Ask): Promise<number> {
+async function compare(path: string, get: Get, cacheDir: string, ask: Ask | undefined, x: EvalExtra): Promise<number> {
   if (!existsSync(path)) {
     console.error(`정답셋 파일이 없어요: ${path}`);
     return 2;
@@ -227,10 +231,15 @@ async function compare(path: string, get: Get, cacheDir: string, ask?: Ask): Pro
   }
   const rows = gold.map(g => ({ no: Number(g.id.slice(4)), title: g.title, board: g.board, postedAt: g.postedAt, pinned: false }));
   const { judged, llm } = await judgeAll(rows, bodies, ask);
+  const load = x.load?.().line;
+  if (load) console.error(load);
   if (llm) console.log(llmPart(llm));
-  // 서버에 닿지 못한 글을 규칙 결과로 세면 한 번뿐인 최종 성적이 규칙 성적이 된다(스펙 2 FR-023). 글 실패는 실행처럼 규칙 결과로 센다
+  // 서버에 닿지 못한 글을 규칙 결과로 세면 한 번뿐인 최종 성적이 규칙 성적이 된다(스펙 2 FR-023). 글 실패는 실행처럼 규칙 결과로 센다.
+  // 온도를 읽지 못해 묻지 않은 글도 같다(스펙 3). 까닭마다 한 줄씩 알린다
   if (llm?.skipped) {
-    console.error(`LLM에 연결하지 못한 글이 ${llm.skipped}건이라 비교하지 않았어요 (${llm.model})`);
+    const noTemp = x.gate?.noTemp ?? 0;
+    if (llm.skipped > noTemp) console.error(`LLM에 연결하지 못한 글이 ${llm.skipped - noTemp}건이라 비교하지 않았어요 (${llm.model})`);
+    if (noTemp) console.error(`온도를 읽지 못한 글이 ${noTemp}건이라 비교하지 않았어요`);
     return 1;
   }
   const metrics = score(gold, judged);
@@ -242,7 +251,7 @@ async function compare(path: string, get: Get, cacheDir: string, ask?: Ask): Pro
 const USAGE = '쓰는 법: node etl/notices/eval.ts new <시작일 YYYY-MM-DD> <끝날 YYYY-MM-DD> [개수] | node etl/notices/eval.ts <정답셋.csv>';
 
 /** 종료 코드를 돌려준다: 0 성공·기준 통과, 1 실행 실패·기준 미달, 2 잘못된 입력(contracts/cli.md) */
-export async function main(args: string[], get: Get, goldDir = GOLD_DIR, cacheDir = CACHE_DIR, ask?: Ask): Promise<number> {
+export async function main(args: string[], get: Get, goldDir = GOLD_DIR, cacheDir = CACHE_DIR, ask?: Ask, x: EvalExtra = {}): Promise<number> {
   const [cmd, from = '', to = '', count] = args;
   if (cmd === 'new' && isDay(from) && isDay(to) && from <= to && (count === undefined || /^[1-9]\d*$/.test(count)) && args.length <= 4) {
     try {
@@ -253,10 +262,18 @@ export async function main(args: string[], get: Get, goldDir = GOLD_DIR, cacheDi
       return 1;
     }
   }
-  if (cmd && cmd !== 'new' && args.length === 1) return compare(cmd, get, cacheDir, ask);
+  if (cmd && cmd !== 'new' && args.length === 1) return compare(cmd, get, cacheDir, ask, x);
   console.error(USAGE);
   return 2;
 }
 
-// 경로에 심볼릭 링크가 있어도 진입점을 알아본다(run.ts와 같은 이유)
-if (import.meta.main) process.exitCode = await main(process.argv.slice(2), makeGet(), GOLD_DIR, CACHE_DIR, makeAsk());
+// 경로에 심볼릭 링크가 있어도 진입점을 알아본다(run.ts와 같은 이유). 부하 제한은 run.ts와 같다
+if (import.meta.main) {
+  const t = createThrottle();
+  try {
+    const gate = t.gate();
+    process.exitCode = await main(process.argv.slice(2), makeGet(), GOLD_DIR, CACHE_DIR, makeAsk({ gate }), { gate, load: t.stop });
+  } finally {
+    t.stop();
+  }
+}

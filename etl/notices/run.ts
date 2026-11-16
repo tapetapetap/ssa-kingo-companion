@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { classify, hostOf, type Judged, type Kind } from './classify.ts';
 import { BoardError, bodyOf, CACHE_DIR, listSince, makeGet, SOURCE, viewUrl, type Get, type NoticeRow } from './cse.ts';
 import { deadlineOf, readDates, stripDates } from './deadline.ts';
-import { fromLlm, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type LlmStats } from './llm.ts';
+import { fromLlm, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type Gate, type LlmStats } from './llm.ts';
+import { createThrottle, type LoadSummary } from './throttle.ts';
 
 export type Opportunity = {
   id: string; title: string; url: string; postedAt: string; host: string | null; kind: Kind;
@@ -94,12 +95,20 @@ export function buildResult(judged: Judgement[], opts: { since: string; collecte
 
 export const llmPart = (l: LlmStats) => `LLM 판정 ${l.cached + l.fresh}(보관 ${l.cached} · 새로 ${l.fresh} · 실패 ${l.failed})`;
 
-/** LLM을 썼으면 끝에 LLM 수를 붙이고, 서버에 닿지 못해 규칙만 쓴 글(K)이 있으면 다음 줄에 알린다(스펙 2 FR-012·FR-016) */
-export function formatSummary(s: Summary, llm?: LlmStats | null): string {
+/** 요약에 붙는 줄(스펙 3 contracts/cli.md). llmNoTemp·fieldNoTemp는 기회 판정 문·분야 판정 문의 noTemp, field는 분야 판정 줄이나 넣지 않은 이유, load는 부하 줄 */
+export type SummaryExtra = { llmNoTemp?: number; fieldNoTemp?: number; field?: string; load?: string };
+
+/** LLM을 썼으면 끝에 LLM 수를 붙이고, 서버에 닿지 못해 규칙만 쓴 글(K)이 있으면 다음 줄에 알린다(스펙 2 FR-012·FR-016).
+ *  K에서는 온도 때문에 묻지 않은 글을 빼고 따로 알린다. 그 수는 보내지 않은 요청 수라 한 글이 두 번 셀 수 있다 */
+export function formatSummary(s: Summary, llm?: LlmStats | null, x: SummaryExtra = {}): string {
   const line = `새 글 ${s.fetched} · 기회 ${s.opportunity} · 기회 아님 ${s.not} · 확인 필요 ${s.review} · 합친 중복 ${s.merged} · 마감 빈칸 ${s.deadlineBlank}`;
-  if (!llm) return line;
-  const head = `${line} · ${llmPart(llm)}`;
-  return llm.skipped ? `${head}\nLLM에 연결하지 못해 ${llm.skipped}건은 규칙만 썼어요 (${llm.model})` : head;
+  const lines = [llm ? `${line} · ${llmPart(llm)}` : line];
+  const k = (llm?.skipped ?? 0) - (x.llmNoTemp ?? 0);
+  if (llm && k > 0) lines.push(`LLM에 연결하지 못해 ${k}건은 규칙만 썼어요 (${llm.model})`);
+  const n = (x.llmNoTemp ?? 0) + (x.fieldNoTemp ?? 0);
+  if (n) lines.push(`온도를 읽지 못해 ${n}건은 묻지 않았어요`);
+  for (const l of [x.field, x.load]) if (l) lines.push(l);
+  return lines.join('\n');
 }
 
 /** 기준일 안 글과 그 본문. fetched는 이번에 새로 받아 보관한 본문 수다 */
@@ -147,9 +156,12 @@ function daysAgo(n: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** gate는 기회 판정 ask를 만든 문(noTemp를 읽는다), load는 throttle의 stop(요약을 찍을 때 부른다). 없으면 스펙 2와 같다 */
+export type RunExtra = { gate?: Gate; load?: () => LoadSummary };
+
 /** 종료 코드를 돌려준다: 0 성공, 1 게시판 문제(결과 파일은 그대로), 2 잘못된 인자(contracts/cli.md).
- *  ask는 바깥에서 넣는다. 실제 LLM은 아래 import.meta.main 줄에서만 만들어 검사가 Ollama를 부르지 않는다 */
-export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE_DIR, ask?: Ask): Promise<number> {
+ *  ask와 x는 바깥에서 넣는다. 실제 LLM과 부하 제한은 아래 import.meta.main 줄에서만 만들어 검사가 Ollama·센서를 부르지 않는다 */
+export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE_DIR, ask?: Ask, x: RunExtra = {}): Promise<number> {
   const arg = args[0];
   if (args.length > 1 || (arg !== undefined && !isDay(arg))) {
     console.error(`기준일은 YYYY-MM-DD 꼴로 주세요: ${args.join(' ')}`);
@@ -161,7 +173,7 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
     const { judged, llm } = await judgeAll(rows, rows.map(r => bodies.get(r.no) ?? null), ask);
     const { file, summary } = buildResult(judged, { since, collectedAt: new Date().toISOString(), fetched });
     writeResult(out, file);
-    console.log(formatSummary(summary, llm));
+    console.log(formatSummary(summary, llm, { llmNoTemp: x.gate?.noTemp, load: x.load?.().line }));
     return 0;
   } catch (e) {
     if (!(e instanceof BoardError)) throw e;
@@ -170,5 +182,14 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
   }
 }
 
-// 경로에 심볼릭 링크가 있어도 진입점을 알아본다(process.argv[1]과 import.meta.url 비교는 링크를 다르게 풀어 조용히 아무것도 안 한다)
-if (import.meta.main) process.exitCode = await main(process.argv.slice(2), makeGet(), OUT_FILE, CACHE_DIR, makeAsk());
+// 경로에 심볼릭 링크가 있어도 진입점을 알아본다(process.argv[1]과 import.meta.url 비교는 링크를 다르게 풀어 조용히 아무것도 안 한다).
+// 부하 제한은 실행 하나에 하나이고, main이 어떻게 끝나든 멈춘다(스펙 3 research R6)
+if (import.meta.main) {
+  const t = createThrottle();
+  try {
+    const gate = t.gate();
+    process.exitCode = await main(process.argv.slice(2), makeGet(), OUT_FILE, CACHE_DIR, makeAsk({ gate }), { gate, load: t.stop });
+  } finally {
+    t.stop();
+  }
+}

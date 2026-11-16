@@ -1,11 +1,11 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeRow } from './cse.ts';
 import {
-  clip, DEFAULT_MODEL, fromLlm, makeAsk, ollamaBase, parseAnswer, PROMPT_PARTS, PROMPT_VERSION, userMessage, versionOf,
-  type LlmAnswer, type Post
+  clip, DEFAULT_MODEL, fromLlm, makeAsk, makeChat, modelDir, ollamaBase, parseAnswer, PROMPT_PARTS, PROMPT_VERSION, readKept, userMessage, versionOf,
+  type Gate, type LlmAnswer, type Post
 } from './llm.ts';
 
 const row = (no: number, title = '[가나다] 인턴 모집', board = '채용/모집'): NoticeRow => ({ no, title, board, postedAt: '2026-11-01', pinned: false });
@@ -197,5 +197,95 @@ describe('makeAsk: 실패 구분 (스펙 2 contracts/llm.md)', () => {
     const ask = makeAsk({ model: 'm', dir: tmp(), post });
     expect(await ask(row(1), [])).toBe('fail');
     expect(await ask(row(2), [])).toMatchObject({ cached: false });
+  });
+});
+
+// 스펙 3: 두 판정이 함께 쓰는 몸통(research R2). 지시문·답 꼴이 다른 판정을 넣어도 같은 보관·down·부하 제한 규칙이다
+describe('makeChat (스펙 3)', () => {
+  type A = { v: string };
+  const isA = (a: unknown): a is A => typeof a === 'object' && a !== null && typeof (a as { v?: unknown }).v === 'string';
+  const REQ = { system: 's', user: 'u', schema: { type: 'object' }, parse: (t: string) => (t === 'ok' ? { v: t } : null) };
+  /** prompt_eval_count를 함께 주는 답 */
+  const counted = (content: string, n: number) => ({ status: 200, text: async () => JSON.stringify({ message: { content }, prompt_eval_count: n }) });
+  const gate = (open = [true]): Gate & { before: ReturnType<typeof vi.fn>; after: ReturnType<typeof vi.fn> } =>
+    ({ before: vi.fn(async () => open.length > 1 ? open.shift()! : open[0]), after: vi.fn(async () => {}), noTemp: 0 });
+  const chat = (o: Partial<Parameters<typeof makeChat<A>>[0]> = {}) => makeChat<A>({
+    model: 'm:1', dir: o.dir ?? tmp(), sub: 'custom-1a2b3c4d', meta: { taxonomy: 'custom', prompt: '1a2b3c4d' },
+    options: { temperature: 0, num_ctx: 1000 }, isValid: isA, request: async () => REQ, post: fakePost(reply('ok')), ...o
+  });
+
+  it('보관은 <모델>/<sub>/<번호>.json이고 meta 칸과 promptTokens가 있다. 다음에는 묻지 않는다', async () => {
+    const dir = tmp();
+    const post = fakePost(counted('ok', 321));
+    const ask = chat({ dir, post });
+    expect(await ask(row(7), [])).toEqual({ answer: { v: 'ok' }, cached: false });
+    const kept = JSON.parse(readFileSync(join(dir, modelDir('m:1'), 'custom-1a2b3c4d', '7.json'), 'utf8'));
+    expect(Object.keys(kept)).toEqual(['model', 'taxonomy', 'prompt', 'at', 'promptTokens', 'answer']);
+    expect(kept).toMatchObject({ model: 'm:1', taxonomy: 'custom', prompt: '1a2b3c4d', promptTokens: 321, answer: { v: 'ok' } });
+    expect(await ask(row(7), [])).toEqual({ answer: { v: 'ok' }, cached: true });
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(modelDir('hf.co/x:latest')).toBe('hf.co_x_latest');
+    expect(readKept(join(dir, 'm_1', 'custom-1a2b3c4d', '7.json'), isA)).toEqual({ v: 'ok' });
+    expect(readKept(join(dir, 'none.json'), isA)).toBeNull();
+  });
+
+  it('답에 prompt_eval_count가 없으면 promptTokens는 null이다', async () => {
+    const dir = tmp();
+    await chat({ dir })(row(7), []);
+    expect(JSON.parse(readFileSync(join(dir, 'm_1', 'custom-1a2b3c4d', '7.json'), 'utf8')).promptTokens).toBeNull();
+  });
+
+  it.each(['fail', 'down'] as const)('request가 %s면 요청 없이 그 결과이고 down을 잠그지 않는다', async out => {
+    const post = fakePost(reply('ok'));
+    const request = vi.fn().mockResolvedValueOnce(out).mockResolvedValue(REQ);
+    const ask = chat({ post, request });
+    expect(await ask(row(1), [])).toBe(out);
+    expect(post).not.toHaveBeenCalled();
+    expect(await ask(row(2), [])).toMatchObject({ cached: false });
+  });
+
+  it('gate.before()가 false면 요청 없이 down이고 잠그지 않는다. 다음 글에서 다시 묻고 true면 보낸다', async () => {
+    const g = gate([false, true]);
+    const post = fakePost(reply('ok'));
+    const ask = chat({ post, gate: g });
+    expect(await ask(row(1), [])).toBe('down');
+    expect(post).not.toHaveBeenCalled();
+    expect(await ask(row(2), [])).toMatchObject({ cached: false });
+    expect(g.before).toHaveBeenCalledTimes(2);
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it('보관 답에는 gate를 부르지 않고, 요청 뒤에는 답·실패·down 모두 after(ms)를 부른다', async () => {
+    const dir = tmp();
+    await chat({ dir })(row(1), []);
+    const g = gate();
+    const post = fakePost(reply('nope'), reply('', 500), netError('ECONNREFUSED'));
+    const ask = chat({ dir, post, gate: g });
+    expect(await ask(row(1), [])).toMatchObject({ cached: true });
+    expect(g.before).not.toHaveBeenCalled();
+    expect(await ask(row(2), [])).toBe('fail');
+    expect(await ask(row(3), [])).toBe('fail');
+    expect(await ask(row(4), [])).toBe('down');
+    expect(g.after).toHaveBeenCalledTimes(3);
+    expect(typeof g.after.mock.calls[0][0]).toBe('number');
+  });
+
+  it('잘림 막기: prompt_eval_count가 num_ctx의 95% 이상이면 실패이고 보관하지 않는다', async () => {
+    const dir = tmp();
+    const ask = chat({ dir, post: fakePost(counted('ok', 950), counted('ok', 949)) });
+    expect(await ask(row(1), [])).toBe('fail');
+    expect(existsSync(join(dir, 'm_1', 'custom-1a2b3c4d', '1.json'))).toBe(false);
+    expect(await ask(row(1), [])).toMatchObject({ cached: false });
+  });
+
+  it('기회 판정(makeAsk)도 같은 몸통이라 gate가 걸리고 보관 파일에 promptTokens가 있다', async () => {
+    const dir = tmp();
+    const g = gate([false, true]);
+    const ask = makeAsk({ model: 'm', dir, post: fakePost(reply(OK)), gate: g });
+    expect(await ask(row(1), [])).toBe('down');
+    expect(await ask(row(1), [])).toMatchObject({ cached: false });
+    const kept = JSON.parse(readFileSync(join(dir, 'm', PROMPT_VERSION, '1.json'), 'utf8'));
+    expect(Object.keys(kept)).toEqual(['model', 'prompt', 'at', 'promptTokens', 'answer']);
+    expect(kept.prompt).toBe(PROMPT_VERSION);
   });
 });
