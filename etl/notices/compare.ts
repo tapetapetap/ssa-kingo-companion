@@ -133,7 +133,7 @@ function score(c: Ctx): number {
     const gold = new Map(items.flatMap(x => { const l = labels.get(x.no); return l ? [[x.no, l] as const] : []; }));
     if (labels.size && gold.size < items.length) problems.push(`${t.id}: 정답 파일에 표본 글 ${items.length - gold.size}건이 없어요`);
     const run = pickRun(readRuns(join(fieldFolder(t, c.model, c.llmDir), 'runs.jsonl')));
-    if (!run) problems.push(`${t.id}: 전체 실행 기록이 없어요(judge ${t.id}를 --limit 없이 돌려요)`);
+    if (!run) problems.push(`${t.id}: 못 물은 글 없이 끝난 전체 실행 기록이 없어요(judge ${t.id}를 --limit 없이 다시 돌려요)`);
     const all = t.fields.length <= EMBED_K; // 30개 이하면 모두 후보라 벡터를 읽지 않는다
     const fv = all ? null : readFieldVectors(t, c.embedDir);
     if (!all && !fv) problems.push(`${t.id}: 분야 벡터 파일이 없어요(벡터 보관만 지웠다면 그 안의 답 폴더도 지우고 judge를 다시 돌려요)`);

@@ -33,6 +33,12 @@ describe('pickRun (research R16)', () => {
     expect(pickRun([line({ limit: 5, cached: 0 }), line({ cached: 3 }), first, last, line({ cached: 400 })])).toBe(last);
   });
 
+  it('못 물은 글이 있거나 total이 0인 줄은 cached가 작아도 고르지 않는다', () => {
+    const ok = line({ cached: 5 });
+    expect(pickRun([ok, line({ cached: 0, notAsked: 3 }), line({ cached: 0, total: 0, fresh: 0, failed: 0 })])).toBe(ok);
+    expect(pickRun([line({ notAsked: 1 })])).toBeNull();
+  });
+
   it('--limit 줄만 있거나 줄이 없으면 null이다', () => {
     expect(pickRun([line({ limit: 5 })])).toBeNull();
     expect(pickRun([])).toBeNull();

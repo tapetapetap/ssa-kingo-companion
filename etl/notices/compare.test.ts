@@ -194,7 +194,7 @@ describe('score', () => {
     }, 'custom: 갈림 O가 1건 남았어요'],
     ['전체 실행 기록 없음', d => {
       writeFileSync(join(fieldFolder(validList('csrankings'), 'gemma4:12b', d.llmDir), 'runs.jsonl'), `${JSON.stringify({ ...RUN, limit: 5 })}\n`);
-    }, 'csrankings: 전체 실행 기록이 없어요'],
+    }, 'csrankings: 못 물은 글 없이 끝난 전체 실행 기록이 없어요'],
     ['분야 벡터 파일 없음', d => { rmSync(d.embedDir, { recursive: true }); }, 'custom: 분야 벡터 파일이 없어요']
   ])('거절: %s면 무엇이 없는지 내고 1로 끝난다', async (_name, change, message) => {
     const { err } = quiet();

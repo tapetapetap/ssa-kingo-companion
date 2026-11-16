@@ -69,6 +69,15 @@ describe('sample (research R9)', () => {
     expect(readFileSync(join(dir, 'fields', 'sample.csv')).equals(first)).toBe(true);
   });
 
+  it('기회가 0건인 정답셋은 거절한다(eval.ts와 같이). 표본 파일을 쓰지 않고 1이다', async () => {
+    const { err } = quiet();
+    const dir = tmp();
+    writeFileSync(join(dir, 'dev-501.csv'), writeCsv([GOLD_HEAD, [link(1), '학사', '안내 1', '2026-10-01', 'X', '', '', '', '', '']]));
+    expect(await main(['sample'], { goldDir: dir })).toBe(1);
+    expect(said(err)).toContain(`정답셋에 기회가 없어요: ${join(dir, 'dev-501.csv')}`);
+    expect(existsSync(join(dir, 'fields', 'sample.csv'))).toBe(false);
+  });
+
   it('같은 나머지는 종류 이름 순서로 정한다', () => {
     expect([...allocate(new Map([['나', 5], ['가', 5]]), 5)]).toEqual([['나', 2], ['가', 3]]);
     expect([...allocate(new Map(COUNTS), 120)].map(([k, n]) => `${k} ${n}`).join(' · ')).toBe(ALLOCATED);

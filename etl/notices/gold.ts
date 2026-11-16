@@ -23,7 +23,9 @@ export function devOpportunities(goldDir: string): GoldRow[] {
   if (!existsSync(file)) throw new Error(`정답셋 파일이 없어요: ${file}`);
   const { gold, errors } = parseGold(readCsv(decodeCsv(readFileSync(file))));
   if (errors.length) throw new Error([`정답셋을 읽지 못했어요 (${errors.length}건):`, ...errors.map(e => `  ${e}`)].join('\n'));
-  return gold.filter(g => g.opportunity);
+  const opps = gold.filter(g => g.opportunity);
+  if (!opps.length) throw new Error(`정답셋에 기회가 없어요: ${file}`); // 0건으로 판정·표본·지표를 내면 빈 실행이 통과한다
+  return opps;
 }
 
 export const noOf = (id: string) => Number(id.slice(4));

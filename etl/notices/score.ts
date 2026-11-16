@@ -20,11 +20,11 @@ export type RunLine = {
   noTemp: number; empty: number; requests: number; requestMs: number; gpuAvg: number | null; tempMax: number | null; loadLog: string | null;
 };
 
-/** 판정 시간·부하로 쓸 줄: limit이 null인 줄 가운데 cached가 가장 작은 줄, 같으면 마지막 줄.
- *  실패를 채운 재실행과 확인 실행은 cached가 커서 첫 전체 실행을 덮지 않는다(research R16) */
+/** 판정 시간·부하로 쓸 줄: limit이 null이고 못 물음이 0이며 total이 0보다 큰 줄 가운데 cached가 가장 작은 줄, 같으면 마지막 줄.
+ *  실패를 채운 재실행과 확인 실행은 cached가 커서 첫 전체 실행을 덮지 않는다. 못 물은 글이 있는 실행은 묻지 않은 만큼 시간이 짧다(research R16) */
 export function pickRun(lines: RunLine[]): RunLine | null {
   let best: RunLine | null = null;
-  for (const l of lines) if (l.limit === null && (best === null || l.cached <= best.cached)) best = l;
+  for (const l of lines) if (l.limit === null && l.notAsked === 0 && l.total > 0 && (best === null || l.cached <= best.cached)) best = l;
   return best;
 }
 

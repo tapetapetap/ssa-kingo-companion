@@ -331,7 +331,8 @@
   - limit: `--limit` 값, 전체면 null
   - notAsked: 'down'인 글과 본문을 얻지 못한 글. noTemp는 그중 온도 때문에 못 물은 수(분야 판정 문의 noTemp)다.
   - requests·requestMs: 서버에 실제로 보낸 요청(임베딩 포함) 수와 그 순수 대기 시간 합(쉼·온도 대기 제외). throttle의 `stop()`이 돌려준다(R6). 그래서 기존 Outcome 꼴(`{ answer, cached } | 'fail' | 'down'`)은 바뀌지 않는다.
-- **score가 고르는 줄**: limit이 null인 줄 가운데 cached가 가장 작은 줄(같으면 마지막 줄)을 그 안의 판정 시간·부하로 쓴다.
+- **score가 고르는 줄**: limit이 null이고 notAsked가 0이며 total이 0보다 큰 줄 가운데 cached가 가장 작은 줄(같으면 마지막 줄)을 그 안의 판정 시간·부하로 쓴다.
+  - 못 물은 글이 있는 실행(서버에 닿지 못함·온도)은 묻지 않은 만큼 시간이 짧게 잡혀 고르지 않는다. 기회가 0건인 정답셋은 `devOpportunities`가 거절한다.
   - 실패를 채우는 재실행과 SC-007 확인 실행은 cached가 커서 덮지 않는다. T028이 남긴 보관 답(몇 건) 위에서 돈 첫 전체 실행은 고른다.
   - 끊긴 실행은 줄을 남기지 않는다(끝에서 쓴다). 이어 돌린 실행이 골라지면 전체 시간은 이어 돌린 만큼이다. 그래서 fields-compare.json의 `run`에 그 줄의 cached를 함께 둔다.
   - 그런 줄이 없으면 그 안은 '판정 안 됨'으로 1로 끝난다.

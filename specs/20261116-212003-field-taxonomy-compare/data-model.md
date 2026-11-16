@@ -115,7 +115,7 @@ sha는 공지 글(제목 + 본문 앞 1,500자) sha1의 앞 8자다. 글이 바�
 ```
 
 - requests는 임베딩 요청을 함께 센다. gpuAvg·tempMax·loadLog는 throttle의 `stop()` 값이고, 요청이 없었으면 null이다.
-- score는 limit이 null인 줄 가운데 cached가 가장 작은 줄(같으면 마지막 줄)을 쓴다.
+- score는 limit이 null이고 notAsked가 0이며 total이 0보다 큰 줄 가운데 cached가 가장 작은 줄(같으면 마지막 줄)을 쓴다(research R16).
 
 ## 4. 표본 `etl/gold/fields/sample.csv` (이 컴퓨터)
 
