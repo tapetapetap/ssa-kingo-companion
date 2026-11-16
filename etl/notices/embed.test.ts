@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { validList } from '../taxonomy/fixtures.ts';
 import type { NoticeRow } from './cse.ts';
-import { EMBED_K, fieldText, fieldVectors, makeEmbed, noticeText, noticeVector, readFieldVectors, readNoticeVector, topCandidates } from './embed.ts';
+import { CANDIDATE_RULE, EMBED_K, fieldText, fieldVectors, makeEmbed, noticeText, noticeVector, readFieldVectors, readNoticeVector, topCandidates } from './embed.ts';
 import type { Gate, Post } from './llm.ts';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'embed-'));
@@ -26,6 +26,8 @@ describe('글 (research R17)', () => {
     expect(noticeText(row(1), ['첫 줄', '둘째 줄'])).toBe('[가나다] 드론 영상 분석 대회\n첫 줄\n둘째 줄');
     expect(noticeText(row(1), ['가'.repeat(2000)])).toBe(`[가나다] 드론 영상 분석 대회\n${'가'.repeat(1500)}`);
     expect(noticeText(row(1), [])).toBe('[가나다] 드론 영상 분석 대회');
+    // 판정 판 재료라 글자가 바뀌면 412건 × 3안을 다시 판정해야 한다. 바꿀 때는 이 값도 알고 바꾼다
+    expect(CANDIDATE_RULE).toEqual({ model: 'bge-m3', k: 30, field: '묶음 > 이름: 설명', notice: '제목 + 본문 앞 1500자', pick: '코사인 상위 k, k개 이하면 모두' });
   });
 });
 

@@ -12,8 +12,8 @@ export const EMBED_K = 30;
 const NOTICE_CHARS = 1500;
 const BATCH = 32;
 export const EMBED_CACHE_DIR = fileURLToPath(new URL('../.cache/embed', import.meta.url));
-/** 판정 판 재료(contracts/field-llm.md '판정 판') */
-export const CANDIDATE_RULE = { model: EMBED_MODEL, k: EMBED_K, field: '묶음 > 이름: 설명', notice: '제목 + 본문 앞 1500자', pick: '코사인 상위 k, k개 이하면 모두' };
+/** 판정 판 재료(contracts/field-llm.md '판정 판'). 글자 수는 NOTICE_CHARS에서 만들어, 바꾸면 판도 바뀐다 */
+export const CANDIDATE_RULE = { model: EMBED_MODEL, k: EMBED_K, field: '묶음 > 이름: 설명', notice: `제목 + 본문 앞 ${NOTICE_CHARS}자`, pick: '코사인 상위 k, k개 이하면 모두' };
 
 export type Embed = (texts: string[]) => Promise<number[][] | 'fail' | 'down'>;
 export type FieldVectors = { ids: string[]; vectors: number[][] };
