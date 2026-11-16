@@ -4,7 +4,7 @@ import { studentCard } from './student';
 import { hrefOf, inProfile, NAV, navMatch, PROFILE, type Route } from './router';
 
 /**
- * 메인 메뉴 4개(1단 고정)와 왼쪽 아래 학생 카드(프로필)·설정. 누르거나 옮겨도 펼치거나 밀지 않는다(결정 2026-11-04).
+ * 메인 메뉴 5개(1단 고정)와 왼쪽 아래 학생 카드(프로필)·설정. 누르거나 옮겨도 펼치거나 밀지 않는다(결정 2026-11-04).
  * 하위 화면은 페이지 안 구역 탭이 맡고, 사이드바는 그 구역 항목에 지금 위치를 표시한다(하위·흐름 화면도 구역 항목이 활성).
  */
 export function Sidebar({ route }: { route: Route }) {

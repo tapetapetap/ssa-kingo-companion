@@ -3,7 +3,7 @@ import type { IconName } from '../components';
 import { SETTINGS_NAV } from '../data/settings';
 
 /** 사이드바 메인 메뉴 순서 그대로(docs/design/ia-navigation.md 1절) */
-export const SCREENS = ['home', 'recommend', 'activities', 'analysis', 'profile'] as const;
+export const SCREENS = ['home', 'recommend', 'courses', 'activities', 'analysis', 'profile'] as const;
 export type ScreenName = (typeof SCREENS)[number];
 /** 'settings' 는 사이드바 아래 톱니바퀴로 연다. '_kit' 은 컴포넌트 목록(개발용)이고 사이드바에 없다. */
 export type RouteName = ScreenName | 'settings' | '_kit';
@@ -12,10 +12,11 @@ const OTHER_ROUTES: readonly string[] = ['settings', '_kit'];
 export type NavChild = { path: string; label: string };
 export type NavItem = { id: ScreenName; path: string; label: string; icon: IconName };
 
-/** 메인 메뉴 4개. 사이드바는 이 1단만 그리고 펼치지 않는다(결정 2026-11-04). 하위 화면은 페이지 안 구역 탭(SECTION_TABS)으로 간다. */
+/** 메인 메뉴 5개. 사이드바는 이 1단만 그리고 펼치지 않는다(결정 2026-11-04). 하위 화면은 페이지 안 구역 탭(SECTION_TABS)으로 간다. */
 export const NAV: NavItem[] = [
   { id: 'home', path: 'home', label: '홈', icon: 'home' },
   { id: 'recommend', path: 'recommend', label: '추천', icon: 'compass' },
+  { id: 'courses', path: 'courses', label: '교과 지도', icon: 'book' },
   { id: 'activities', path: 'activities', label: '내 활동', icon: 'board' },
   { id: 'analysis', path: 'analysis', label: '나의 분석', icon: 'analysis' }
 ];
@@ -81,6 +82,7 @@ export function movedPath(hash: string): string | undefined {
 const KNOWN_SUBS: Record<RouteName, string[]> = {
   home: [],
   recommend: ['*', 'prepare/*'],
+  courses: [],
   activities: ['schedule', 'schedule/timeline', 'schedule/board', 'schedule/list', 'records', 'records/portfolio', 'records/interview', 'records/interview/*'],
   analysis: ['techtree', 'map', 'flow', 'strengths'],
   profile: ['friends', 'recruit', 'hall'],

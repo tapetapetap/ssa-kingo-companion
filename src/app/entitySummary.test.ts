@@ -25,4 +25,7 @@ describe('공용 서랍 기본 내용', () => {
     expect(entitySummary({ kind: 'record', id: 'nope' }, src)).toBeUndefined();
     expect(entitySummary({ kind: 'opportunity', id: 'nope' }, src)).toBeUndefined();
   });
+  it('과목은 교과 화면이 서랍을 그려 기본 내용이 없다(못 찾으면 기본 서랍이 찾지 못했어요)', () => {
+    expect(entitySummary({ kind: 'course', id: 'SWE3004' }, src)).toBeUndefined();
+  });
 });

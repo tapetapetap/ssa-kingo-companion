@@ -125,3 +125,16 @@ describe('새 학생 저장', () => {
     expect(back.records).toBe(INITIAL_STATE.records);
   });
 });
+
+describe('교과 지도 저장', () => {
+  it('새 학생의 학년·학기·들은 과목·방향은 남고, 예시는 남기지 않는다', () => {
+    const mine = [{ type: 'courses/term', term: '3-1' }, { type: 'courses/taken', code: 'SWE3004' }, { type: 'courses/direction', direction: 'search' }] as Action[];
+    expect(reload(mine.reduce(reducer, NEW_STUDENT_STATE)).courses).toEqual({ term: '3-1', taken: ['SWE3004'], direction: 'search' });
+    expect(toSaved(mine.reduce(reducer, INITIAL_STATE)).courses).toBeUndefined();
+    expect(reload(mine.reduce(reducer, INITIAL_STATE)).courses).toEqual(INITIAL_STATE.courses);
+  });
+  it('모양이 틀린 값은 버리고 겹친 학수번호는 하나로', () => {
+    const saved = { ...toSaved(NEW_STUDENT_STATE), courses: { term: '5-1', taken: ['SWE3004', 3, 'SWE3004'], direction: 7 } };
+    expect(restoreSaved(JSON.parse(JSON.stringify(saved))).courses).toEqual({ term: null, taken: ['SWE3004'], direction: null });
+  });
+});

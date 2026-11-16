@@ -13,7 +13,7 @@ export const isFlowRoute = (r: Route) =>
  * - list: 추천 요약. 가장 추천 띠 한 줄 + 목록 행
  * - flow: 신청 준비·회고 인터뷰. 가운데 칸 하나
  * - week: 내 활동 한눈에. 이번 주 그림 + 옆 열(카드 둘)
- * - panel: 그림·표 칸 하나(분석 테크 트리·경험 지도·관심 흐름, 일정, 기록)
+ * - panel: 그림·표 칸 하나(분석 테크 트리·경험 지도·관심 흐름, 일정, 기록, 교과 지도)
  * - side: 넓은 칸 + 고정 폭 옆 칸(분석 한눈에)
  * - split: 두 칸(나의 강점, 프로필·친구·팀원 모집). 명예의 전당은 panel
  * - nav: 설정. 왼쪽 목차 + 칸 하나
@@ -26,6 +26,7 @@ export function skeletonOf(r: Route): SkeletonShape {
   const first = r.sub?.split('/')[0];
   switch (r.name) {
     case 'recommend': return 'list';
+    case 'courses': return 'panel';
     case 'activities': return first ? 'panel' : 'week';
     case 'analysis': return !first ? 'side' : first === 'strengths' ? 'split' : 'panel';
     case 'settings': return 'nav';
