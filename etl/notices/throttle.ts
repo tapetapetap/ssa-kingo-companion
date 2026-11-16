@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { Gate } from './llm.ts';
-import { readGpu, readTemp, type Gpu } from './sensors.ts';
+import { max, readGpu, readTemp, type Gpu } from './sensors.ts';
 
 export type LoadSummary = { requests: number; requestMs: number; gpuAvg: number | null; tempMax: number | null; logFile: string | null; line: string };
 /** 시험에서만 바꾼다 */
@@ -21,7 +21,6 @@ const PER_LINE = 12; // 5초 표본 12개 = 1분
 export const LOAD_DIR = fileURLToPath(new URL('../.cache/load', import.meta.url));
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
-const top = (xs: number[]) => (xs.length ? Math.max(...xs) : null);
 
 export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gate; stop: () => LoadSummary } {
   const deps: ThrottleDeps = {
@@ -58,7 +57,7 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
   const flush = () => {
     if (!logFile || bucket.n === 0) return;
     const gpu = bucket.gpu.length ? round1(bucket.gpu.reduce((a, b) => a + b, 0) / bucket.gpu.length) : null;
-    appendFileSync(logFile, `${JSON.stringify({ at: new Date(deps.now()).toISOString(), gpu, temp: top(bucket.temp), gpuTemp: top(bucket.gpuTemp) })}\n`);
+    appendFileSync(logFile, `${JSON.stringify({ at: new Date(deps.now()).toISOString(), gpu, temp: max(bucket.temp), gpuTemp: max(bucket.gpuTemp) })}\n`);
     wrote = true;
     bucket = { n: 0, gpu: [], temp: [], gpuTemp: [] };
   };

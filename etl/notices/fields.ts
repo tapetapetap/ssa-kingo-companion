@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { groupPath, labelsOf, type Taxonomy, type TaxonomyId } from '../taxonomy/taxonomy.ts';
 import type { NoticeRow } from './cse.ts';
 import { CANDIDATE_RULE, EMBED_K, fieldVectors, noticeVector, topCandidates, type Embed, type FieldVectors } from './embed.ts';
-import { DEFAULT_MODEL, makeChat, modelDir, PROMPT_PARTS, readKept, userMessage, versionOf, type Gate, type Outcome, type Post } from './llm.ts';
+import { DEFAULT_MODEL, jsonOf, makeChat, modelDir, PROMPT_PARTS, readKept, userMessage, versionOf, type Gate, type Outcome, type Post } from './llm.ts';
 
 /** core는 0~2개(가까운 순), related는 0~5개이고 둘은 겹치지 않는다. 둘 다 비면 '분야 없음'이다 */
 export type FieldAnswer = { core: string[]; related: string[] };
@@ -61,16 +61,11 @@ export const fieldParts = (t: Taxonomy) => ({
 });
 export const fieldVersion = (t: Taxonomy) => versionOf(fieldParts(t));
 
-const strings = (v: unknown): string[] | null => (Array.isArray(v) && (v as unknown[]).every(x => typeof x === 'string') ? (v as string[]) : null);
+export const strings = (v: unknown): string[] | null => (Array.isArray(v) && (v as unknown[]).every(x => typeof x === 'string') ? (v as string[]) : null);
 
 /** LLM 답 → id. 후보 밖 이름이 하나라도 있으면(목록 안이어도) 실패다. 같은 이름은 한 번, 겹치면 핵심에만, 넘치면 앞에서부터 */
 export function parseFieldAnswer(text: string, t: Taxonomy, ids: string[]): FieldAnswer | null {
-  let o: unknown;
-  try {
-    o = JSON.parse(text.trim().replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, ''));
-  } catch {
-    return null;
-  }
+  const o = jsonOf(text);
   if (typeof o !== 'object' || o === null) return null;
   const r = o as Record<string, unknown>;
   const [core, related] = [strings(r['핵심']), strings(r['관련'])];

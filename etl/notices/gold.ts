@@ -6,8 +6,9 @@ import type { Taxonomy } from '../taxonomy/taxonomy.ts';
 import { KIND_LABEL } from './classify.ts';
 import { bodyOf, viewUrl, type NoticeRow } from './cse.ts';
 import { decodeCsv, parseGold, readCsv, sampleBySha1, writeCsv, type GoldRow } from './eval.ts';
-import type { FieldAnswer } from './fields.ts';
+import { strings, type FieldAnswer } from './fields.ts';
 import { clip } from './llm.ts';
+import { sameSet } from './score.ts';
 
 export const DEV_GOLD = 'dev-501.csv';
 export const SAMPLE_SIZE = 120;
@@ -125,11 +126,10 @@ export async function labelInput(t: Taxonomy, dir: string, c: GoldCtx): Promise<
 }
 
 type Label = FieldAnswer & { no: number; note: string };
-const isStrings = (v: unknown) => Array.isArray(v) && v.every(x => typeof x === 'string');
 const isLabel = (v: unknown): v is Label => {
   if (typeof v !== 'object' || v === null) return false;
   const r = v as Record<string, unknown>;
-  return Number.isInteger(r.no) && isStrings(r.core) && isStrings(r.related) && (r.note === undefined || typeof r.note === 'string');
+  return Number.isInteger(r.no) && !!strings(r.core) && !!strings(r.related) && (r.note === undefined || typeof r.note === 'string');
 };
 /** 라벨러 출력 [{ no, core, related, note }]. 꼴이 틀리면 이유 글자를 돌려준다 */
 function readLabels(name: string, file: string): Label[] | string {
@@ -165,7 +165,6 @@ function checkLabels(name: string, labels: Label[], expected: number[], t: Taxon
   return bad;
 }
 
-const sameSet = (x: string[], y: string[]) => x.length === y.length && x.every(v => y.includes(v));
 const cell = (ids: string[]) => (ids.length ? ids.join('|') : '-');
 
 /** A·B를 검사해 정답 파일을 쓴다. C가 없으면 갈린 글은 갈림 O·최종 빈칸이고 셋째 입력을 A.json 옆에 쓴다. C가 있으면 최종을 채운다 */

@@ -26,7 +26,7 @@ const DEFAULTS: Opts = {
 };
 
 const num = (s: string) => (s.trim() && Number.isFinite(Number(s)) ? Number(s) : null);
-const max = (xs: (number | null)[]) => {
+export const max = (xs: (number | null)[]) => {
   const ok = xs.filter((x): x is number => x !== null);
   return ok.length ? Math.max(...ok) : null;
 };

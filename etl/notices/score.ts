@@ -39,7 +39,7 @@ export type ScoreInput = {
 const EMPTY: Answer = { core: [], related: [] };
 const all = (a: Answer) => [...a.core, ...a.related]; // 핵심과 관련은 겹치지 않아 합이 곧 합집합이다
 const hits = (xs: string[], ys: string[]) => xs.filter(x => ys.includes(x)).length;
-const sameSet = (xs: string[], ys: string[]) => xs.length === ys.length && hits(xs, ys) === xs.length;
+export const sameSet = (xs: string[], ys: string[]) => xs.length === ys.length && hits(xs, ys) === xs.length;
 const round1 = (x: number) => Math.round(x * 10) / 10;
 const pair = (a: Answer) => ({ core: a.core, related: a.related });
 

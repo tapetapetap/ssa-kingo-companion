@@ -1,6 +1,6 @@
 // 분야 목록 3안 비교 명령(contracts/cli.md). `node etl/notices/compare.ts <check | sample | judge | label-input | gold | score | choose> …`
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COURSE_ROWS, findChosen, isTaxonomyId, listChars, readList, saveTaxonomy, TAXONOMY_DIR, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { CACHE_DIR } from './cse.ts';
@@ -9,6 +9,7 @@ import { pad } from './eval.ts';
 import { countField, FIELD_CACHE_DIR, fieldFolder, fieldPart, fieldVersion, makeFieldAsk, newStats, readFieldAnswer, type FieldAnswer, type FieldAsk } from './fields.ts';
 import { cachedBody, devOpportunities, gold, labelInput, noOf, readGoldFile, readSample, rowOf, sample, type GoldLabel } from './gold.ts';
 import { DEFAULT_MODEL, modelDir, type Gate } from './llm.ts';
+import { localDay, writeResult } from './run.ts';
 import { passes, pct, pickRun, ratio, scoreTaxonomy, type Ratio, type RunLine, type TaxonomyScore } from './score.ts';
 import { createThrottle, type LoadSummary } from './throttle.ts';
 
@@ -151,15 +152,12 @@ function score(c: Ctx): number {
     return 1;
   }
   const out = { at: c.now().toISOString(), model: c.model, embed: { model: EMBED_MODEL, k: EMBED_K }, total: nos.length, sample: items.length, taxonomies: entries };
-  mkdirSync(dirname(c.outFile), { recursive: true });
-  writeFileSync(`${c.outFile}.tmp`, `${JSON.stringify(out, null, 2)}\n`);
-  renameSync(`${c.outFile}.tmp`, c.outFile);
+  writeResult(c.outFile, out);
   const table = [['지표', ...entries.map(e => e.id)], ...ROWS.map(([name, value]) => [name, ...entries.map(value)])];
   console.log(table.map(r => r.map((cell, i) => pad(cell, i === 0 ? 20 : 22)).join('').trimEnd()).join('\n'));
   return 0;
 }
 
-const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const isRatio = (v: unknown): v is Ratio => typeof v === 'object' && v !== null && Number.isInteger((v as Ratio).num) && Number.isInteger((v as Ratio).den);
 
 /** 사람이 보고서를 보고 고른 안을 목록 파일에 적는다. 정밀도와 상관없이 적고, 85% 기준은 출력만 한다(research R12) */

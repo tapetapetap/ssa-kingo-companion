@@ -1,12 +1,10 @@
 // 임베딩 후보(research R17): 분야와 공지를 bge-m3 벡터로 만들어 공지마다 가까운 분야 30개를 고른다.
 // 벡터는 이 컴퓨터에만 보관하고(etl/.cache/embed), 2단계 DB·추천이 다시 쓴다. 본문 글자는 보관하지 않는다
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { groupPath, type Field, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import type { NoticeRow } from './cse.ts';
-import { fetchPost, modelDir, ollamaBase, postOnce, type Gate, type Post } from './llm.ts';
+import { fetchPost, keep, modelDir, ollamaBase, postOnce, readJson, sha8, type Gate, type Post } from './llm.ts';
 
 /** 바꾸면 판정 판이 바뀐다(CANDIDATE_RULE) */
 export const EMBED_MODEL = 'bge-m3';
@@ -20,7 +18,6 @@ export const CANDIDATE_RULE = { model: EMBED_MODEL, k: EMBED_K, field: '묶음 >
 export type Embed = ((texts: string[]) => Promise<number[][] | 'fail' | 'down'>) & { readonly model: string };
 export type FieldVectors = { ids: string[]; vectors: number[][] };
 
-const sha8 = (s: string) => createHash('sha1').update(s).digest('hex').slice(0, 8);
 const isVector = (v: unknown): v is number[] => Array.isArray(v) && v.length > 0 && v.every(x => typeof x === 'number' && Number.isFinite(x));
 /** 글 수만큼, 차원이 같고 0이 아닌 수 배열 */
 const isVectors = (v: unknown, n: number): v is number[][] =>
@@ -40,14 +37,9 @@ export function makeEmbed(o: { model?: string; host?: string; post?: Post; gate?
   let down = false;
   const embed = async (texts: string[]): Promise<number[][] | 'fail' | 'down'> => {
     if (down) return 'down';
-    if (o.gate && !(await o.gate.before())) return 'down';
     const res = await postOnce(post, `${base}/api/embed`, JSON.stringify({ model, input: texts, truncate: true, keep_alive: '10m' }), o.gate);
-    if (res === 'timeout') return 'fail';
-    if (res === 'unreachable' || res.status === 404) {
-      down = true;
-      return 'down';
-    }
-    if (res.status < 200 || res.status >= 300 || res.text === null) return 'fail';
+    if (res === 'down') down = true;
+    if (typeof res === 'string') return res === 'fail' ? 'fail' : 'down';
     try {
       const v = (JSON.parse(res.text) as { embeddings?: unknown }).embeddings;
       return isVectors(v, texts.length) ? v : 'fail';
@@ -57,26 +49,6 @@ export function makeEmbed(o: { model?: string; host?: string; post?: Post; gate?
   };
   return Object.assign(embed, { model });
 }
-
-const readJson = (file: string): Record<string, unknown> | null => {
-  if (!existsSync(file)) return null;
-  try {
-    const o: unknown = JSON.parse(readFileSync(file, 'utf8'));
-    return typeof o === 'object' && o !== null ? (o as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-};
-/** 반쪽 파일이 남지 않게 .tmp에 쓴 뒤 이름을 바꾼다. 못 쓰면 다음 실행에서 다시 받는다 */
-const keep = (file: string, o: object) => {
-  try {
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(`${file}.tmp`, JSON.stringify(o));
-    renameSync(`${file}.tmp`, file);
-  } catch {
-    // 보관만 못 한 것이다
-  }
-};
 
 /** 목록 sha: [id, 분야 글] 목록의 sha1 앞 8자. 설명 한 글자가 바뀌어도 바뀐다 */
 const listSha = (t: Taxonomy) => sha8(JSON.stringify(t.fields.map(f => [f.id, fieldText(t, f)])));

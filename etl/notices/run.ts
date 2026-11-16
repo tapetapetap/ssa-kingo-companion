@@ -145,7 +145,7 @@ export async function collect(since: string, get: Get, dir = CACHE_DIR) {
 }
 
 /** 반쪽 파일이 남지 않게 .tmp에 다 쓴 뒤 이름을 바꾼다(같은 폴더 안 이름 바꾸기는 한 번에 일어난다) */
-export function writeResult(path: string, file: ResultFile) {
+export function writeResult(path: string, file: object) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(`${path}.tmp`, `${JSON.stringify(file, null, 2)}\n`);
   renameSync(`${path}.tmp`, path);
@@ -154,11 +154,14 @@ export function writeResult(path: string, file: ResultFile) {
 /** 달력에 있는 YYYY-MM-DD인가('2026-02-30'은 아니다) */
 export const isDay = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && readDates(s, s)[0] === s;
 
+/** 컴퓨터 날짜 YYYY-MM-DD. toISOString은 UTC라 자정 무렵 하루가 어긋난다 */
+export const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 /** 컴퓨터 날짜로 n일 전 */
 function daysAgo(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return localDay(d);
 }
 
 /** gate는 기회 판정 ask를 만든 문(noTemp를 읽는다), field는 분야 판정기와 그 문 또는 넣지 않은 이유, load는 throttle의 stop(요약을 찍을 때 부른다).
@@ -194,16 +197,11 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
     const { rows, bodies, fetched } = await collect(since, get, dir);
     const { judged, llm } = await judgeAll(rows, rows.map(r => bodies.get(r.no) ?? null), ask);
     const built = buildResult(judged, { since, collectedAt: new Date().toISOString(), fetched });
-    let file = built.file;
-    let field: string | undefined;
-    if (x.field && 'ask' in x.field) {
-      const r = await addFields(file, new Map(rows.map(r => [r.no, r])), bodies, x.field.ask);
-      file = r.file;
-      field = fieldPart(r.stats);
-    } else field = x.field?.reason;
-    writeResult(out, file);
-    const fieldNoTemp = x.field && 'ask' in x.field ? x.field.gate?.noTemp : 0;
-    console.log(formatSummary(built.summary, llm, { llmNoTemp: x.gate?.noTemp, fieldNoTemp, field, load: x.load?.().line }));
+    const f = x.field && 'ask' in x.field ? x.field : null;
+    const added = f && (await addFields(built.file, new Map(rows.map(r => [r.no, r])), bodies, f.ask));
+    writeResult(out, added ? added.file : built.file);
+    const field = added ? fieldPart(added.stats) : x.field && 'reason' in x.field ? x.field.reason : undefined;
+    console.log(formatSummary(built.summary, llm, { llmNoTemp: x.gate?.noTemp, fieldNoTemp: f?.gate?.noTemp, field, load: x.load?.().line }));
     return 0;
   } catch (e) {
     if (!(e instanceof BoardError)) throw e;

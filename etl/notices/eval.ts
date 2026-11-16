@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { KIND_LABEL, type Kind } from './classify.ts';
 import { BoardError, bodyOf, CACHE_DIR, listSince, makeGet, SOURCE, viewUrl, type Get } from './cse.ts';
 import { readDates } from './deadline.ts';
-import { makeAsk, type Ask, type Gate } from './llm.ts';
-import { isDay, judgeAll, llmPart, type Judgement } from './run.ts';
-import { createThrottle, type LoadSummary } from './throttle.ts';
+import { makeAsk, type Ask } from './llm.ts';
+import { isDay, judgeAll, llmPart, type Judgement, type RunExtra } from './run.ts';
+import { createThrottle } from './throttle.ts';
 
 export type GoldRow = {
   id: string; board: string; title: string; postedAt: string; opportunity: boolean;
@@ -203,11 +203,8 @@ async function draft(from: string, to: string, n: number | undefined, get: Get, 
   return 0;
 }
 
-/** gate는 ask를 만든 문, load는 throttle의 stop(스펙 3). 없으면 스펙 2와 같다 */
-export type EvalExtra = { gate?: Gate; load?: () => LoadSummary };
-
 /** run.ts와 같은 판정 경로(judgeAll: 규칙, LLM, 보관한 답)로 CSV의 제목·게시판·게시일과 보관한 본문을 판정해 정답과 비교한다 */
-async function compare(path: string, get: Get, cacheDir: string, ask: Ask | undefined, x: EvalExtra): Promise<number> {
+async function compare(path: string, get: Get, cacheDir: string, ask: Ask | undefined, x: Pick<RunExtra, 'gate' | 'load'>): Promise<number> {
   if (!existsSync(path)) {
     console.error(`정답셋 파일이 없어요: ${path}`);
     return 2;
@@ -251,7 +248,7 @@ async function compare(path: string, get: Get, cacheDir: string, ask: Ask | unde
 const USAGE = '쓰는 법: node etl/notices/eval.ts new <시작일 YYYY-MM-DD> <끝날 YYYY-MM-DD> [개수] | node etl/notices/eval.ts <정답셋.csv>';
 
 /** 종료 코드를 돌려준다: 0 성공·기준 통과, 1 실행 실패·기준 미달, 2 잘못된 입력(contracts/cli.md) */
-export async function main(args: string[], get: Get, goldDir = GOLD_DIR, cacheDir = CACHE_DIR, ask?: Ask, x: EvalExtra = {}): Promise<number> {
+export async function main(args: string[], get: Get, goldDir = GOLD_DIR, cacheDir = CACHE_DIR, ask?: Ask, x: Pick<RunExtra, 'gate' | 'load'> = {}): Promise<number> {
   const [cmd, from = '', to = '', count] = args;
   if (cmd === 'new' && isDay(from) && isDay(to) && from <= to && (count === undefined || /^[1-9]\d*$/.test(count)) && args.length <= 4) {
     try {

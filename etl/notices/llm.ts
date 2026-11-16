@@ -1,7 +1,7 @@
 // 로컬 LLM(Ollama) 판정: 지시문 만들기, 묻기, 답 읽기·검사, 답 보관. 마감은 정하지 않는다(스펙 2 FR-007)
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { KIND_LABEL, type Judged, type Kind } from './classify.ts';
 import type { NoticeRow } from './cse.ts';
@@ -74,7 +74,8 @@ const KEY = /\d|신청|접수|마감|기간|까지|일시|모집|지원|제출|�
 
 /** 판: 글 내용만 뺀 요청 전체. 무엇을 바꾸든 판이 바뀌어 옛 답을 쓰지 않는다(스펙 2 contracts/llm.md '판') */
 export const PROMPT_PARTS = { system: SYSTEM, user: USER, schema: SCHEMA, think: false, options: OPTIONS, limits: LIMITS, key: KEY.source };
-export const versionOf = (parts: object) => createHash('sha1').update(JSON.stringify(parts)).digest('hex').slice(0, 8);
+export const sha8 = (s: string) => createHash('sha1').update(s).digest('hex').slice(0, 8);
+export const versionOf = (parts: object) => sha8(JSON.stringify(parts));
 export const PROMPT_VERSION = versionOf(PROMPT_PARTS);
 
 /** 앞 60줄과 그 뒤의 날짜·신청 단어 줄, 120줄·한 줄 300자·합쳐 8,000자까지 */
@@ -97,14 +98,18 @@ export function userMessage(row: NoticeRow, lines: string[]): string {
     .replace('{body}', () => (body.length ? `본문 글자 ${body.length}줄:\n${body.map(l => `| ${l}`).join('\n')}` : '본문 글자 없음(그림·첨부뿐)'));
 }
 
-/** LLM 답 글자 → LlmAnswer. 꼴이 틀리면 null(실패) */
-export function parseAnswer(text: string): LlmAnswer | null {
-  let o: unknown;
+/** 모델이 코드 블록(```json)으로 감싸 답해도 읽는다. JSON이 아니면 null */
+export function jsonOf(text: string): unknown {
   try {
-    o = JSON.parse(text.trim().replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, ''));
+    return JSON.parse(text.trim().replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, ''));
   } catch {
     return null;
   }
+}
+
+/** LLM 답 글자 → LlmAnswer. 꼴이 틀리면 null(실패) */
+export function parseAnswer(text: string): LlmAnswer | null {
+  const o = jsonOf(text);
   if (!o || typeof o !== 'object') return null;
   const r = o as Record<string, unknown>;
   const [v, k, h, s] = [r['기회'], r['종류'], r['주최'], r['확신']];
@@ -143,15 +148,30 @@ const isAnswer = (a: unknown): a is LlmAnswer => {
   return kindOk && (r.host === null || typeof r.host === 'string') && typeof r.sure === 'boolean';
 };
 
-/** 보관한 답. 없거나 꼴이 틀리면(손으로 고친 파일 등) null이라 다시 묻는다. 칸이 늘어도 answer만 읽어 옛 파일도 쓴다 */
-export function readKept<T>(file: string, isValid: (a: unknown) => a is T): T | null {
+export const readJson = (file: string): Record<string, unknown> | null => {
   if (!existsSync(file)) return null;
   try {
-    const a: unknown = (JSON.parse(readFileSync(file, 'utf8')) as { answer?: unknown }).answer;
-    return isValid(a) ? a : null;
+    const o: unknown = JSON.parse(readFileSync(file, 'utf8'));
+    return typeof o === 'object' && o !== null ? (o as Record<string, unknown>) : null;
   } catch {
     return null;
   }
+};
+/** 반쪽 파일이 남지 않게 .tmp에 쓴 뒤 이름을 바꾼다 */
+export const keep = (file: string, o: object) => {
+  try {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(`${file}.tmp`, JSON.stringify(o));
+    renameSync(`${file}.tmp`, file);
+  } catch {
+    // 보관만 못 한 것이다(디스크, 권한, 같은 파일을 동시에 쓴 실행). 값은 쓰고 다음 실행에서 다시 받는다
+  }
+};
+
+/** 보관한 답. 없거나 꼴이 틀리면(손으로 고친 파일 등) null이라 다시 묻는다. 칸이 늘어도 answer만 읽어 옛 파일도 쓴다 */
+export function readKept<T>(file: string, isValid: (a: unknown) => a is T): T | null {
+  const a = readJson(file)?.answer;
+  return isValid(a) ? a : null;
 }
 
 /** 보관 폴더에 쓰는 모델 이름: 영숫자·._- 밖은 _ */
@@ -163,16 +183,17 @@ export const fetchPost: Post = (url, body, signal) => fetch(url, { method: 'POST
 /** 부하 제한의 문(throttle.ts). 실제 요청 앞뒤에만 건다: before()가 false면 보내지 않고, 보낸 뒤에는 결과와 상관없이 after(ms) */
 export type Gate = { before(): Promise<boolean>; after(ms: number): Promise<void>; readonly noTemp: number };
 
-/** 요청 하나. 응답 전 오류(연결 거부, 주소 해석·연결 제한 시간, 끊김, 틀린 주소)는 서버에 닿지 못한 것(unreachable)이고,
- *  120초 시간 초과는 서버에 닿은 뒤 이 요청만 오래 걸린 것(timeout)이다. 본문을 읽다 끊기면 text가 null이다(이 요청만 실패) */
-export async function postOnce(post: Post, url: string, body: string, gate?: Gate): Promise<{ status: number; text: string | null } | 'timeout' | 'unreachable'> {
+/** 요청 하나. gate가 막으면 보내지 않고 closed다(잠그지 않는 down). 응답 전 오류(연결 거부, 주소 해석·연결 제한 시간, 끊김, 틀린 주소)와
+ *  404(모델 없음)는 서버에 닿지 못한 것(down)이다. 120초 시간 초과는 서버에 닿은 뒤 이 요청만 오래 걸린 것이라 2xx 아님·본문 끊김과 같이 fail이다 */
+export async function postOnce(post: Post, url: string, body: string, gate?: Gate): Promise<{ text: string } | 'fail' | 'down' | 'closed'> {
+  if (gate && !(await gate.before())) return 'closed';
   const t0 = performance.now();
   try {
     let res: Awaited<ReturnType<Post>>;
     try {
       res = await post(url, body, AbortSignal.timeout(120_000));
     } catch (e) {
-      return e instanceof Error && e.name === 'TimeoutError' ? 'timeout' : 'unreachable';
+      return e instanceof Error && e.name === 'TimeoutError' ? 'fail' : 'down';
     }
     let text: string | null = null;
     try {
@@ -180,7 +201,8 @@ export async function postOnce(post: Post, url: string, body: string, gate?: Gat
     } catch {
       // 본문을 읽다 끊기면 이 요청만 실패다
     }
-    return { status: res.status, text };
+    if (res.status === 404) return 'down';
+    return res.status >= 200 && res.status < 300 && text !== null ? { text } : 'fail';
   } finally {
     await gate?.after(performance.now() - t0);
   }
@@ -209,18 +231,13 @@ export function makeChat<T>(o: {
     if (down) return 'down';
     const req = await o.request(row, lines);
     if (req === 'fail' || req === 'down') return req;
-    if (o.gate && !(await o.gate.before())) return 'down';
     const body = JSON.stringify({
       model: o.model, stream: false, think: false, keep_alive: '10m', options: o.options, format: req.schema,
       messages: [{ role: 'system', content: req.system }, { role: 'user', content: req.user }]
     });
     const res = await postOnce(post, `${base}/api/chat`, body, o.gate);
-    if (res === 'timeout') return 'fail';
-    if (res === 'unreachable' || res.status === 404) {
-      down = true;
-      return 'down';
-    }
-    if (res.status < 200 || res.status >= 300 || res.text === null) return 'fail';
+    if (res === 'down') down = true;
+    if (typeof res === 'string') return res === 'fail' ? 'fail' : 'down';
     let answer: T | null = null;
     let promptTokens: number | null = null;
     try {
@@ -232,13 +249,7 @@ export function makeChat<T>(o: {
     }
     // 잘림 막기: 문맥이 거의 찼으면 Ollama가 지시문 앞부분을 오류 없이 잘랐을 수 있다(research R5). 값이 없으면(시험의 가짜 답) 보지 않는다
     if (!answer || (promptTokens !== null && promptTokens * 100 >= 95 * o.options.num_ctx)) return 'fail';
-    try {
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(`${file}.tmp`, JSON.stringify({ model: o.model, ...o.meta, at: new Date().toISOString(), promptTokens, answer }));
-      renameSync(`${file}.tmp`, file);
-    } catch {
-      // 보관만 못 한 것이다(디스크, 권한, 같은 글을 동시에 쓴 실행). 답은 쓰고 다음 실행에서 다시 묻는다
-    }
+    keep(file, { model: o.model, ...o.meta, at: new Date().toISOString(), promptTokens, answer });
     return { answer, cached: false };
   };
 }
