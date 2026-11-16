@@ -29,6 +29,7 @@ import { INITIAL_STATE, NEW_STUDENT_STATE, type AppState } from '../state';
 import { saveState } from '../storage';
 import { CATALOG } from '../../data/catalog';
 import { buildCandidates } from '../../domain/candidates';
+import type { CourseState } from '../../domain/courses/types';
 
 const view = buildCandidates({
   catalog: CATALOG, week: INITIAL_STATE.week, profile: INITIAL_STATE.profile, records: INITIAL_STATE.records, confirm: INITIAL_STATE.confirm,
@@ -38,11 +39,15 @@ const top = view.primary?.p.id ?? 'none';
 const alt = view.alternatives[0]?.p.id ?? 'none';
 const ended = INITIAL_STATE.activities.find(a => a.status === 'ended')?.id ?? 'none';
 
-/** fresh: 가입 인터뷰를 마친 새 학생(활동·기록 0). 빈 상태 버튼이 같은 화면의 다른 진입점과 겹치지 않는지 본다. */
-type Case = { path: string; public?: boolean; fresh?: boolean; overview?: Record<string, unknown> };
+/**
+ * fresh: 가입 인터뷰를 마친 새 학생(활동·기록 0). 빈 상태 버튼이 같은 화면의 다른 진입점과 겹치지 않는지 본다.
+ * courses: 저장해 둘 교과 지도 상태(새 학생만 저장된다). 방향을 고른 화면은 목록이 지도 점과 같은 서랍을 또 열지 않는지 본다.
+ */
+type Case = { path: string; public?: boolean; fresh?: boolean; overview?: Record<string, unknown>; courses?: CourseState };
 const CASES: Case[] = [
   { path: 'home' },
   { path: 'recommend' }, { path: `recommend/${top}` }, { path: `recommend/${alt}` }, { path: `recommend/prepare/${top}` },
+  { path: 'courses' }, { path: 'courses', fresh: true }, { path: 'courses', fresh: true, courses: { term: '3-1', taken: [], direction: 'search' } },
   { path: 'activities' },
   { path: 'activities/schedule' }, { path: 'activities/schedule/board' }, { path: 'activities/schedule/list' },
   { path: 'activities/schedule', overview: { 'activities/schedule': { sel: { view: 'board' } } } },
@@ -70,7 +75,7 @@ async function mount(c: Case) {
   localStorage.clear();
   sessionStorage.clear();
   const base = c.fresh ? NEW_STUDENT_STATE : INITIAL_STATE;
-  const state: AppState = { ...base, onboarded: true, visibility: { ...base.visibility, profilePublic: !!c.public } };
+  const state: AppState = { ...base, onboarded: true, visibility: { ...base.visibility, profilePublic: !!c.public }, courses: c.courses ?? base.courses };
   saveState(state);
   if (c.overview) sessionStorage.setItem('kingo-companion:overview', JSON.stringify(c.overview));
   history.replaceState(null, '', '#/' + c.path);
@@ -117,7 +122,7 @@ function navEntries(): Entry[] {
   });
 }
 
-const label = (c: Case) => `${c.path}${c.public ? ' (공개)' : ''}${c.fresh ? ' (새 학생)' : ''}${c.overview ? ` (${JSON.stringify(Object.values(c.overview)[0])})` : ''}`;
+const label = (c: Case) => `${c.path}${c.public ? ' (공개)' : ''}${c.fresh ? ' (새 학생)' : ''}${c.courses?.direction ? ` (방향 ${c.courses.direction})` : ''}${c.overview ? ` (${JSON.stringify(Object.values(c.overview)[0])})` : ''}`;
 
 describe('진입점 점검: 같은 목적지는 화면마다 하나', () => {
   const report: string[] = [];

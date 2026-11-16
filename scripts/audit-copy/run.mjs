@@ -199,6 +199,12 @@ async function main() {
           await page.waitForFunction(() => !document.querySelector('.ui-loading'), null, { timeout: 8000 }).catch(() => {});
           await page.evaluate(() => document.fonts.ready);
           res.issues = issuesOf(await page.evaluate(collect));
+          // 교과 지도는 진로 방향을 고른 화면(이 길의 과목·연구실)도 본다. 방향은 주소가 아니라 상태다
+          if (path === 'courses') {
+            await page.getByRole('combobox', { name: '진로 방향' }).selectOption('search');
+            await page.locator('#cm-plan-title').waitFor();
+            res.issues.push(...issuesOf(await page.evaluate(collect)));
+          }
         } catch (e) { res.error = String(e.message || e).split('\n')[0].slice(0, 120); }
         const seen = net.list();
         res.consoleErrors = seen.filter(o => o.level === 'fail').map(o => o.text.slice(0, 160));
