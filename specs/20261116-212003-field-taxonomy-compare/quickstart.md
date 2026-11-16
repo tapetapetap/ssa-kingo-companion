@@ -6,9 +6,10 @@
 
 - Node 22.18 이상, `npm ci`
 - macOS Apple Silicon, `clang`이 있어야 한다(`xcode-select --install`). 칩 온도 센서를 읽는 데 쓴다.
-- Ollama가 켜져 있고 `gemma4:12b`가 있어야 한다(`ollama list`).
+- Ollama가 켜져 있고 `gemma4:12b`와 `bge-m3`가 있어야 한다(`ollama list`). 없으면 `ollama pull bge-m3`.
 - 이 컴퓨터에 `etl/gold/dev-501.csv`와 본문 보관본 `etl/.cache/cse/`가 있어야 한다(스펙 1·2에서 만든 것).
 - 라벨러 입력처럼 본문이 든 파일은 저장소 밖 임시 폴더에 둔다(아래 `$T`).
+- 운영 서버(리눅스)에서 돌릴 때는 NVIDIA 드라이버(`nvidia-smi`)가 있어야 GPU가 기록된다. CPU 온도는 커널(`/sys/class/thermal`)에서 읽고, 그 영역이 없으면 `lm-sensors`가 있어야 한다. 이 스펙의 판정은 이 맥에서 돈다.
 
 ## S1. 검사가 통과한다
 
@@ -16,7 +17,8 @@
 npm run check
 ```
 
-새 테스트(분야 목록 검사, 답 정리, 판, 부하 제한 계산, 표본, 정답 합치기, 지표, 고르기, 결과 파일 칸)와 기존 테스트가 모두 통과한다. LLM·학교 서버·센서 없이 돈다.
+새 테스트와 기존 테스트가 모두 통과한다. LLM·임베딩·학교 서버·센서 없이 돈다.
+- 새 테스트: 분야 목록 검사(저장소의 세 파일 포함), NCS 표 읽기, 답 정리, 판, 후보 고르기, 부하 제한 계산, 운영체제별 센서 읽기(리눅스는 고정 문자열), 표본, 정답 합치기, 지표, 고르기, 결과 파일 칸
 
 ## S2. 세 분야 목록이 준비된다 (US1)
 
@@ -25,7 +27,7 @@ node etl/taxonomy/ncs.ts            # NCS 정보망 DB를 받아 ncs.json을 만
 node etl/notices/compare.ts check   # 세 안 검사
 ```
 
-- `check`가 세 줄을 출력하고 0으로 끝난다. 예: `custom: 묶음 12 · 분야 104 · 교과 지도 12/12`
+- `check`가 세 줄을 출력하고 0으로 끝난다. 예: `custom: 묶음 11 · 분야 90 · 교과 지도 12/12 · 목록 7,800자`
 - NCS 개수는 받은 표와 같다(공식 소개는 소분류 270개).
 - 미리보기 HTML을 `?v=custom`, `?v=ncs`, `?v=csrankings`로 연다.
   - 칩을 2개 고르면 '다음'이 꺼져 있고, 3개째에 켜진다.
@@ -38,9 +40,10 @@ node etl/notices/compare.ts check   # 세 안 검사
 node etl/notices/compare.ts judge custom --limit 5
 ```
 
-- 다섯 건에 핵심 ≤ 2, 관련 ≤ 5이고 서로 겹치지 않는 분야가 붙는다.
+- 다섯 건에 핵심 ≤ 2, 관련 ≤ 5이고 서로 겹치지 않는 분야가 붙는다. 답은 그 글의 후보 30개 안에서만 나온다(시험이 확인한다).
 - 요약에 `부하: GPU 평균 …% · 칩 최고 …°C`가 나온다.
-- 같은 명령을 다시 돌리면 `보관 5 · 새로 0`이다(SC-007).
+- `etl/.cache/embed/bge-m3/`에 `custom-<목록 sha>.json`과 `notices/<글 번호>.json` 다섯 개가 생긴다. 파일에 본문 글자가 없다.
+- 같은 명령을 다시 돌리면 `보관 5 · 새로 0`이고 `글당 -`이다(SC-007). 임베딩도 다시 받지 않는다.
 - `etl/taxonomy/custom.json`에서 설명 한 글자를 바꾸고 다시 돌리면 새 판정 판이라 `새로 5`다. 바꾼 것은 되돌린다.
 - 서버에 닿지 못하게 하고 10건을 돌린다. 앞 5건은 보관돼 있고 뒤 5건은 보관이 없다.
 
@@ -48,8 +51,8 @@ node etl/notices/compare.ts judge custom --limit 5
   OLLAMA_HOST=127.0.0.1:1 node etl/notices/compare.ts judge custom --limit 10
   ```
 
-  기대 출력은 `custom 분야 판정 10(보관 5 · 새로 0 · 실패 0 · 못 물음 5 · …)`이고, 끝까지 돈다.
-- 문맥 길이를 확인한다. `node etl/notices/compare.ts judge ncs --limit 1`을 돌려 `prompt_eval_count`를 실행 기록에 남긴다. 그 값이 `num_ctx`의 70%를 넘으면 세 안 모두 `num_ctx`를 올린다(research R5).
+  기대 출력은 `custom 분야 판정 10(보관 5 · 새로 0 · 실패 0 · 못 물음 5 · …)`이고, 끝까지 돌고 0으로 끝난다.
+- 문맥 길이를 확인한다. `node etl/notices/compare.ts judge ncs --limit 1`을 돌리고 그 글의 보관 파일(`etl/.cache/llm-fields/gemma4_12b/ncs-<판>/<글 번호>.json`)에서 `promptTokens`를 읽어 실행 기록에 남긴다. 그 값이 `num_ctx`의 70%를 넘으면 세 안 모두 `num_ctx`를 올린다(research R5).
 
 ## S4. 세 안의 412건 판정 (US3)
 
@@ -59,10 +62,11 @@ for t in custom ncs csrankings; do node etl/notices/compare.ts judge $t; done
 ```
 
 - `sample.csv`는 120줄이고 종류마다 1건 이상이다. 다시 돌려도 같은 파일이다.
-- 안마다 실패와 못 물음을 합친 비율이 2% 이하다(SC-001).
+- 안마다 실패와 못 물음을 합친 비율이 2% 이하다(SC-001). 남으면 그 안만 한 번 더 돌려 채운다.
 - 세 안 합계 시간이 3시간 안이다(SC-006).
 - 안마다 judge 요약의 부하 줄에서 실행 전체 GPU 평균이 80% 이하이고, 칩 최고가 80°C 이하다(SC-005). 1분 기록(`etl/.cache/load/*.jsonl`)은 살펴보기용이라 1분 평균은 80%를 잠깐 넘을 수 있다.
-- 안마다 `runs.jsonl`에 전체 실행 한 줄(limit null)이 남는다.
+- 안마다 `runs.jsonl`에 전체 실행 줄(limit null)이 남는다. score는 그중 cached가 가장 작은 줄을 쓴다(research R16). 그래서 실패를 채운 재실행과 아래 확인 실행이 시간 계산을 덮지 않는다.
+- 마지막으로 같은 명령을 한 번 더 돌려 `새로 0`을 본다(SC-007). 끝까지 실패하는 글은 다시 묻고 실패로 남는다.
 
 ## S5. 정답과 지표 (US3)
 
@@ -78,8 +82,9 @@ node etl/notices/compare.ts score
 ```
 
 - 세 정답 파일이 모두 완성된다. 갈림 칸에 `O`가 남지 않는다(SC-002).
-- `fields-compare.json`에 세 안의 지표가 다 있다.
-- 보고서(비공개 아티팩트)에서 세 안을 나란히 보고 미리보기로 갈 수 있다.
+- `fields-compare.json`에 세 안의 지표가 다 있다. 후보 적중률(핵심·전체)이 함께 있다.
+- 저장소 안 폴더를 주면 label-input과 gold 모두 아무것도 쓰지 않고 1로 끝난다.
+- 보고서(비공개 아티팩트)에서 세 안을 나란히 보고 미리보기로 갈 수 있다. 실사용에서 달라지는 것도 보고서에 있다.
 
 ## S6. 고르고 결과 파일에 넣기 (US4)
 
@@ -88,7 +93,7 @@ node etl/notices/compare.ts choose <사용자가 고른 안>
 node etl/notices/run.ts
 ```
 
-- `choose`는 정밀도와 상관없이 고른 것을 기록한다. 출력에 85% 기준 통과·미달이 나온다.
+- `choose`는 정밀도와 상관없이 고른 것을 기록한다. 출력에 85% 기준 통과·미달이 나온다(예 `custom 고름 · 핵심 정밀도 88.0% (88/100) · 85% 기준 통과`).
 - 85% 이상이면 run.ts가 결과 파일에 `taxonomy`와 기회마다 `fields`·`fieldRule`을 넣고, 기존 칸은 그대로다(SC-004, SC-008).
-- 미달이면 run.ts가 분야를 넣지 않고 요약에 이유를 적는다. 목록을 고친 뒤 다시 재지 않아도(판정 판이 다르면) 같다.
+- 미달이면 run.ts가 분야를 넣지 않고 요약에 이유를 적는다. 목록을 고친 뒤 다시 재지 않아도(판정 판이 다르면), 모델을 바꿔도 같다.
 - 구현하는 사람이 `docs/product/decisions.md`에 고른 안과 날짜를 한 줄 적는다(SC-003).
