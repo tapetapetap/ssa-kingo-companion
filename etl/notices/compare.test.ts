@@ -3,12 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { validList } from '../taxonomy/fixtures.ts';
-import { listChars, saveTaxonomy, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
+import { listChars, loadTaxonomy, saveTaxonomy, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import type { NoticeRow } from './cse.ts';
 import { main } from './compare.ts';
 import { fieldVectors } from './embed.ts';
 import { writeCsv } from './eval.ts';
-import { fieldFolder, type FieldAsk, type FieldOutcome } from './fields.ts';
+import { fieldFolder, fieldVersion, type FieldAsk, type FieldOutcome } from './fields.ts';
 import type { LoadSummary } from './throttle.ts';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'compare-'));
@@ -203,5 +203,44 @@ describe('score', () => {
     expect(await main(['score'], d)).toBe(1);
     expect(said(err)).toContain(message);
     expect(() => readFileSync(d.outFile)).toThrow();
+  });
+});
+
+// choose: fields-compare.json의 지표로 고른 안을 목록 파일에 적는다. 정밀도와 상관없이 기록하고 85% 기준은 출력만 한다(research R12)
+describe('choose', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+  const CHOSEN = { date: '2026-11-18', corePrecision: { num: 90, den: 100 }, prompt: 'aaaaaaaa', model: 'gemma4:12b' };
+  /** 목록 폴더(ncs에는 앞서 고른 표시가 있다)와 비교 결과 파일 */
+  const chooseSetup = (num: number, den = 100, o: { prompt?: string; model?: string } = {}) => {
+    const taxonomyDir = listDir(t => { if (t.id === 'ncs') t.chosen = CHOSEN; });
+    const outFile = join(tmp(), 'fields-compare.json');
+    const entry = (t: Taxonomy) => ({ id: t.id, prompt: o.prompt ?? fieldVersion(t), metrics: { corePrecision: { num, den } } });
+    writeFileSync(outFile, JSON.stringify({ model: o.model ?? 'gemma4:12b', taxonomies: TAXONOMY_IDS.map(id => entry(validList(id))) }));
+    return { taxonomyDir, outFile, model: 'gemma4:12b', now: clock('2026-11-20T12:00:00.000Z') };
+  };
+
+  it.each([[81, '85% 기준 미달: 결과 파일에 분야를 넣지 않아요'], [88, '85% 기준 통과']])('정밀도 %i/100이어도 그 안에만 chosen을 쓰고 다른 안의 chosen은 지운다', async (num, verdict) => {
+    const { log } = quiet();
+    const d = chooseSetup(num);
+    expect(await main(['choose', 'custom'], d)).toBe(0);
+    expect(said(log)).toBe(`custom 고름 · 핵심 정밀도 ${num}.0% (${num}/100) · ${verdict}`);
+    expect(loadTaxonomy('custom', d.taxonomyDir).chosen).toEqual({ date: '2026-11-20', corePrecision: { num, den: 100 }, prompt: fieldVersion(validList('custom')), model: 'gemma4:12b' });
+    expect(loadTaxonomy('ncs', d.taxonomyDir).chosen).toBeNull();
+    expect(loadTaxonomy('csrankings', d.taxonomyDir).chosen).toBeNull();
+  });
+
+  it.each<[string, () => ReturnType<typeof chooseSetup>, string]>([
+    ['비교 결과 파일 없음', () => ({ ...chooseSetup(90), outFile: join(tmp(), 'none.json') }), '비교 결과 파일이 없어요'],
+    ['그 안의 지표 없음', () => { const d = chooseSetup(90); writeFileSync(d.outFile, JSON.stringify({ model: 'gemma4:12b', taxonomies: [] })); return d; }, '비교 결과에 custom의 지표가 없어요'],
+    ['판정 판이 다름', () => chooseSetup(90, 100, { prompt: '5e6f7a8b' }), 'custom을 잰 뒤 판정 판이 바뀌었어요(5e6f7a8b →'],
+    ['모델이 다름', () => chooseSetup(90, 100, { model: 'qwen3.5:9b' }), 'custom은 qwen3.5:9b로 쟀는데 지금 모델은 gemma4:12b이에요'],
+    ['정밀도 분모 0', () => chooseSetup(0, 0), 'custom의 핵심 정밀도 분모가 0이라 고를 수 없어요']
+  ])('거절: %s면 이유를 내고 1이며 목록 파일은 그대로다', async (_name, setup, message) => {
+    const { err } = quiet();
+    const d = setup();
+    const before = TAXONOMY_IDS.map(id => readFileSync(join(d.taxonomyDir, `${id}.json`), 'utf8'));
+    expect(await main(['choose', 'custom'], d)).toBe(1);
+    expect(said(err)).toContain(message);
+    expect(TAXONOMY_IDS.map(id => readFileSync(join(d.taxonomyDir, `${id}.json`), 'utf8'))).toEqual(before);
   });
 });

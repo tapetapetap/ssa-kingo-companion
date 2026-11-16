@@ -284,11 +284,11 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 ### Tests for User Story 4
 
-- [ ] T042 [US4] `compare.test.ts`에 `choose` 시험을 쓴다.
+- [x] T042 [US4] `compare.test.ts`에 `choose` 시험을 쓴다.
   - 정밀도가 81/100이어도 그 안에만 `chosen: { date, corePrecision: { num, den }, prompt, model }`을 쓰고 '미달'을 출력한다. 88/100이면 '통과'를 출력한다.
   - 다른 안의 chosen은 지운다.
   - 거절(1, 파일 그대로): fields-compare.json이 없음, 그 안이 없음, 판정 판이나 모델이 지금과 다름, 정밀도 분모 0
-- [ ] T043 [P] [US4] `etl/notices/run.test.ts`에 사례를 더한다.
+- [x] T043 [P] [US4] `etl/notices/run.test.ts`에 사례를 더한다.
   - x.field가 없으면 결과 파일과 요약이 지금과 똑같다.
   - x.field = `{ ask, gate }`(가짜 field ask)
     - 머리에 `taxonomy { id: ask.taxonomyId, prompt: ask.version }`가 붙는다.
@@ -300,8 +300,8 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 ### Implementation for User Story 4
 
-- [ ] T044 [US4] `compare.ts`에 `choose <id>`를 더한다(research R12). T042가 통과해야 한다.
-- [ ] T045 [US4] 결과 파일에 분야를 넣는다. T043이 통과해야 한다.
+- [x] T044 [US4] `compare.ts`에 `choose <id>`를 더한다(research R12). T042가 통과해야 한다.
+- [x] T045 [US4] 결과 파일에 분야를 넣는다. T043이 통과해야 한다.
   - `etl/notices/run.ts`
     - x.field가 `{ ask }`면 `buildResult`가 남긴 기회마다 판정해 data-model 7의 칸을 더하고 요약 줄을 붙인다.
     - `ResultFile`·`Opportunity` 타입에 선택 칸(`taxonomy?`, `fields?`, `fieldRule?`)을 더한다.

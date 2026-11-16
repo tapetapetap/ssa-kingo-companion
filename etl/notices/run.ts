@@ -5,19 +5,24 @@ import { fileURLToPath } from 'node:url';
 import { classify, hostOf, type Judged, type Kind } from './classify.ts';
 import { BoardError, bodyOf, CACHE_DIR, listSince, makeGet, SOURCE, viewUrl, type Get, type NoticeRow } from './cse.ts';
 import { deadlineOf, readDates, stripDates } from './deadline.ts';
+import { fieldGate, findChosen, loadTaxonomy, TAXONOMY_IDS } from '../taxonomy/taxonomy.ts';
+import { makeEmbed } from './embed.ts';
+import { countField, fieldPart, makeFieldAsk, newStats, type FieldAnswer, type FieldAsk } from './fields.ts';
 import { fromLlm, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type Gate, type LlmStats } from './llm.ts';
 import { createThrottle, type LoadSummary } from './throttle.ts';
 
 export type Opportunity = {
   id: string; title: string; url: string; postedAt: string; host: string | null; kind: Kind;
   deadline: string | null; rule: string; deadlineRule: string | null;
+  /** 스펙 3: 고른 안이 85% 이상일 때만, 답을 받은 기회에만 붙는다(data-model 7) */
+  fields?: FieldAnswer; fieldRule?: string;
 };
 export type ReviewItem = { id: string; title: string; url: string; postedAt: string; why: string };
 export type Judgement =
   | ({ verdict: 'opportunity' } & Opportunity)
   | ({ verdict: 'review' } & ReviewItem)
   | { verdict: 'not'; id: string; rule: string };
-export type ResultFile = { source: string; collectedAt: string; since: string; opportunities: Opportunity[]; review: ReviewItem[] };
+export type ResultFile = { source: string; collectedAt: string; since: string; taxonomy?: { id: string; prompt: string }; opportunities: Opportunity[]; review: ReviewItem[] };
 export type Summary = { fetched: number; opportunity: number; not: number; review: number; merged: number; deadlineBlank: number };
 
 export const OUT_FILE = fileURLToPath(new URL('../out/cse-notices.json', import.meta.url));
@@ -156,8 +161,25 @@ function daysAgo(n: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** gate는 기회 판정 ask를 만든 문(noTemp를 읽는다), load는 throttle의 stop(요약을 찍을 때 부른다). 없으면 스펙 2와 같다 */
-export type RunExtra = { gate?: Gate; load?: () => LoadSummary };
+/** gate는 기회 판정 ask를 만든 문(noTemp를 읽는다), field는 분야 판정기와 그 문 또는 넣지 않은 이유, load는 throttle의 stop(요약을 찍을 때 부른다).
+ *  없으면 스펙 2와 같다 */
+export type RunExtra = { gate?: Gate; field?: { ask: FieldAsk; gate?: Gate } | { reason: string }; load?: () => LoadSummary };
+
+/** buildResult가 남긴 기회마다 분야를 묻고 data-model 7의 칸을 더한다. 답을 받지 못한 기회(실패·못 물음)는 fields가 없다 */
+async function addFields(file: ResultFile, rows: Map<number, NoticeRow>, bodies: Map<number, string[] | null>, ask: FieldAsk) {
+  const stats = newStats();
+  const opportunities: Opportunity[] = [];
+  for (const [i, o] of file.opportunities.entries()) {
+    const no = Number(o.id.slice(4));
+    const [row, lines] = [rows.get(no), bodies.get(no)];
+    const r = row && lines ? await ask(row, lines) : null;
+    countField(stats, r);
+    opportunities.push(typeof r === 'object' && r !== null ? { ...o, fields: r.answer, fieldRule: `LLM: ${ask.model}` } : o);
+    if ((i + 1) % 20 === 0 || i + 1 === file.opportunities.length) console.error(`분야 ${i + 1}/${file.opportunities.length}`);
+  }
+  const { opportunities: _, review, ...head } = file;
+  return { file: { ...head, taxonomy: { id: ask.taxonomyId, prompt: ask.version }, opportunities, review }, stats };
+}
 
 /** 종료 코드를 돌려준다: 0 성공, 1 게시판 문제(결과 파일은 그대로), 2 잘못된 인자(contracts/cli.md).
  *  ask와 x는 바깥에서 넣는다. 실제 LLM과 부하 제한은 아래 import.meta.main 줄에서만 만들어 검사가 Ollama·센서를 부르지 않는다 */
@@ -171,9 +193,17 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
   try {
     const { rows, bodies, fetched } = await collect(since, get, dir);
     const { judged, llm } = await judgeAll(rows, rows.map(r => bodies.get(r.no) ?? null), ask);
-    const { file, summary } = buildResult(judged, { since, collectedAt: new Date().toISOString(), fetched });
+    const built = buildResult(judged, { since, collectedAt: new Date().toISOString(), fetched });
+    let file = built.file;
+    let field: string | undefined;
+    if (x.field && 'ask' in x.field) {
+      const r = await addFields(file, new Map(rows.map(r => [r.no, r])), bodies, x.field.ask);
+      file = r.file;
+      field = fieldPart(r.stats);
+    } else field = x.field?.reason;
     writeResult(out, file);
-    console.log(formatSummary(summary, llm, { llmNoTemp: x.gate?.noTemp, load: x.load?.().line }));
+    const fieldNoTemp = x.field && 'ask' in x.field ? x.field.gate?.noTemp : 0;
+    console.log(formatSummary(built.summary, llm, { llmNoTemp: x.gate?.noTemp, fieldNoTemp, field, load: x.load?.().line }));
     return 0;
   } catch (e) {
     if (!(e instanceof BoardError)) throw e;
@@ -182,13 +212,29 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
   }
 }
 
+/** 고른 안이 있으면 분야 판정기를 만들고 결과 파일에 넣어도 되는지 본다(스펙 3 research R12). 고른 안이 둘 이상이거나 목록 파일이 틀리면 던진다 */
+function chosenField(t: ReturnType<typeof createThrottle>): RunExtra['field'] {
+  const chosen = findChosen(TAXONOMY_IDS.map(id => loadTaxonomy(id)));
+  if (!chosen) return undefined;
+  const gate = t.gate(); // 같은 throttle의 새 문: 분야 판정의 noTemp를 따로 센다
+  const ask = makeFieldAsk({ taxonomy: chosen, embed: makeEmbed({ gate }), gate });
+  const ok = fieldGate(chosen, ask.version, ask.model);
+  return 'ok' in ok ? { ask, gate } : { reason: ok.reason };
+}
+
 // 경로에 심볼릭 링크가 있어도 진입점을 알아본다(process.argv[1]과 import.meta.url 비교는 링크를 다르게 풀어 조용히 아무것도 안 한다).
 // 부하 제한은 실행 하나에 하나이고, main이 어떻게 끝나든 멈춘다(스펙 3 research R6)
 if (import.meta.main) {
   const t = createThrottle();
   try {
     const gate = t.gate();
-    process.exitCode = await main(process.argv.slice(2), makeGet(), OUT_FILE, CACHE_DIR, makeAsk({ gate }), { gate, load: t.stop });
+    let field: RunExtra['field'] | null = null;
+    try {
+      field = chosenField(t);
+    } catch (e) {
+      console.error(e instanceof Error ? e.message : String(e));
+    }
+    process.exitCode = field === null ? 1 : await main(process.argv.slice(2), makeGet(), OUT_FILE, CACHE_DIR, makeAsk({ gate }), { gate, field, load: t.stop });
   } finally {
     t.stop();
   }

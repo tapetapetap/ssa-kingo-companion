@@ -3,8 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BoardError, listUrl, SOURCE, viewUrl, type Get, type NoticeRow } from './cse.ts';
+import type { FieldAsk, FieldOutcome } from './fields.ts';
 import type { Ask, LlmOutcome } from './llm.ts';
-import { buildResult, collect, formatSummary, judge, judgeAll, main, writeResult } from './run.ts';
+import { buildResult, collect, formatSummary, judge, judgeAll, main, writeResult, type ResultFile } from './run.ts';
 
 const row = (no: number, title: string, postedAt: string, board = '채용/모집'): NoticeRow => ({ no, title, board, postedAt, pinned: false });
 const DONGJIN = '[동진쎄미켐] 2026년 11월 신입/경력 정기채용 (~11/15(일))';
@@ -347,5 +348,79 @@ describe('main: 부하 제한 (스펙 3 contracts/cli.md)', () => {
     const dir = tmp();
     expect(await main(['2026-10-01'], fakeBoard([3, 2, 1]).get, join(dir, 'out.json'), join(dir, 'cache'), downAsk(), { gate: gate(3), load: load('') })).toBe(0);
     expect(log.mock.calls).toEqual([[`${LINE3}\n온도를 읽지 못해 3건은 묻지 않았어요`]]);
+  });
+});
+
+// 스펙 3 US4: 고른 안의 분야를 결과 파일에 넣는다. 분야 판정기는 가짜라 임베딩·Ollama를 부르지 않는다
+describe('main: 분야 칸 (스펙 3 data-model 7)', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+  const jobAsk = (): Ask => Object.assign(async () => ({ answer: { verdict: 'O' as const, kind: 'job' as const, host: null, sure: true }, cached: true }), { model: 'm' });
+  /** 1번은 분야 답, 2번은 실패, 3번은 못 물음. 물은 글 번호를 seen에 남긴다 */
+  const fieldAsk = (seen: number[] = []): FieldAsk => Object.assign(async (r: NoticeRow): Promise<FieldOutcome> => {
+    seen.push(r.no);
+    return r.no === 1 ? { answer: { core: ['backend'], related: ['cloud'] }, cached: false } : r.no === 2 ? 'fail' : 'down';
+  }, { model: 'gemma4:12b', version: '1a2b3c4d', taxonomyId: 'custom' as const });
+  const gate = (noTemp: number) => ({ before: async () => true, after: async () => {}, noTemp });
+  const run = async (x: Parameters<typeof main>[5], nos = [3, 2, 1]) => {
+    const dir = tmp();
+    const out = join(dir, 'out.json');
+    const code = await main(['2026-10-01'], fakeBoard(nos).get, out, join(dir, 'cache'), jobAsk(), x);
+    return { code, file: JSON.parse(readFileSync(out, 'utf8')) as ResultFile };
+  };
+  const LINE = '새 글 3 · 기회 3 · 기회 아님 0 · 확인 필요 0 · 합친 중복 0 · 마감 빈칸 0 · LLM 판정 3(보관 3 · 새로 0 · 실패 0)';
+
+  it('x.field가 없으면 결과 파일과 요약이 지금과 같다', async () => {
+    const { log } = quiet();
+    const { file } = await run({});
+    expect(Object.keys(file)).toEqual(['source', 'collectedAt', 'since', 'opportunities', 'review']);
+    expect(file.opportunities.every(o => !('fields' in o))).toBe(true);
+    expect(log.mock.calls).toEqual([[LINE]]);
+  });
+
+  it('통과면 머리에 taxonomy, 답을 받은 기회에만 fields·fieldRule이 붙고 요약에 분야 판정 줄이 붙는다. 온도 줄 N에 분야 문이 더해진다', async () => {
+    const { log } = quiet();
+    const seen: number[] = [];
+    const { code, file } = await run({ gate: gate(0), field: { ask: fieldAsk(seen), gate: gate(1) } });
+    expect(code).toBe(0);
+    expect(Object.keys(file)).toEqual(['source', 'collectedAt', 'since', 'taxonomy', 'opportunities', 'review']);
+    expect(file.taxonomy).toEqual({ id: 'custom', prompt: '1a2b3c4d' });
+    const byId = new Map(file.opportunities.map(o => [o.id, o]));
+    expect(byId.get('cse:1')).toMatchObject({ fields: { core: ['backend'], related: ['cloud'] }, fieldRule: 'LLM: gemma4:12b' });
+    expect(Object.keys(byId.get('cse:1') ?? {}).slice(-2)).toEqual(['fields', 'fieldRule']);
+    for (const id of ['cse:2', 'cse:3']) expect(byId.get(id)).not.toHaveProperty('fields');
+    expect(seen.sort()).toEqual([1, 2, 3]);
+    expect(log.mock.calls).toEqual([[`${LINE}\n온도를 읽지 못해 1건은 묻지 않았어요\n분야 판정 3(보관 0 · 새로 1 · 실패 1 · 못 물음 1 · 분야 없음 0)`]]);
+  });
+
+  it('x.field가 이유면 분야를 묻지 않고 결과 파일은 그대로이며 요약에 이유 줄이 붙는다', async () => {
+    const { log } = quiet();
+    const reason = '고른 안 custom의 핵심 정밀도 81.0% (81/100) < 85%라 분야를 넣지 않았어요';
+    const { file } = await run({ field: { reason } });
+    expect(Object.keys(file)).toEqual(['source', 'collectedAt', 'since', 'opportunities', 'review']);
+    expect(log.mock.calls).toEqual([[`${LINE}\n${reason}`]]);
+  });
+
+  it('기회 아님으로 판정된 글에는 분야를 묻지 않는다(US2 시나리오 2)', async () => {
+    quiet();
+    const seen: number[] = [];
+    const notAsk: Ask = Object.assign(async (r: NoticeRow): Promise<LlmOutcome> => ({ answer: r.no === 2 ? { verdict: 'X', kind: null, host: null, sure: true } : { verdict: 'O', kind: 'job', host: null, sure: true }, cached: true }), { model: 'm' });
+    const dir = tmp();
+    await main(['2026-10-01'], fakeBoard([3, 2, 1]).get, join(dir, 'out.json'), join(dir, 'cache'), notAsk, { field: { ask: fieldAsk(seen) } });
+    expect(seen.sort()).toEqual([1, 3]);
+  });
+
+  it('결과 파일 계약에 taxonomy·fields·fieldRule이 선택 칸으로 있고 꼴이 research R12다. 만든 값이 그 꼴을 지킨다', async () => {
+    quiet();
+    const schema = JSON.parse(readFileSync(new URL('../../specs/20261107-193624-cse-notice-opportunities/contracts/cse-notices.schema.json', import.meta.url), 'utf8'));
+    const top = schema.properties.taxonomy;
+    const opp = schema.$defs.opportunity;
+    expect(schema.required).not.toContain('taxonomy');
+    expect(opp.required).not.toContain('fields');
+    expect(top.properties.id.enum).toEqual(['custom', 'ncs', 'csrankings']);
+    expect(opp.properties.fields.properties.core.maxItems).toBe(2);
+    expect(opp.properties.fields.properties.related.maxItems).toBe(5);
+    const { file } = await run({ field: { ask: fieldAsk() } });
+    expect(file.taxonomy?.prompt).toMatch(new RegExp(top.properties.prompt.pattern));
+    for (const o of file.opportunities.filter(x => x.fieldRule)) expect(o.fieldRule).toMatch(new RegExp(opp.properties.fieldRule.pattern));
   });
 });

@@ -2,14 +2,14 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { COURSE_ROWS, findChosen, isTaxonomyId, listChars, readList, TAXONOMY_DIR, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
+import { COURSE_ROWS, findChosen, isTaxonomyId, listChars, readList, saveTaxonomy, TAXONOMY_DIR, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { CACHE_DIR } from './cse.ts';
 import { EMBED_CACHE_DIR, EMBED_K, EMBED_MODEL, makeEmbed, readFieldVectors, readNoticeVector, topCandidates } from './embed.ts';
 import { pad } from './eval.ts';
 import { countField, FIELD_CACHE_DIR, fieldFolder, fieldPart, fieldVersion, makeFieldAsk, newStats, readFieldAnswer, type FieldAnswer, type FieldAsk } from './fields.ts';
 import { cachedBody, devOpportunities, gold, labelInput, noOf, readGoldFile, readSample, rowOf, sample, type GoldLabel } from './gold.ts';
 import { DEFAULT_MODEL, modelDir, type Gate } from './llm.ts';
-import { pct, pickRun, ratio, scoreTaxonomy, type RunLine, type TaxonomyScore } from './score.ts';
+import { passes, pct, pickRun, ratio, scoreTaxonomy, type Ratio, type RunLine, type TaxonomyScore } from './score.ts';
 import { createThrottle, type LoadSummary } from './throttle.ts';
 
 /** 시험에서만 바꾼다(모두 선택). 폴더가 없으면 저장소 기본 자리다. fieldAsk·gate·load는 진입 줄이 throttle 하나로 만든다 */
@@ -159,6 +159,30 @@ function score(c: Ctx): number {
   return 0;
 }
 
+const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const isRatio = (v: unknown): v is Ratio => typeof v === 'object' && v !== null && Number.isInteger((v as Ratio).num) && Number.isInteger((v as Ratio).den);
+
+/** 사람이 보고서를 보고 고른 안을 목록 파일에 적는다. 정밀도와 상관없이 적고, 85% 기준은 출력만 한다(research R12) */
+function choose(t: Taxonomy, c: Ctx): number {
+  const lists = TAXONOMY_IDS.map(id => listOf(id, c)); // 다른 안의 chosen을 지우려면 셋 다 읽어야 한다
+  if (!existsSync(c.outFile)) throw new Error(`비교 결과 파일이 없어요: ${c.outFile} (score를 먼저 돌려요)`);
+  // score가 쓴 파일이라 꼴은 그대로 믿고, 고르기에 쓰는 칸만 확인한다
+  const r = JSON.parse(readFileSync(c.outFile, 'utf8')) as { model?: string; taxonomies?: { id?: string; prompt?: string; metrics?: { corePrecision?: unknown } }[] };
+  const e = r.taxonomies?.find(x => x.id === t.id);
+  const cp = e?.metrics?.corePrecision;
+  if (!e || typeof e.prompt !== 'string' || !isRatio(cp)) throw new Error(`비교 결과에 ${t.id}의 지표가 없어요 (${c.outFile})`);
+  const version = fieldVersion(t);
+  if (e.prompt !== version) throw new Error(`${t.id}을 잰 뒤 판정 판이 바뀌었어요(${e.prompt} → ${version}). judge와 score를 다시 돌려요`);
+  if (r.model !== c.model) throw new Error(`${t.id}은 ${String(r.model)}로 쟀는데 지금 모델은 ${c.model}이에요`);
+  if (cp.den === 0) throw new Error(`${t.id}의 핵심 정밀도 분모가 0이라 고를 수 없어요`);
+  for (const x of lists) {
+    if (x.id === t.id) saveTaxonomy({ ...x, chosen: { date: localDay(c.now()), corePrecision: { num: cp.num, den: cp.den }, prompt: version, model: c.model } }, c.taxonomyDir);
+    else if (x.chosen) saveTaxonomy({ ...x, chosen: null }, c.taxonomyDir);
+  }
+  console.log(`${t.id} 고름 · 핵심 정밀도 ${pct(cp)} · ${passes(cp) ? '85% 기준 통과' : '85% 기준 미달: 결과 파일에 분야를 넣지 않아요'}`);
+  return 0;
+}
+
 /** 안 id를 확인하고 목록을 읽어 검사한다. 위반은 던진다(main이 1로 끝낸다) */
 function listOf(id: string, c: Ctx): Taxonomy {
   if (!isTaxonomyId(id)) throw new Error(`없는 안이에요: ${id} (${TAXONOMY_IDS.join(', ')})`);
@@ -177,6 +201,7 @@ export async function main(args: string[], deps: CompareDeps = {}): Promise<numb
     if (cmd === 'label-input' && rest.length === 2) return labelInput(listOf(rest[0], c), rest[1], c);
     if (cmd === 'gold' && (rest.length === 3 || rest.length === 4)) return gold(listOf(rest[0], c), rest[1], rest[2], rest[3], c);
     if (cmd === 'score' && rest.length === 0) return score(c);
+    if (cmd === 'choose' && rest.length === 1) return choose(listOf(rest[0], c), c);
     return null;
   };
   try {
