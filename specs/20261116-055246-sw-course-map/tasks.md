@@ -52,12 +52,12 @@
 - [X] T018 [P] 설정 문구: 학교 데이터 i-Campus 쓰임을 '교과 지도의 들은 과목 채우기, 배운 것과 이어지는 기회 찾기'로, 내려받기 설명 '입력한 정보, 활동, 기록, 들은 과목, 설정을 파일 하나로 받아요', 지우기 확인 '프로필, 활동, 기록, 들은 과목, 설정이 모두 지워져요.', 예시로 바꿀 때 경고에 들은 과목 수('새 학생으로 쓴 활동·기록 n개와 들은 과목 m개가 지워져요.') — `src/data/settings.ts`, `src/screens/settings/DataSection.tsx`, `src/screens/settings/AboutSection.tsx`
 - [X] T019 [P] 문서 반영: 기준 문서(교과 지도 절, 메뉴 5개), IA 문서 1절 메뉴 트리(37·39줄 포함)와 4절 '사이드바 메인 항목 4개'와 10절 140줄 메뉴 나열, web-desktop.md 11-12줄 '메뉴 4개'·21줄 localStorage에 남기는 것·60-70줄 경로 표·76줄 `openEntity` 종류, 결정 로그 2026-11-16(교과 메뉴, CSRankings 지도 줄, 진로 방향 층, 한 스크롤 칸·최근 안 열린 과목 숨김), README 13줄과 화면 목록, `router.ts` 15줄·`Sidebar.tsx` 7줄 주석 — `docs/product/concept.md`, `docs/design/ia-navigation.md`, `docs/design/web-desktop.md`, `docs/product/decisions.md`, `README.md`, `src/app/router.ts`, `src/app/Sidebar.tsx`
 - [X] T020 검사 도구: 레이아웃 검사 `STEPS`와 문구 검사(`audit:copy`)에 `#/courses`에서 방향 '검색·추천 엔지니어' 고르기 단계를 더한다. 진입점 검사 CASES에 `courses`(예시), `courses`(새 학생), `courses`(새 학생, 저장값에 학년·학기 3-1과 방향 search)를 더한다. 과목 서랍을 처음 열 때는 `navigate`가 불려 진입점으로 세므로, 같은 과목 서랍은 지도 점 하나에서만 열린다(목록 줄은 점을 찾아 표시) — `scripts/audit-layout/run.mjs`, `scripts/audit-copy/run.mjs`, `src/app/audit/entries.test.tsx`
-- [ ] T021 kingo-ui-review 절차: 두 학생 상태 × 1280×640·1440×900·1920 스크린샷(방향 고르기 전·후), 콘솔 에러, 클릭 흐름 끝까지, 고친 뒤 다시 확인
-- [ ] T022 impeccable audit(필요하면 polish)로 렌더된 화면 점검
-- [ ] T023 ponytail-review로 과설계 점검, 지적 반영
-- [ ] T024 /code-review(필요하면 /security-review)로 정확성·보안 점검, 지적 반영
-- [ ] T025 `npm run check`, `npm run build`, `npm run audit:layout`, `npm run audit:copy` 통과 확인(출력 확인)
-- [ ] T026 커밋(한 커밋 한 이유)·`tape`에 push·PR(머지는 사용자)
+- [X] T021 kingo-ui-review 절차: 두 학생 상태 × 1280×640·1440×900·1920 스크린샷(방향 고르기 전·후), 콘솔 에러, 클릭 흐름 끝까지, 고친 뒤 다시 확인
+- [X] T022 impeccable audit(필요하면 polish)로 렌더된 화면 점검
+- [X] T023 ponytail-review로 과설계 점검, 지적 반영
+- [X] T024 /code-review(필요하면 /security-review)로 정확성·보안 점검, 지적 반영
+- [X] T025 `npm run check`, `npm run build`, `npm run audit:layout`, `npm run audit:copy` 통과 확인(출력 확인)
+- [X] T026 커밋(한 커밋 한 이유)·`tape`에 push·PR(머지는 사용자)
 
 ## Dependencies
 
