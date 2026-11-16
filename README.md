@@ -10,12 +10,13 @@
 
 ## 화면
 
-주소는 해시(`#/…`)다. 사이드바는 메뉴 4개 1단이고, 하위 화면은 페이지 머리 아래 구역 탭이 맡는다.
+주소는 해시(`#/…`)다. 사이드바는 메뉴 5개 1단이고, 하위 화면은 페이지 머리 아래 구역 탭이 맡는다.
 
 | 화면 | 주소 | 하위·흐름 |
 |---|---|---|
 | 홈 | `#/home` | 가입 인터뷰는 처음 한 번 홈 자리에서 열린다 |
 | 추천 | `#/recommend` | 탭 `?tab=all`(전체 기회), 모달 `?open=<기회 id>`, 신청 준비 `#/recommend/prepare/<id>` |
+| 교과 지도 | `#/courses` | 과목 서랍 `?drawer=course:<학수번호>`, 진로 방향은 화면 안에서 고른다 |
 | 내 활동 | `#/activities` | 일정 `/schedule`, 기록 `/records`, 회고 인터뷰 `/records/interview[/<활동 id>]`, 경험 카드 묶음 `/records/portfolio` |
 | 나의 분석 | `#/analysis` | `/techtree`, `/map`, `/flow`, `/strengths` |
 | 내 프로필 | `#/profile` | `/friends`, `/recruit`, `/hall`. 사이드바 아래 학생 카드로 연다 |
