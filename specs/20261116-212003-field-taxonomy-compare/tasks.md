@@ -24,7 +24,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 ## Phase 1: Setup
 
 - [x] T001 `tape/main`에서 친 `feat/field-taxonomy` 브랜치에 있는지 확인한다.
-  - `etl/taxonomy/`와 `etl/gold/fields/` 폴더는 첫 파일이 들어갈 때 함께 커밋한다. `etl/.cache/`는 이미 `.gitignore`에 있다.
+  - `etl/taxonomy/` 폴더는 첫 파일이 들어갈 때 함께 커밋한다. `etl/gold/fields/`는 정답셋이라 커밋하지 않는다(스펙 1 FR-034, `.git/info/exclude`). `etl/.cache/`는 이미 `.gitignore`에 있다.
   - `$T` 폴더를 만든다. `ollama list`에 `gemma4:12b`와 `bge-m3`가 있는지 본다.
 
 ---
@@ -444,3 +444,4 @@ $ node etl/notices/compare.ts sample
 
 - research R9의 배분과 같다. 두 번 돌려도 같은 파일이다(md5 `1aa6ed51…`).
 - 표본 120건과 판정 대상 412건 모두 본문 보관본이 있다(쓰지 않고 확인). label-input(T037)이 막히지 않는다.
+- `etl/gold/fields/sample.csv`는 커밋하지 않았다. 정답셋이라 스펙 1 FR-034(`.git/info/exclude`의 `etl/gold/`)대로 이 컴퓨터에만 둔다. 정답 파일(T039)도 같다.

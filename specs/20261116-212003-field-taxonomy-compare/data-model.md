@@ -117,13 +117,17 @@ sha는 공지 글(제목 + 본문 앞 1,500자) sha1의 앞 8자다. 글이 바�
 - requests는 임베딩 요청을 함께 센다. gpuAvg·tempMax·loadLog는 throttle의 `stop()` 값이고, 요청이 없었으면 null이다.
 - score는 limit이 null인 줄 가운데 cached가 가장 작은 줄(같으면 마지막 줄)을 쓴다.
 
-## 4. 표본 `etl/gold/fields/sample.csv` (저장소)
+## 4. 표본 `etl/gold/fields/sample.csv` (이 컴퓨터)
+
+정답셋이라 사용자가 올리기로 정하기 전까지 이 컴퓨터에만 둔다(스펙 1 FR-034, `.git/info/exclude`의 `etl/gold/`, 2026-11-17 구현 때 확인).
 
 - 칸: 링크, 게시판, 제목, 게시일, 종류. 종류는 dev-501.csv의 한글 이름 그대로다.
 - 120줄이다. 줄 순서와 배분은 research R9를 따른다.
 - 같은 dev 정답셋으로 다시 만들면 같은 파일이 나온다.
 
-## 5. 정답 `etl/gold/fields/<안 id>.csv` (저장소)
+## 5. 정답 `etl/gold/fields/<안 id>.csv` (이 컴퓨터)
+
+4와 같은 이유로 이 컴퓨터에만 둔다.
 
 칸은 링크, 제목, A 핵심, A 관련, B 핵심, B 관련, 최종 핵심, 최종 관련, 갈림, 메모다.
 
