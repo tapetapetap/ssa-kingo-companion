@@ -1,0 +1,1092 @@
+{
+  "id": "custom",
+  "name": "직접 만든 2단 목록",
+  "edition": "2026-11-17",
+  "sources": [
+    {
+      "name": "CSRankings",
+      "url": "https://csrankings.org",
+      "license": "CC BY-NC-ND 4.0, 분야 이름·키만 씀"
+    }
+  ],
+  "sourceCounts": null,
+  "groups": [
+    {
+      "id": "g-ai",
+      "name": "인공지능",
+      "parent": null
+    },
+    {
+      "id": "g-data",
+      "name": "데이터",
+      "parent": null
+    },
+    {
+      "id": "g-systems",
+      "name": "시스템",
+      "parent": null
+    },
+    {
+      "id": "g-network",
+      "name": "네트워크·클라우드",
+      "parent": null
+    },
+    {
+      "id": "g-security",
+      "name": "보안",
+      "parent": null
+    },
+    {
+      "id": "g-software",
+      "name": "소프트웨어 개발",
+      "parent": null
+    },
+    {
+      "id": "g-theory",
+      "name": "이론",
+      "parent": null
+    },
+    {
+      "id": "g-hci",
+      "name": "그래픽스·HCI",
+      "parent": null
+    },
+    {
+      "id": "g-job",
+      "name": "개발 직무",
+      "parent": null
+    },
+    {
+      "id": "g-industry",
+      "name": "산업·응용",
+      "parent": null
+    },
+    {
+      "id": "g-beyond",
+      "name": "전공 밖",
+      "parent": null
+    }
+  ],
+  "fields": [
+    {
+      "id": "ml",
+      "name": "머신러닝",
+      "group": "g-ai",
+      "desc": "데이터에서 규칙을 배우는 모델을 만들고 평가하는 일: 분류, 회귀, 군집",
+      "descFrom": "made",
+      "csr": [
+        "mlmining"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "deep-learning",
+      "name": "딥러닝",
+      "group": "g-ai",
+      "desc": "여러 층의 신경망으로 배우는 방법: 신경망 설계, 학습, 모델 경량화",
+      "descFrom": "made",
+      "csr": [
+        "mlmining"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "llm",
+      "name": "LLM·생성형 AI",
+      "group": "g-ai",
+      "desc": "큰 언어 모델을 만들고 쓰는 일: 프롬프트, 파인튜닝, RAG, 에이전트",
+      "descFrom": "made",
+      "csr": [
+        "nlp"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "nlp",
+      "name": "자연어 처리",
+      "group": "g-ai",
+      "desc": "사람의 글과 말을 컴퓨터가 이해하고 만들게 하는 기술: 번역, 요약, 질의응답",
+      "descFrom": "made",
+      "csr": [
+        "nlp"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "computer-vision",
+      "name": "컴퓨터 비전",
+      "group": "g-ai",
+      "desc": "사진·영상에서 물체와 장면을 알아보는 기술: 인식, 검출, 영상 분석",
+      "descFrom": "made",
+      "csr": [
+        "vision"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "speech-ai",
+      "name": "음성 AI",
+      "group": "g-ai",
+      "desc": "말소리를 알아듣고 만들어 내는 기술: 음성 인식, 음성 합성, 화자 인식",
+      "descFrom": "made",
+      "csr": [
+        "nlp"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "recsys",
+      "name": "추천 시스템",
+      "group": "g-ai",
+      "desc": "사용자의 기록으로 좋아할 만한 상품·글·콘텐츠를 골라 보여 주는 기술",
+      "descFrom": "made",
+      "csr": [
+        "mlmining",
+        "inforet"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "rl",
+      "name": "강화학습",
+      "group": "g-ai",
+      "desc": "시행착오와 보상으로 행동을 배우는 학습 방법: 게임 AI, 로봇 제어, 의사 결정",
+      "descFrom": "made",
+      "csr": [
+        "ai",
+        "mlmining"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "ai-agent",
+      "name": "AI 에이전트",
+      "group": "g-ai",
+      "desc": "목표를 받아 스스로 계획하고 도구를 쓰며 일을 처리하는 AI 시스템",
+      "descFrom": "made",
+      "csr": [
+        "ai"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "robotics",
+      "name": "로봇·피지컬 AI",
+      "group": "g-ai",
+      "desc": "로봇이 주변을 느끼고 움직이게 하는 기술: 로봇 제어, 경로 계획, 로봇 학습",
+      "descFrom": "made",
+      "csr": [
+        "robotics"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "time-series",
+      "name": "시계열·예측",
+      "group": "g-ai",
+      "desc": "시간에 따라 쌓인 데이터로 앞날을 내다보는 분석: 수요 예측, 이상 감지",
+      "descFrom": "made",
+      "csr": [
+        "mlmining"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "database",
+      "name": "데이터베이스",
+      "group": "g-data",
+      "desc": "데이터를 저장하고 꺼내는 시스템과 설계: SQL, 질의 처리, 트랜잭션",
+      "descFrom": "made",
+      "csr": [
+        "mod"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "big-data",
+      "name": "빅데이터 플랫폼",
+      "group": "g-data",
+      "desc": "큰 데이터를 나눠 저장하고 처리하는 시스템: 분산 처리, 데이터 레이크, 스트림 처리",
+      "descFrom": "made",
+      "csr": [
+        "mod"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "search-engine",
+      "name": "검색 엔진",
+      "group": "g-data",
+      "desc": "많은 문서에서 원하는 것을 찾아 순서대로 보여 주는 기술: 색인, 검색 순위, 벡터 검색",
+      "descFrom": "made",
+      "csr": [
+        "inforet"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "web-data",
+      "name": "웹 데이터·크롤링",
+      "group": "g-data",
+      "desc": "웹에서 데이터를 모으고 정리하는 일: 크롤링, 스크래핑, 웹 마이닝",
+      "descFrom": "made",
+      "csr": [
+        "inforet"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "data-viz",
+      "name": "데이터 시각화",
+      "group": "g-data",
+      "desc": "데이터를 그래프와 대시보드로 그려 한눈에 보이게 하는 일",
+      "descFrom": "made",
+      "csr": [
+        "visualization"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "data-mining",
+      "name": "데이터 마이닝",
+      "group": "g-data",
+      "desc": "큰 데이터에서 쓸모 있는 패턴과 관계를 찾아내는 분석",
+      "descFrom": "made",
+      "csr": [
+        "mod",
+        "mlmining"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "data-science",
+      "name": "데이터 과학·통계",
+      "group": "g-data",
+      "desc": "통계와 데이터 분석으로 질문에 답하는 일: 실험 설계, 가설 검정, 통계 모델",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "os",
+      "name": "운영체제",
+      "group": "g-systems",
+      "desc": "컴퓨터 자원을 나눠 쓰게 하는 바탕 소프트웨어: 커널, 프로세스, 메모리, 파일 시스템",
+      "descFrom": "made",
+      "csr": [
+        "ops"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "computer-arch",
+      "name": "컴퓨터 구조",
+      "group": "g-systems",
+      "desc": "CPU·메모리·저장 장치가 짜인 방식과 명령 실행: 프로세서 설계, 캐시, 메모리 계층",
+      "descFrom": "made",
+      "csr": [
+        "arch"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "ai-chip",
+      "name": "AI 반도체",
+      "group": "g-systems",
+      "desc": "AI 계산을 빠르게 하는 칩과 가속기: NPU, GPU 구조, 메모리 반도체",
+      "descFrom": "made",
+      "csr": [
+        "arch"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "iot",
+      "name": "임베디드·IoT",
+      "group": "g-systems",
+      "desc": "기기 안에 들어가는 작은 컴퓨터와 연결된 사물: 마이크로컨트롤러, 센서, 사물인터넷",
+      "descFrom": "made",
+      "csr": [
+        "bed"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "realtime",
+      "name": "실시간 시스템",
+      "group": "g-systems",
+      "desc": "정해진 시간 안에 반드시 반응해야 하는 시스템: 차량·항공 제어, 실시간 운영체제",
+      "descFrom": "made",
+      "csr": [
+        "bed"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "hpc",
+      "name": "고성능·병렬 컴퓨팅",
+      "group": "g-systems",
+      "desc": "많은 계산을 여러 프로세서에 나눠 빠르게 하는 기술: 병렬 프로그래밍, GPU 계산, 슈퍼컴퓨터",
+      "descFrom": "made",
+      "csr": [
+        "hpc"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "eda",
+      "name": "반도체 설계 자동화",
+      "group": "g-systems",
+      "desc": "반도체 회로 설계를 소프트웨어로 자동화하는 기술: 회로 합성, 배치·배선, 설계 검증",
+      "descFrom": "made",
+      "csr": [
+        "da"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "perf",
+      "name": "성능 분석·최적화",
+      "group": "g-systems",
+      "desc": "시스템이 얼마나 빠르고 효율적인지 재고 개선하는 일: 벤치마크, 프로파일링",
+      "descFrom": "made",
+      "csr": [
+        "metrics"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "network",
+      "name": "컴퓨터 네트워크",
+      "group": "g-network",
+      "desc": "컴퓨터끼리 데이터를 주고받는 구조와 규약: 인터넷, TCP/IP, 라우팅",
+      "descFrom": "made",
+      "csr": [
+        "comm"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "wireless",
+      "name": "모바일·무선 통신",
+      "group": "g-network",
+      "desc": "휴대 기기와 무선망으로 주고받는 기술: 와이파이, 이동 통신, 모바일 컴퓨팅",
+      "descFrom": "made",
+      "csr": [
+        "mobile",
+        "comm"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "next-gen-comm",
+      "name": "차세대 통신",
+      "group": "g-network",
+      "desc": "더 빠르고 넓게 연결하는 통신 기술: 5G·6G, 위성 통신, 네트워크 가상화",
+      "descFrom": "made",
+      "csr": [
+        "comm"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "cloud-computing",
+      "name": "클라우드 컴퓨팅",
+      "group": "g-network",
+      "desc": "서버와 저장 공간을 인터넷으로 빌려 쓰는 기술: 가상화, 컨테이너, 서버리스",
+      "descFrom": "made",
+      "csr": [
+        "comm",
+        "ops"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "distributed",
+      "name": "분산 시스템",
+      "group": "g-network",
+      "desc": "여러 컴퓨터가 하나의 시스템처럼 함께 동작하게 하는 기술: 합의, 복제, 분산 저장",
+      "descFrom": "made",
+      "csr": [
+        "comm",
+        "ops"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "edge",
+      "name": "엣지 컴퓨팅",
+      "group": "g-network",
+      "desc": "데이터가 생기는 기기 가까이에서 계산하는 방식: 엣지 서버, 온디바이스 처리",
+      "descFrom": "made",
+      "csr": [
+        "mobile"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "system-security",
+      "name": "시스템 보안",
+      "group": "g-security",
+      "desc": "운영체제와 소프트웨어의 약점을 찾고 막는 일: 취약점 분석, 악성코드, 리버스 엔지니어링",
+      "descFrom": "made",
+      "csr": [
+        "sec"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "network-security",
+      "name": "네트워크 보안",
+      "group": "g-security",
+      "desc": "네트워크로 들어오는 공격을 막는 일: 방화벽, 침입 탐지, 보안 관제",
+      "descFrom": "made",
+      "csr": [
+        "sec"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "web-app-security",
+      "name": "웹·앱 보안",
+      "group": "g-security",
+      "desc": "웹 서비스와 앱의 보안 약점을 찾고 고치는 일: 모의 해킹, 시큐어 코딩",
+      "descFrom": "made",
+      "csr": [
+        "sec"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "ai-security",
+      "name": "AI 보안",
+      "group": "g-security",
+      "desc": "AI 모델을 공격과 오용에서 지키고, AI로 보안을 강화하는 일: 적대적 공격, 탈옥 방지",
+      "descFrom": "made",
+      "csr": [
+        "sec",
+        "ai"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "privacy",
+      "name": "개인정보 보호",
+      "group": "g-security",
+      "desc": "개인정보를 안전하게 다루는 기술과 제도: 비식별화, 접근 통제, 프라이버시 기술",
+      "descFrom": "made",
+      "csr": [
+        "sec"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "forensics",
+      "name": "디지털 포렌식",
+      "group": "g-security",
+      "desc": "디지털 기기에 남은 흔적을 모아 사건을 밝히는 일: 증거 수집, 데이터 복구, 흔적 분석",
+      "descFrom": "made",
+      "csr": [
+        "sec"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "crypto",
+      "name": "암호",
+      "group": "g-security",
+      "desc": "정보를 숨기고 진짜임을 확인하는 수학적 기술: 암호 알고리즘, 전자 서명, 키 관리",
+      "descFrom": "made",
+      "csr": [
+        "crypt"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "blockchain",
+      "name": "블록체인",
+      "group": "g-security",
+      "desc": "여러 참여자가 함께 장부를 지키는 분산 기술: 스마트 컨트랙트, 합의, 디지털 자산",
+      "descFrom": "made",
+      "csr": [
+        "crypt"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "pl-compiler",
+      "name": "프로그래밍 언어·컴파일러",
+      "group": "g-software",
+      "desc": "프로그래밍 언어를 설계하고 기계가 실행하게 바꾸는 기술: 타입 시스템, 컴파일러 최적화",
+      "descFrom": "made",
+      "csr": [
+        "plan"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "program-analysis",
+      "name": "프로그램 분석",
+      "group": "g-software",
+      "desc": "코드에서 버그와 성질을 자동으로 찾아내는 기술: 정적 분석, 퍼징, 테스트 생성",
+      "descFrom": "made",
+      "csr": [
+        "plan",
+        "soft"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "software-eng",
+      "name": "소프트웨어공학",
+      "group": "g-software",
+      "desc": "큰 소프트웨어를 함께 잘 만드는 방법: 요구 분석, 설계, 테스트, 협업 개발",
+      "descFrom": "made",
+      "csr": [
+        "soft"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "sw-architecture",
+      "name": "소프트웨어 아키텍처",
+      "group": "g-software",
+      "desc": "시스템을 부품으로 나누고 잇는 큰 설계: 마이크로서비스, 디자인 패턴, 확장성",
+      "descFrom": "made",
+      "csr": [
+        "soft"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "formal-methods",
+      "name": "형식 검증·논리",
+      "group": "g-software",
+      "desc": "수학과 논리로 프로그램이 맞게 동작함을 증명하는 기술: 모델 검사, 정리 증명",
+      "descFrom": "made",
+      "csr": [
+        "log"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "open-source",
+      "name": "오픈소스",
+      "group": "g-software",
+      "desc": "공개된 코드를 함께 만들고 쓰는 문화와 활동: 오픈소스 기여, 라이선스, 커뮤니티",
+      "descFrom": "made",
+      "csr": [
+        "soft"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "web-tech",
+      "name": "웹 기술",
+      "group": "g-software",
+      "desc": "웹 페이지와 웹 서비스를 만드는 기술: HTML·CSS, 자바스크립트, 웹 표준, 브라우저",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "algorithms",
+      "name": "알고리즘",
+      "group": "g-theory",
+      "desc": "문제를 빠르고 정확하게 푸는 절차와 자료 구조: 알고리즘 설계, 문제 해결, 코딩 테스트",
+      "descFrom": "made",
+      "csr": [
+        "act"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "computation-theory",
+      "name": "계산 이론",
+      "group": "g-theory",
+      "desc": "무엇을 계산할 수 있고 얼마나 어려운지 다루는 이론: 오토마타, 계산 복잡도",
+      "descFrom": "made",
+      "csr": [
+        "act"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "optimization",
+      "name": "최적화",
+      "group": "g-theory",
+      "desc": "주어진 조건에서 가장 좋은 답을 찾는 수학적 방법: 선형 계획, 조합 최적화",
+      "descFrom": "made",
+      "csr": [
+        "act"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "quantum",
+      "name": "양자 컴퓨팅",
+      "group": "g-theory",
+      "desc": "양자역학으로 계산하는 새로운 컴퓨터와 알고리즘: 큐비트, 양자 회로, 양자 암호",
+      "descFrom": "made",
+      "csr": [
+        "act"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "game-theory",
+      "name": "게임 이론·메커니즘 설계",
+      "group": "g-theory",
+      "desc": "여러 참여자가 전략적으로 고르는 상황을 다루는 이론: 경매, 시장 설계, 계산 경제",
+      "descFrom": "made",
+      "csr": [
+        "ecom"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "graphics",
+      "name": "컴퓨터 그래픽스",
+      "group": "g-hci",
+      "desc": "컴퓨터로 이미지와 움직임을 만드는 기술: 모델링, 애니메이션, 물리 시뮬레이션",
+      "descFrom": "made",
+      "csr": [
+        "graph"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "rendering",
+      "name": "3D·렌더링",
+      "group": "g-hci",
+      "desc": "3차원 장면을 실제처럼 그려 내는 기술: 렌더링, 셰이더, 실시간 그래픽",
+      "descFrom": "made",
+      "csr": [
+        "graph"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "hci",
+      "name": "HCI",
+      "group": "g-hci",
+      "desc": "사람과 컴퓨터가 만나는 방식을 연구하고 설계하는 일: 사용성, 인터랙션, 사용자 연구",
+      "descFrom": "made",
+      "csr": [
+        "chi"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "xr",
+      "name": "가상·증강현실",
+      "group": "g-hci",
+      "desc": "가상 공간을 만들거나 현실 위에 디지털 정보를 겹쳐 보이는 기술: VR, AR, 메타버스",
+      "descFrom": "made",
+      "csr": [
+        "graph",
+        "chi"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "accessibility",
+      "name": "접근성",
+      "group": "g-hci",
+      "desc": "장애가 있거나 나이가 많은 사람도 기술을 쓸 수 있게 하는 설계: 보조 기술, 웹 접근성",
+      "descFrom": "made",
+      "csr": [
+        "chi"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "backend",
+      "name": "백엔드",
+      "group": "g-job",
+      "desc": "서비스 뒤에서 데이터와 기능을 맡는 서버를 만드는 직무: API, 서버 개발, DB 연동",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "frontend",
+      "name": "프론트엔드",
+      "group": "g-job",
+      "desc": "사용자가 보고 누르는 웹 화면을 만드는 직무: 화면 구현, 리액트, 웹 성능",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "mobile-app",
+      "name": "모바일 앱",
+      "group": "g-job",
+      "desc": "스마트폰 앱을 만드는 직무: 안드로이드, iOS, 크로스플랫폼 앱",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "cloud",
+      "name": "클라우드·인프라",
+      "group": "g-job",
+      "desc": "서비스가 도는 서버와 배포 환경을 만들고 운영하는 직무: DevOps, 쿠버네티스, 클라우드 운영",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "data-eng",
+      "name": "데이터 엔지니어링",
+      "group": "g-job",
+      "desc": "데이터를 모으고 옮기고 쌓는 파이프라인을 만드는 직무: ETL, 데이터 웨어하우스",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "qa",
+      "name": "QA·테스트",
+      "group": "g-job",
+      "desc": "소프트웨어 품질을 확인하는 직무: 테스트 설계, 자동화 테스트, 품질 관리",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "data-analysis",
+      "name": "데이터 분석",
+      "group": "g-job",
+      "desc": "데이터로 사업의 질문에 답하는 직무: SQL, 지표 분석, 분석 리포트",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "ml-eng",
+      "name": "ML 엔지니어링",
+      "group": "g-job",
+      "desc": "머신러닝 모델을 서비스에 넣고 운영하는 직무: 모델 서빙, MLOps",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "security-eng",
+      "name": "보안 엔지니어링",
+      "group": "g-job",
+      "desc": "회사 시스템과 서비스의 보안을 맡는 직무: 보안 관제, 취약점 진단, 보안 컨설팅",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "embedded",
+      "name": "임베디드·펌웨어",
+      "group": "g-job",
+      "desc": "기기 안에서 도는 소프트웨어를 만드는 직무: 펌웨어, 디바이스 드라이버, 임베디드 리눅스",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "game",
+      "name": "게임 개발",
+      "group": "g-job",
+      "desc": "게임을 만드는 직무: 게임 클라이언트·서버, 게임 엔진, 게임 기획",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "fintech",
+      "name": "핀테크",
+      "group": "g-industry",
+      "desc": "금융과 기술을 잇는 분야: 결제, 송금, 투자 서비스, 금융 데이터",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "healthcare",
+      "name": "헬스케어·바이오",
+      "group": "g-industry",
+      "desc": "건강·의료·생명과학에 기술을 쓰는 분야: 의료 AI, 바이오인포매틱스, 디지털 헬스",
+      "descFrom": "made",
+      "csr": [
+        "bio"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "mobility",
+      "name": "모빌리티·자율주행",
+      "group": "g-industry",
+      "desc": "사람과 물건의 이동을 바꾸는 기술: 자율주행, 커넥티드카, 드론, 교통 데이터",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "commerce",
+      "name": "커머스·유통",
+      "group": "g-industry",
+      "desc": "온라인 쇼핑과 유통을 다루는 분야: 이커머스, 물류, 상품 추천",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "media",
+      "name": "콘텐츠·미디어",
+      "group": "g-industry",
+      "desc": "영상·음악·웹툰 같은 콘텐츠를 만들고 퍼뜨리는 분야: 미디어 플랫폼, 방송",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "public-social",
+      "name": "공공·사회",
+      "group": "g-industry",
+      "desc": "공공 서비스와 사회 문제를 기술로 푸는 분야: 전자 정부, 공공 데이터, 사회 공헌",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "smart-factory",
+      "name": "스마트 제조",
+      "group": "g-industry",
+      "desc": "공장과 생산을 데이터와 자동화로 바꾸는 분야: 스마트 팩토리, 산업 자동화",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "smart-city",
+      "name": "스마트 시티",
+      "group": "g-industry",
+      "desc": "도시의 교통·에너지·안전을 데이터로 운영하는 분야",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "energy-env",
+      "name": "에너지·환경",
+      "group": "g-industry",
+      "desc": "에너지와 환경 문제를 기술로 다루는 분야: 전력, 탄소 중립, 기후 데이터",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "defense-space",
+      "name": "국방·우주",
+      "group": "g-industry",
+      "desc": "국방과 우주 산업에 쓰이는 기술: 방산 소프트웨어, 위성, 항공 우주",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "service-planning",
+      "name": "서비스 기획·PM",
+      "group": "g-beyond",
+      "desc": "만들 서비스를 정하고 일정과 팀을 이끄는 일: 서비스 기획, 프로덕트 매니저",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "ux-ui",
+      "name": "UX·UI 디자인",
+      "group": "g-beyond",
+      "desc": "사용자가 쉽게 쓰도록 경험과 화면을 설계하는 일: UX 리서치, UI 디자인",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "startup",
+      "name": "창업",
+      "group": "g-beyond",
+      "desc": "새 사업을 시작하고 키우는 일: 아이템 발굴, 사업 계획, 투자 유치",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "marketing",
+      "name": "마케팅·브랜딩",
+      "group": "g-beyond",
+      "desc": "제품과 브랜드를 알리고 고객을 모으는 일: 디지털 마케팅, 그로스, 브랜드",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "management",
+      "name": "경영·컨설팅",
+      "group": "g-beyond",
+      "desc": "조직과 사업의 문제를 분석하고 전략을 세우는 일: 경영 전략, 컨설팅",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "finance-econ",
+      "name": "경제·금융",
+      "group": "g-beyond",
+      "desc": "경제와 금융 시장을 이해하고 다루는 일: 금융 지식, 투자, 경제 분석",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "language-intl",
+      "name": "외국어·국제",
+      "group": "g-beyond",
+      "desc": "외국어와 국제 교류에 관한 일: 영어, 어학 시험, 국제 협력",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "writing-speech",
+      "name": "글쓰기·발표",
+      "group": "g-beyond",
+      "desc": "생각을 글과 말로 잘 전하는 일: 글쓰기, 발표, 토론",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "edutech",
+      "name": "교육·에듀테크",
+      "group": "g-beyond",
+      "desc": "가르치고 배우는 일과 그것을 돕는 기술: 코딩 교육, 교육 플랫폼",
+      "descFrom": "made",
+      "csr": [
+        "csed"
+      ],
+      "ncs": null
+    },
+    {
+      "id": "law-policy",
+      "name": "법·정책",
+      "group": "g-beyond",
+      "desc": "기술과 관련된 법과 제도를 다루는 일: IT 법, 지식재산권, 정책",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "humanities-arts",
+      "name": "인문·예술",
+      "group": "g-beyond",
+      "desc": "인문학과 예술을 다루는 일: 철학, 역사, 문학, 음악, 미술",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    },
+    {
+      "id": "leadership",
+      "name": "리더십·협업",
+      "group": "g-beyond",
+      "desc": "사람과 함께 일하고 이끄는 힘: 리더십, 팀워크, 소통",
+      "descFrom": "made",
+      "csr": [],
+      "ncs": null
+    }
+  ],
+  "courseMap": {
+    "ai": [
+      "rl",
+      "ai-agent",
+      "ai-security"
+    ],
+    "ml": [
+      "ml",
+      "deep-learning",
+      "recsys",
+      "rl",
+      "time-series",
+      "data-mining"
+    ],
+    "vision": [
+      "llm",
+      "nlp",
+      "computer-vision",
+      "speech-ai",
+      "recsys",
+      "search-engine",
+      "web-data"
+    ],
+    "arch": [
+      "computer-arch",
+      "ai-chip",
+      "hpc",
+      "eda"
+    ],
+    "os": [
+      "os",
+      "iot",
+      "realtime",
+      "cloud-computing",
+      "distributed"
+    ],
+    "network": [
+      "perf",
+      "network",
+      "wireless",
+      "next-gen-comm",
+      "cloud-computing",
+      "distributed",
+      "edge"
+    ],
+    "security": [
+      "system-security",
+      "network-security",
+      "web-app-security",
+      "ai-security",
+      "privacy",
+      "forensics"
+    ],
+    "db": [
+      "database",
+      "big-data",
+      "data-mining"
+    ],
+    "pl": [
+      "pl-compiler",
+      "program-analysis"
+    ],
+    "se": [
+      "program-analysis",
+      "software-eng",
+      "sw-architecture",
+      "open-source"
+    ],
+    "theory": [
+      "crypto",
+      "blockchain",
+      "formal-methods",
+      "algorithms",
+      "computation-theory",
+      "optimization",
+      "quantum"
+    ],
+    "graphics": [
+      "data-viz",
+      "graphics",
+      "rendering",
+      "hci",
+      "xr",
+      "accessibility"
+    ]
+  },
+  "chosen": null
+}

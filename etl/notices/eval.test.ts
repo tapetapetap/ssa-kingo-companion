@@ -233,6 +233,28 @@ describe('main', () => {
     expect(log.mock.calls).toEqual([['LLM 판정 0(보관 0 · 새로 0 · 실패 0)']]);
   });
 
+  // 스펙 3: 부하 제한. 온도를 읽지 못해 묻지 않은 글도 서버에 닿지 못한 글처럼 비교를 거절하고, 까닭마다 한 줄씩 낸다
+  it('비교(스펙 3): 온도 때문에 못 물은 글은 연결 줄과 따로 알리고 1로 끝난다. 부하 줄은 표준 오류다', async () => {
+    const { err, log } = quiet();
+    const gate = { before: async () => true, after: async () => {}, noTemp: 2 };
+    const load = () => ({ requests: 1, requestMs: 10, gpuAvg: 40, tempMax: 50, logFile: null, line: '부하: GPU 평균 40% · 칩 최고 50°C' });
+    expect(await main([csv([...LABELS, ASKED])], board(), tmp(), tmp(), askWith('down'), { gate, load })).toBe(1);
+    expect(err.mock.calls.map(c => c[0]).slice(1)).toEqual([ // 첫 줄은 진행(LLM 3/3)
+      '부하: GPU 평균 40% · 칩 최고 50°C',
+      'LLM에 연결하지 못한 글이 1건이라 비교하지 않았어요 (m)',
+      '온도를 읽지 못한 글이 2건이라 비교하지 않았어요'
+    ]);
+    expect(log.mock.calls).toEqual([['LLM 판정 0(보관 0 · 새로 0 · 실패 0)']]);
+  });
+
+  it('비교(스펙 3): 모두 온도 때문이면 온도 줄만 내고, 요청이 없었으면 부하 줄이 없다', async () => {
+    const { err } = quiet();
+    const gate = { before: async () => true, after: async () => {}, noTemp: 3 };
+    const load = () => ({ requests: 0, requestMs: 0, gpuAvg: null, tempMax: null, logFile: null, line: '' });
+    expect(await main([csv([...LABELS, ASKED])], board(), tmp(), tmp(), askWith('down'), { gate, load })).toBe(1);
+    expect(err.mock.calls.map(c => c[0]).slice(1)).toEqual(['온도를 읽지 못한 글이 3건이라 비교하지 않았어요']);
+  });
+
   it('비교(스펙 2): 글 판정 실패는 규칙 결과로 점수에 넣고 실패 수를 보인다', async () => {
     const { log } = quiet();
     await main([csv([...LABELS, ASKED])], board(), tmp(), tmp(), askWith('fail'));

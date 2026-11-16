@@ -10,6 +10,16 @@
     "source": { "const": "https://cse.skku.edu/cse/notice.do" },
     "collectedAt": { "type": "string", "format": "date-time" },
     "since": { "$ref": "#/$defs/date", "description": "기준일(그날 포함)" },
+    "taxonomy": {
+      "type": "object",
+      "description": "스펙 3(분야 목록 3안 비교): 고른 분야 목록 id와 판정 판. 고른 안이 85% 이상이고 판정 판·모델이 그대로일 때만 있다",
+      "additionalProperties": false,
+      "required": ["id", "prompt"],
+      "properties": {
+        "id": { "enum": ["custom", "ncs", "csrankings"] },
+        "prompt": { "type": "string", "pattern": "^[0-9a-f]{8}$" }
+      }
+    },
     "opportunities": {
       "type": "array",
       "description": "글 번호 큰 순",
@@ -46,8 +56,20 @@
             { "type": "string", "pattern": "^(본문: .+|본문·제목|제목|행사 날: (제목|본문))$" },
             { "type": "null" }
           ]
-        }
+        },
+        "fields": {
+          "type": "object",
+          "description": "스펙 3: 분야 판정 답을 받은 기회에만 있다. id는 taxonomy의 분야 목록 id이고 core와 related는 겹치지 않는다. 둘 다 빈 배열이면 분야 없음",
+          "additionalProperties": false,
+          "required": ["core", "related"],
+          "properties": {
+            "core": { "type": "array", "items": { "type": "string" }, "maxItems": 2, "uniqueItems": true },
+            "related": { "type": "array", "items": { "type": "string" }, "maxItems": 5, "uniqueItems": true }
+          }
+        },
+        "fieldRule": { "type": "string", "pattern": "^LLM: .+$" }
       },
+      "dependentRequired": { "fields": ["fieldRule"], "fieldRule": ["fields"] },
       "if": { "properties": { "deadline": { "type": "null" } } },
       "then": { "properties": { "deadlineRule": { "type": "null" } } },
       "else": { "properties": { "deadlineRule": { "type": "string" } } }
