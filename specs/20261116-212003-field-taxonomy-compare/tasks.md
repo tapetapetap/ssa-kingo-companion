@@ -306,7 +306,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
     - x.field가 `{ ask }`면 `buildResult`가 남긴 기회마다 판정해 data-model 7의 칸을 더하고 요약 줄을 붙인다.
     - `ResultFile`·`Opportunity` 타입에 선택 칸(`taxonomy?`, `fields?`, `fieldRule?`)을 더한다.
   - 진입 줄
-    - `findChosen(TAXONOMY_IDS.map(id => loadTaxonomy(id)))`가 던지면 그 문구를 내고 1로 끝난다.
+    - `findChosen`이 던지면(고른 안이 둘 이상) 그 문구를 내고 1로 끝난다. 목록 파일을 읽지 못하면(파일 없음·JSON 아님·꼴 틀림) 1로 끝내지 않고 `field: { reason }`으로 요약에 이유를 한 줄 낸다.
     - 고른 안이 있으면 같은 throttle의 새 문으로 `makeEmbed`·`makeFieldAsk`를 만든다. `fieldGate(chosen, ask.version, ask.model)`가 통과면 `field: { ask, gate }`, 아니면 `field: { reason }`이다.
   - 스키마: `specs/20261107-193624-cse-notice-opportunities/contracts/cse-notices.schema.json`에 선택 칸 셋을 더한다(research R12).
 

@@ -292,7 +292,8 @@
   - `findChosen(list)`: chosen이 있는 안 하나 또는 null을 돌려준다. 둘 이상이면 `고른 안이 둘 이상이에요: custom, ncs`를 던진다. `compare.ts check`도 이 함수로 '많아야 하나'를 본다.
   - `fieldGate(t, version, model)`: `{ ok: true }` 또는 `{ reason }`을 돌려준다. 판정 판 → 모델 → 정밀도 순으로 보고 처음 걸린 이유 하나를 낸다(문구는 contracts/cli.md).
 - **결과 파일**: `run.ts` 진입 줄이 `findChosen`으로 고른 안을 찾는다.
-  - 던지면 그 문구를 내고 1로 끝난다.
+  - 고른 안이 둘 이상이면(findChosen이 던지면) 그 문구를 내고 1로 끝난다. 1로 끝나는 것은 이때뿐이다.
+  - 목록 파일을 읽지 못하면(파일 없음·JSON 아님·꼴 틀림) 공지 수집은 그대로 돈다. main에 `field: { reason }`을 넘겨 요약에 이유를 한 줄 낸다.
   - 고른 안이 있으면 분야 판정기(`makeFieldAsk`)를 만들고 `fieldGate(chosen, ask.version, ask.model)`을 본다. 통과면 main에 `field: { ask, gate }`를, 아니면 `field: { reason }`을 넘긴다.
   - 통과면 기회마다 분야를 판정해 data-model 7의 칸을 더한다. 아니면 분야 판정을 하지 않고 결과 파일은 지금과 같으며, 요약에 이유를 한 줄 적는다.
 - **스키마**: 결과 파일 계약 `specs/20261107-193624-cse-notice-opportunities/contracts/cse-notices.schema.json`은 최상위와 opportunity 모두 `additionalProperties: false`다. 그래서 아래 선택 칸을 더한다. 스펙 2가 같은 파일을 고친 전례가 있다.

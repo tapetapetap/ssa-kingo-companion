@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { classify, hostOf, type Judged, type Kind } from './classify.ts';
 import { BoardError, bodyOf, CACHE_DIR, listSince, makeGet, SOURCE, viewUrl, type Get, type NoticeRow } from './cse.ts';
 import { deadlineOf, readDates, stripDates } from './deadline.ts';
-import { fieldGate, findChosen, loadTaxonomy, TAXONOMY_IDS } from '../taxonomy/taxonomy.ts';
+import { fieldGate, findChosen, loadTaxonomy, TAXONOMY_DIR, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { makeEmbed } from './embed.ts';
 import { countField, fieldPart, makeFieldAsk, newStats, type FieldAnswer, type FieldAsk } from './fields.ts';
 import { fromLlm, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type Gate, type LlmStats } from './llm.ts';
@@ -220,9 +220,16 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
   }
 }
 
-/** 고른 안이 있으면 분야 판정기를 만들고 결과 파일에 넣어도 되는지 본다(스펙 3 research R12). 고른 안이 둘 이상이거나 목록 파일이 틀리면 던진다 */
-function chosenField(t: ReturnType<typeof createThrottle>): RunExtra['field'] {
-  const chosen = findChosen(TAXONOMY_IDS.map(id => loadTaxonomy(id)));
+/** 고른 안이 있으면 분야 판정기를 만들고 결과 파일에 넣어도 되는지 본다(스펙 3 research R12).
+ *  목록 파일을 읽지 못하면 이유만 돌려줘 공지 수집은 그대로 돌고, 고른 안이 둘 이상일 때만 던진다(contracts/cli.md) */
+export function chosenField(t: { gate: () => Gate }, dir = TAXONOMY_DIR): RunExtra['field'] {
+  let lists: Taxonomy[];
+  try {
+    lists = TAXONOMY_IDS.map(id => loadTaxonomy(id, dir));
+  } catch (e) {
+    return { reason: `분야 목록을 읽지 못해 분야를 넣지 않았어요 (${messageOf(e)})` };
+  }
+  const chosen = findChosen(lists);
   if (!chosen) return undefined;
   const gate = t.gate(); // 같은 throttle의 새 문: 분야 판정의 noTemp를 따로 센다
   const ask = makeFieldAsk({ taxonomy: chosen, embed: makeEmbed({ gate }), gate });

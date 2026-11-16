@@ -1,11 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { validList } from '../taxonomy/fixtures.ts';
+import { saveTaxonomy, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { BoardError, listUrl, SOURCE, viewUrl, type Get, type NoticeRow } from './cse.ts';
 import type { FieldAsk, FieldOutcome } from './fields.ts';
 import type { Ask, LlmOutcome } from './llm.ts';
-import { buildResult, collect, formatSummary, judge, judgeAll, main, writeResult, type ResultFile } from './run.ts';
+import { buildResult, chosenField, collect, formatSummary, judge, judgeAll, main, writeResult, type ResultFile } from './run.ts';
 
 const row = (no: number, title: string, postedAt: string, board = '채용/모집'): NoticeRow => ({ no, title, board, postedAt, pinned: false });
 const DONGJIN = '[동진쎄미켐] 2026년 11월 신입/경력 정기채용 (~11/15(일))';
@@ -439,5 +441,34 @@ describe('main: 분야 칸 (스펙 3 data-model 7)', () => {
     const { file } = await run({ field: { ask: fieldAsk() } });
     expect(file.taxonomy?.prompt).toMatch(new RegExp(top.properties.prompt.pattern));
     for (const o of file.opportunities.filter(x => x.fieldRule)) expect(o.fieldRule).toMatch(new RegExp(opp.properties.fieldRule.pattern));
+  });
+});
+
+// 진입 줄이 넘기는 field(contracts/cli.md). 목록 파일은 임시 폴더의 시험용 목록이다
+describe('chosenField (스펙 3 research R12)', () => {
+  const gate = { before: async () => true, after: async () => {}, noTemp: 0 };
+  const lists = (change: (t: Taxonomy) => void = () => {}) => {
+    const dir = tmp();
+    for (const id of TAXONOMY_IDS) {
+      const t = validList(id);
+      change(t);
+      saveTaxonomy(t, dir);
+    }
+    return dir;
+  };
+
+  it('목록 파일이 없거나 JSON이 아니면 던지지 않고 이유 한 줄을 돌려준다(분야 없이 돈다)', () => {
+    const dir = lists();
+    const file = join(dir, 'ncs.json');
+    rmSync(file);
+    expect(chosenField({ gate: () => gate }, dir)).toEqual({ reason: `분야 목록을 읽지 못해 분야를 넣지 않았어요 (분야 목록 파일이 없어요: ${file})` });
+    writeFileSync(file, '{');
+    expect(chosenField({ gate: () => gate }, dir)).toEqual({ reason: `분야 목록을 읽지 못해 분야를 넣지 않았어요 (분야 목록 파일이 JSON이 아니에요: ${file})` });
+  });
+
+  it('고른 안이 둘 이상일 때만 던진다(진입 줄이 1로 끝낸다). 고른 안이 없으면 undefined다', () => {
+    const chosen = { date: '2026-11-20', corePrecision: { num: 88, den: 100 }, prompt: '1a2b3c4d', model: 'gemma4:12b' };
+    expect(() => chosenField({ gate: () => gate }, lists(t => { if (t.id !== 'ncs') t.chosen = chosen; }))).toThrow('고른 안이 둘 이상이에요: custom, csrankings');
+    expect(chosenField({ gate: () => gate }, lists())).toBeUndefined();
   });
 });
