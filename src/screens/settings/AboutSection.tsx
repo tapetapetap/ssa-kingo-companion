@@ -18,9 +18,11 @@ export function AboutSection() {
   const reset = () => { setAsk(false); startOver('새 학생으로 처음부터 시작해요'); };
   // 지금 상태를 예시로 덮기 전에 한 번 묻는다. 무엇이 사라지는지 말한다.
   const mine = state.demo ? 0 : state.activities.length + state.records.length;
+  const courses = state.demo ? 0 : state.courses.taken.length;
+  const lost = [mine > 0 && `활동·기록 ${mine}개`, courses > 0 && `들은 과목 ${courses}개`].filter(Boolean).join('와 ');
   const overwrite = state.demo
     ? '둘러보며 고른 것과 답한 것이 처음 예시로 돌아가요.'
-    : mine > 0 ? `새 학생으로 쓴 활동·기록 ${mine}개가 지워져요.` : '지금 고른 것과 답한 것이 예시 학생 것으로 바뀌어요.';
+    : lost ? `새 학생으로 쓴 ${lost}가 지워져요.` : '지금 고른 것과 답한 것이 예시 학생 것으로 바뀌어요.';
   const toExample = () => {
     setAskMode(false);
     run({ type: 'data/mode', demo: true });

@@ -61,7 +61,7 @@ export function DataSection() {
         </Group>
         <Group title="내보내기·지우기">
           <ul className="st-rows">
-            <Row title="내 데이터 내려받기" sub="입력한 정보, 활동, 기록, 설정을 파일 하나로 받아요">
+            <Row title="내 데이터 내려받기" sub="입력한 정보, 활동, 기록, 들은 과목, 설정을 파일 하나로 받아요">
               <Button size="sm" icon="doc" onClick={download}>내려받기</Button>
             </Row>
             <Row title="내 데이터 지우기" sub="이 브라우저에 남긴 것을 모두 지우고 가입 인터뷰부터 다시 해요">
@@ -92,7 +92,7 @@ export function DataSection() {
         onClose={() => setErase(false)}
         actions={<><Button onClick={() => setErase(false)}>취소</Button><Button variant="primary" onClick={wipe}>지우기</Button></>}
       >
-        프로필, 활동, 기록, 설정이 모두 지워져요. 남겨 두려면 먼저 내려받아 주세요.
+        프로필, 활동, 기록, 들은 과목, 설정이 모두 지워져요. 남겨 두려면 먼저 내려받아 주세요.
       </Modal>
     </div>
   );
