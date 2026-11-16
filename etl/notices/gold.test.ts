@@ -113,6 +113,18 @@ describe('label-input', () => {
     expect(said(err)).toContain('저장소 안 폴더에는 쓰지 않아요');
   });
 
+  it('대소문자만 다르게 적은 저장소 안 경로도 거절한다(macOS APFS는 대소문자를 가리지 않는다)', async ctx => {
+    const { err } = quiet();
+    const s = sampled();
+    const root = join(s.repoRoot, 'Repo');
+    mkdirSync(root);
+    if (!existsSync(join(s.repoRoot, 'repo'))) ctx.skip(); // 대소문자를 가리는 파일 시스템(리눅스)에서는 다른 폴더라 저장소 밖이 맞다
+    const dir = join(s.repoRoot, 'repo', 'labels');
+    expect(await main(['label-input', 'custom', dir], { ...s, repoRoot: root })).toBe(1);
+    expect(said(err)).toContain('저장소 안 폴더에는 쓰지 않아요');
+    expect(existsSync(dir)).toBe(false);
+  });
+
   it('본문 보관본이 없는 표본 글이 있으면 그 번호를 내고 아무것도 쓰지 않고 1이다', async () => {
     const { err } = quiet();
     const out = join(tmp(), 'labels');

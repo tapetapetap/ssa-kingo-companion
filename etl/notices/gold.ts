@@ -39,11 +39,12 @@ const noFromLink = (link: string) => {
 export const cachedBody = async (no: number, cacheDir: string) =>
   (await bodyOf(no, async () => { throw new Error('보관본만 읽어요'); }, cacheDir)).lines;
 
-/** 심볼릭 링크를 푼 경로가 저장소 뿌리 아래인가. 아직 없는 폴더는 있는 조상까지 풀고 나머지를 잇는다 */
+/** 심볼릭 링크를 푼 경로가 저장소 뿌리 아래인가. 아직 없는 폴더는 있는 조상까지 풀고 나머지를 잇는다.
+ *  native는 운영체제가 실제 대소문자로 돌려준다(JS 판은 적은 대로 두어 macOS에서 'repo'와 'Repo'가 다른 경로로 보인다) */
 function insideRepo(path: string, root: string): boolean {
   const real = (p: string): string => {
     try {
-      return realpathSync(p);
+      return realpathSync.native(p);
     } catch {
       return dirname(p) === p ? p : join(real(dirname(p)), basename(p));
     }
