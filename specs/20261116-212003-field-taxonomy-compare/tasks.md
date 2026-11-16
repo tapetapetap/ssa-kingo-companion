@@ -23,7 +23,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 ## Phase 1: Setup
 
-- [ ] T001 `tape/main`에서 친 `feat/field-taxonomy` 브랜치에 있는지 확인한다.
+- [x] T001 `tape/main`에서 친 `feat/field-taxonomy` 브랜치에 있는지 확인한다.
   - `etl/taxonomy/`와 `etl/gold/fields/` 폴더는 첫 파일이 들어갈 때 함께 커밋한다. `etl/.cache/`는 이미 `.gitignore`에 있다.
   - `$T` 폴더를 만든다. `ollama list`에 `gemma4:12b`와 `bge-m3`가 있는지 본다.
 
@@ -33,7 +33,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 **Purpose**: 세 안의 분야 목록을 읽고 검사하는 공통 모듈. US1의 check, US2의 지시문·후보, US3의 지표, US4의 고르기가 모두 쓴다.
 
-- [ ] T002 [P] `etl/taxonomy/taxonomy.test.ts`에 시험을 먼저 쓴다(data-model 1).
+- [x] T002 [P] `etl/taxonomy/taxonomy.test.ts`에 시험을 먼저 쓴다(data-model 1).
   - 시험용 목록: `etl/taxonomy/fixtures.ts`의 `validList(id)`가 검사를 통과하는 목록을 코드로 만든다. custom은 묶음 10개·분야 80개(CSRankings 27키 하나씩 + 직무 11 + 채움 42), csrankings는 연구 27(`CSR_AREAS`) + 직무 11, ncs는 분야 3개(`sourceCounts.minor` 3)다. 크기 한도는 ctx로 바꾸지 않는다.
   - 통과: `validList` 셋이 통과한다.
   - 실패: `validList` 결과를 하나씩 고쳐 규칙마다 위반 사례를 쓴다. id 겹침, 없는 묶음, 빈 설명, 241자 설명, 종류 이름과 같은 분야, courseMap 키 11개, 없는 분야 id, 1안 CSRankings 키 빠짐, 2안 분야 수 ≠ `sourceCounts.minor`, 3안 연구 분야 desc가 '('로 시작하지 않음, 3안 연구 분야의 묶음이 그 키의 CSRankings 묶음과 다름, chosen 꼴 틀림
@@ -41,7 +41,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
   - 목록 글자 수(묶음 이름 + 분야 이름 + 설명)와 묶음 경로(2안 '대분류 › 중분류')
   - `findChosen`: 없으면 null, 하나면 그 안, 둘 이상이면 `고른 안이 둘 이상이에요: custom, ncs`를 던진다.
   - `fieldGate`: 통과, 판정 판 다름, 모델 다름, 정밀도 미달(84/100)과 경계(85/100은 통과)마다 contracts/cli.md의 이유 줄이 나온다.
-- [ ] T003 `etl/taxonomy/taxonomy.ts`를 만든다.
+- [x] T003 `etl/taxonomy/taxonomy.ts`를 만든다.
   - 타입: `Taxonomy`, `Group`, `Field`, `Chosen`(칸은 data-model 1). 상수: `TAXONOMY_IDS = ['custom', 'ncs', 'csrankings']`, `COURSE_ROWS`(12개 키), `TAXONOMY_DIR`
   - `loadTaxonomy(id, dir?)`: 파일 꼴을 검사한 뒤에만 타입을 붙인다. 없거나 꼴이 틀리면 이유를 담아 던진다. any를 쓰지 않는다.
   - `checkTaxonomy(t, ctx)` → 위반 문장 배열. ctx는 `{ csrAreas, kindNames }`다. csrAreas는 `src/data/courses/csrankings.ts`의 `CSR_AREAS`(id·group), kindNames는 `etl/notices/classify.ts`의 `KIND_LABEL` 값이고, 이 둘로 만든 `CHECK_CTX`를 내보낸다.
@@ -60,35 +60,35 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 **Independent Test**: quickstart S2. `compare.ts check`가 세 줄을 내고 0으로 끝난다. 미리보기에서 3개를 고르면 '다음'이 켜진다.
 
-- [ ] T004 [P] [US1] `etl/notices/compare.test.ts`에 `check` 시험을 먼저 쓴다. `validList` 셋을 임시 폴더에 써서 `deps.taxonomyDir`로 돌린다.
+- [x] T004 [P] [US1] `etl/notices/compare.test.ts`에 `check` 시험을 먼저 쓴다. `validList` 셋을 임시 폴더에 써서 `deps.taxonomyDir`로 돌린다.
   - 통과하면 안마다 `<id>: 묶음 n · 분야 n · 교과 지도 n/12 · 목록 n자`를 출력하고 0을 돌려준다.
   - 위반이 있으면 모두 출력하고 1이다. 안 파일이 없거나 chosen이 둘이어도 1이다.
-- [ ] T005 [US1] `etl/notices/compare.ts`를 만든다.
+- [x] T005 [US1] `etl/notices/compare.ts`를 만든다.
   - 진입점은 `main(args, deps)`이다. deps 칸은 contracts/cli.md '공통'이다.
   - 하위 명령 표에 `check`를 넣는다. 쓰는 법이 틀리면 2다.
   - 파일 끝 진입 줄은 `if (import.meta.main)`이다. 기존 `run.ts`·`eval.ts`와 같은 꼴이다. T004가 통과해야 한다.
-- [ ] T006 [P] [US1] 1안 `etl/taxonomy/custom.json`을 쓴다(FR-002, research R8, data-model 1).
+- [x] T006 [P] [US1] 1안 `etl/taxonomy/custom.json`을 쓴다(FR-002, research R8, data-model 1).
   - 묶음 11개와 분야 초안 90개: research R8의 1안 표(묶음 id·이름, 묶음마다 csr에 넣을 키, 쪼개는 기준, 분야 id 꼴)를 따른다. 검사 한도는 큰 분야 10~15개, 세부 분야 80~120개이고, CSRankings 27개 키가 모두 어떤 분야의 csr에 있어야 한다.
   - 직무 묶음(`g-job` 개발 직무): research R8 직무 표의 11개를 이름·id 그대로 쓴다.
   - 분야마다 학생이 알아듣는 설명 한 줄(`descFrom: "made"`), courseMap 12줄(research R8의 csr 규칙), `edition`은 쓴 날이다.
-- [ ] T007 [P] [US1] 3안 `etl/taxonomy/csrankings.json`을 쓴다(FR-004, data-model 1).
+- [x] T007 [P] [US1] 3안 `etl/taxonomy/csrankings.json`을 쓴다(FR-004, data-model 1).
   - 연구 분야: `src/data/courses/csrankings.ts`의 27개 분야 하나에 분야 하나다. id는 키 그대로, name은 `CSR_AREAS`의 label 그대로, csr은 `[키]`이고, desc는 '(<원래 영어 이름>) …'로 시작한다(research R8).
   - 직무: research R8 표의 11개를 이름·id 그대로 쓴다(T006과 같다).
   - 묶음: `g-ai` AI, `g-systems` 시스템, `g-theory` 이론, `g-inter` 융합, `g-job` 개발 직무(research R8). courseMap 12줄(research R8의 csr 규칙). 출처: CC BY-NC-ND 4.0, 분야 이름·키만
-- [ ] T008 [P] [US1] `etl/taxonomy/ncs.test.ts`에 시험을 먼저 쓴다. 작은 XML 조각을 쓴다(research R7).
+- [x] T008 [P] [US1] `etl/taxonomy/ncs.test.ts`에 시험을 먼저 쓴다. 작은 XML 조각을 쓴다(research R7).
   - `readShared(xml)`: `<si><t>`와 서식 조각(`<si><r><t>`)을 이어 읽는다.
   - `readRows(xml, shared)`: 칸 주소로 A~H만 고른다. `t="s"`는 공유 문자열, `t="inlineStr"`는 `<is><t>`, 빈 칸은 빈 글자다.
   - `buildNcs(rows, edition)`: 머리줄이 R7과 다르면 던진다. id 규칙, 세분류 이름을 코드 순서로 `, `로 이음, 240자를 넘으면 그 안에 드는 마지막 이름까지(말줄임표 없음, 첫 이름이 240자를 넘으면 그 이름을 240자에서 자름), `descFrom: "source"`, `sourceCounts`, courseMap은 `NCS_COURSE_MAP`
-- [ ] T009 [US1] `etl/taxonomy/ncs.ts`를 만들고 돌린다(research R7). T008이 통과해야 한다.
+- [x] T009 [US1] `etl/taxonomy/ncs.ts`를 만들고 돌린다(research R7). T008이 통과해야 한다.
   - 받기: 자료실 글에서 첨부가 `NCS정보망DB(대분류별,2026년2월).xlsx` 그대로인지 확인하고, 첨부를 `etl/.cache/ncs/`에 받는다. 주소와 본문은 R7이다. 1초 1건이고, 있으면 다시 받지 않는다.
   - 읽기: `unzip -p`로 `xl/sharedStrings.xml`을 한 번에 읽는다. 시트 이름 '01'~'24'는 workbook.xml과 rels로 시트 파일에 잇는다. 시트 XML은 한 줄이라 `</row>`로 끊어 흘려 읽는다.
   - 만들기: T008의 함수로 만들고 `edition: "2026-02"`, 출처 '한국산업인력공단 NCS(ncs.go.kr), 공공누리 제1유형(출처표시)'을 넣는다.
   - courseMap: 같은 파일의 고정 표 `NCS_COURSE_MAP`(교과 지도 12줄 → 소분류 코드)이 정한다. 정보통신 대분류(20)의 소분류 목록만 보고 이 작업에서 한 번 쓴다. 줄 이름과 소분류 이름이 같은 일을 가리킬 때만 넣는다(research R7). 대응이 없는 줄은 빈 배열이다.
   - 출력은 contracts/cli.md 꼴이다. 공식 DB를 받지 못하거나 모양이 다르면 이유를 내고 1로 끝난다. 대체 자료는 쓰지 않는다(research R7).
-- [ ] T010 [US1] `taxonomy.test.ts`에 저장소 목록 시험을 더한다. T006·T007·T009 뒤에 한다.
+- [x] T010 [US1] `taxonomy.test.ts`에 저장소 목록 시험을 더한다. T006·T007·T009 뒤에 한다.
   - `etl/taxonomy/*.json` 세 파일이 `loadTaxonomy`, `checkTaxonomy`(위반 0), `findChosen`(던지지 않음)을 통과한다.
   - 파일이 없으면 실패한다. CI도 이 세 파일로 검사한다.
-- [ ] T011 [US1] 확인 실행
+- [x] T011 [US1] 확인 실행
   - `node etl/taxonomy/ncs.ts`, `node etl/notices/compare.ts check`, `npx vitest run etl/taxonomy`를 돌린다.
   - 위반은 목록 파일을 고쳐 없앤다. 출력을 이 파일 아래 '실행 기록'에 남긴다.
 - [ ] T012 [US1] 미리보기 `$T/report/preview.html`을 만든다(research R11, FR-007).
@@ -376,3 +376,22 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 ## 실행 기록
 
 (T011, T028, T035, T036, T040의 출력을 여기에 적는다)
+
+### T011 (2026-11-17, 이 맥)
+
+NCS 원본은 2026-11-16에 R7 주소에서 받은 파일을 `etl/.cache/ncs/`로 옮겨 다시 받지 않았다. 시트 01~24와 머리줄 A~T가 R7과 같았다. 시트 20(정보통신)은 245,455줄을 모두 읽었다(dimension과 같음).
+
+```text
+$ node etl/taxonomy/ncs.ts
+대분류 24 · 중분류 81 · 소분류 274 · 세분류 1109 (기준 2026-02)
+$ node etl/notices/compare.ts check
+custom: 묶음 11 · 분야 90 · 교과 지도 12/12 · 목록 4,414자
+ncs: 묶음 105 · 분야 274 · 교과 지도 2/12 · 목록 11,440자
+csrankings: 묶음 5 · 분야 38 · 교과 지도 12/12 · 목록 2,411자
+$ npx vitest run etl/taxonomy
+ Test Files  2 passed (2)
+      Tests  50 passed (50)
+```
+
+- 받은 표는 소분류 274·세분류 1,109개다(공식 소개는 270·1,096개). 받은 표를 따른다(research R7).
+- NCS 교과 지도 대응(`NCS_COURSE_MAP`): 인공지능 → 인공지능(200107), 보안 → 정보보호(200106)만 넣었다. 개인정보보호는 보안의 일부라, 유선·무선통신구축은 설비 공사 직무라 네트워크 줄과 애매해 넣지 않았다.
