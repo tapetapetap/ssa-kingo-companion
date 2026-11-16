@@ -122,16 +122,17 @@ function score(c: Ctx): number {
   const problems: string[] = [];
   const entries: TaxonomyScore[] = [];
   for (const t of lists) {
-    let labels = new Map<number, GoldLabel>();
+    let labels: Map<number, GoldLabel> | null = null; // 읽지 못했으면 그 이유 한 줄만 낸다
     try {
       labels = readGoldFile(t, c.goldDir);
     } catch (e) {
       problems.push(messageOf(e));
     }
-    const open = [...labels.values()].filter(l => l.split === 'O').length;
+    const open = [...(labels?.values() ?? [])].filter(l => l.split === 'O').length;
     if (open) problems.push(`${t.id}: 갈림 O가 ${open}건 남았어요(셋째 라벨러의 답으로 gold를 다시 돌려요)`);
-    const gold = new Map(items.flatMap(x => { const l = labels.get(x.no); return l ? [[x.no, l] as const] : []; }));
-    if (labels.size && gold.size < items.length) problems.push(`${t.id}: 정답 파일에 표본 글 ${items.length - gold.size}건이 없어요`);
+    const gold = new Map(items.flatMap(x => { const l = labels?.get(x.no); return l ? [[x.no, l] as const] : []; }));
+    // 머리줄만 있는 파일도 읽은 파일이라 빠진 표본 글을 센다
+    if (labels && gold.size < items.length) problems.push(`${t.id}: 정답 파일에 표본 글 ${items.length - gold.size}건이 없어요`);
     const run = pickRun(readRuns(join(fieldFolder(t, c.model, c.llmDir), 'runs.jsonl')));
     if (!run) problems.push(`${t.id}: 못 물은 글 없이 끝난 전체 실행 기록이 없어요(judge ${t.id}를 --limit 없이 다시 돌려요)`);
     const all = t.fields.length <= EMBED_K; // 30개 이하면 모두 후보라 벡터를 읽지 않는다

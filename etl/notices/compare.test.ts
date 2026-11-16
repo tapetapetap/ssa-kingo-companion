@@ -188,6 +188,9 @@ describe('score', () => {
 
   it.each<[string, (d: Awaited<ReturnType<typeof scored>>) => void, string]>([
     ['정답 파일 없음', d => { rmSync(join(d.goldDir, 'fields', 'ncs.csv')); }, 'ncs: 정답 파일이 없어요'],
+    ['정답 파일에 머리줄만 있음', d => {
+      writeFileSync(join(d.goldDir, 'fields', 'custom.csv'), writeCsv([['링크', '제목', 'A 핵심', 'A 관련', 'B 핵심', 'B 관련', '최종 핵심', '최종 관련', '갈림', '메모']]));
+    }, 'custom: 정답 파일에 표본 글 2건이 없어요'],
     ['갈림 O 남음', d => {
       writeFileSync(join(d.goldDir, 'fields', 'custom.csv'), writeCsv([['링크', '제목', 'A 핵심', 'A 관련', 'B 핵심', 'B 관련', '최종 핵심', '최종 관련', '갈림', '메모'],
         [link(1), '제목 1', '-', '-', '-', '-', '-', '-', 'X', ''], [link(2), '제목 2', '-', '-', 'csr-ai', '-', '', '', 'O', '']]));
