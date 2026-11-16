@@ -4,6 +4,7 @@ import { FIELD_GROUP, GROUP_ORDER } from '../domain/vocab';
 import type { Activity, Axis, CandidateChoice, Field, Interest, NotifyHour, NotifyPrefs, Profile, RecordItem, Settings, Visibility } from '../domain/types';
 import { SEED_ACTIVITIES } from '../data/seed';
 import { isTerm, type CourseState } from '../domain/courses/types';
+import { COURSES } from '../data/courses/catalog';
 import { DEFAULT_NOTIFY, DEFAULT_SETTINGS, DEFAULT_VISIBILITY, INITIAL_STATE, NEW_STUDENT_STATE, type AppState } from './state';
 
 // 학생이 고른 것만 브라우저에 남긴다: 프로필, 공개 설정, 데이터·알림 설정, 추천에서 고른 것, 신청 준비로 만든 활동, 쓰던 회고 초안, 분석에서 답한 것.
@@ -56,12 +57,13 @@ const isRecord = (r: unknown): r is RecordItem =>
 const HOURS: readonly unknown[] = [9, 12, 19] satisfies NotifyHour[];
 
 /**
- * 교과 지도 상태는 모양만 본다(학년·학기, 글자 학수번호, 겹침 없음). 과목표·방향에 없는 값은 계산이 쓰지 않는다:
- * 여기서 교과 데이터를 읽으면 첫 화면 덩어리에 과목표가 들어간다.
+ * 교과 지도 상태: 학년·학기, 과목표에 있는 학수번호(겹침 없이), 방향은 글자만 본다.
+ * 과목표(학수번호·이름 95줄)만 첫 화면 덩어리에 들어가고, 방향·연구실 데이터는 교과 덩어리에 남는다(없는 방향은 화면이 '방향 없음'으로 본다).
  */
+const COURSE_CODES = new Set(COURSES.map(c => c.code));
 function parseCourses(raw: unknown, base: CourseState): CourseState {
   if (!isObj(raw)) return base;
-  const taken = Array.isArray(raw.taken) ? [...new Set(raw.taken.filter((c): c is string => typeof c === 'string'))] : [];
+  const taken = Array.isArray(raw.taken) ? [...new Set(raw.taken.filter((c): c is string => typeof c === 'string' && COURSE_CODES.has(c)))] : [];
   return { term: isTerm(raw.term) ? raw.term : null, taken, direction: typeof raw.direction === 'string' ? raw.direction : null };
 }
 

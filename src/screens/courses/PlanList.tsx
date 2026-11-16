@@ -12,14 +12,14 @@ export function PlanList({ w, plan, onPick, onLabs }: { w: CourseWorld; plan: Pl
   const noNow = !plan.needsTerm && plan.items.length > 0 && !plan.items.some(i => i.group === 'now');
   return (
     <section className="cm-plan" aria-labelledby="cm-plan-title">
-      <h3 id="cm-plan-title" className="cm-sub__title">이 길의 과목</h3>
+      <h3 id="cm-plan-title" className="cm-sub__title">들을 과목</h3>
       {done && (
         <div className="cm-plan__done">
           <p>이 길의 과목을 다 들었어요.</p>
           <Button size="sm" onClick={onLabs}>연구실 보기</Button>
         </div>
       )}
-      {noNow && <p className="cm-plan__note">다음 학기에 들을 만한 과목은 없어요. 아래 묶음에서 이유를 보세요.</p>}
+      {noNow && <p className="cm-plan__note">{plan.items.some(i => i.missing.length) ? '다음 학기에 들을 과목은 없어요. 먼저 들을 과목부터 채워 보세요.' : '다음 학기에 들을 과목은 없어요. 다른 진로 방향도 골라 보세요.'}</p>}
       {PLAN_GROUPS.map(g => {
         const items = plan.items.filter(i => i.group === g);
         if (!items.length) return null;

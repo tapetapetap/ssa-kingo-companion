@@ -1,7 +1,7 @@
 import { Fragment, useMemo } from 'react';
-import { useLinkPaths } from '../../components';
+import { Badge, useLinkPaths } from '../../components';
 import { termLabel } from '../../domain/courses/types';
-import { OUTSIDE_LABEL, STATE_LABEL, type MapDot, type MapShape } from './map';
+import { STATE_LABEL, type MapDot, type MapShape } from './map';
 
 /**
  * 교과 지도(기록 지도와 같은 틀): 학기 8칸 위에 줄마다 과목 점과 이름. 학기 머리 줄은 스크롤 칸 위에 붙는다.
@@ -30,7 +30,7 @@ export function CourseMap({ shape, selected, found, onSelect }: { shape: MapShap
       <span className="cm__corner" />
       {shape.cols.map(c => (
         <span key={c.id} className="cm__col" data-now={c.now || undefined}>
-          {c.label}{c.now && <b className="cm__now">지금</b>}
+          {c.label}{c.now && <Badge tone="orange">지금</Badge>}
         </span>
       ))}
       {shape.lines.map(l => l.kind === 'group' ? (
@@ -42,18 +42,12 @@ export function CourseMap({ shape, selected, found, onSelect }: { shape: MapShap
         </Fragment>
       ))}
       {shape.folded.length > 0 && <p className="cm__folded"><span>이 길에 없는 분야</span><b>{shape.folded.map(f => f.label).join(', ')}</b></p>}
-      {shape.experience.length > 0 && (
-        <>
-          <span className="cm__row">경험</span>
-          <div className="cm__cell cm__cell--wide">{shape.experience.map(item)}</div>
-        </>
-      )}
-      {shape.outside.length > 0 && (
-        <>
-          <span className="cm__row">{OUTSIDE_LABEL}</span>
-          <div className="cm__cell cm__cell--wide">{shape.outside.map(item)}</div>
-        </>
-      )}
+      {[shape.experience, shape.outside].filter(dots => dots.length).map(dots => (
+        <Fragment key={dots[0].row}>
+          <span className="cm__row">{dots[0].row}</span>
+          <div className="cm__cell cm__cell--wide">{dots.map(item)}</div>
+        </Fragment>
+      ))}
     </div>
   );
 }

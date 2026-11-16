@@ -133,8 +133,8 @@ describe('교과 지도 저장', () => {
     expect(toSaved(mine.reduce(reducer, INITIAL_STATE)).courses).toBeUndefined();
     expect(reload(mine.reduce(reducer, INITIAL_STATE)).courses).toEqual(INITIAL_STATE.courses);
   });
-  it('모양이 틀린 값은 버리고 겹친 학수번호는 하나로', () => {
-    const saved = { ...toSaved(NEW_STUDENT_STATE), courses: { term: '5-1', taken: ['SWE3004', 3, 'SWE3004'], direction: 7 } };
+  it('모양이 틀린 값과 과목표에 없는 학수번호는 버리고 겹친 학수번호는 하나로', () => {
+    const saved = { ...toSaved(NEW_STUDENT_STATE), courses: { term: '5-1', taken: ['SWE3004', 3, 'SWE3004', 'OLD9999'], direction: 7 } };
     expect(restoreSaved(JSON.parse(JSON.stringify(saved))).courses).toEqual({ term: null, taken: ['SWE3004'], direction: null });
   });
 });

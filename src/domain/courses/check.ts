@@ -1,16 +1,18 @@
 import { pathCourses, type CourseWorld } from './plan';
-import type { Course, CsrArea, CsrGroup } from './types';
+import type { Course, CsrArea, CsrGroup, Lab } from './types';
 
 /**
  * 교과 지도 데이터 검사(spec FR-015). 문제를 사람이 읽는 문장으로 돌려준다. 비면 통과.
- * areaGroup: CSRankings 분야 → 묶음(src/data/courses/csrankings.ts).
+ * courses·labs 는 찾기 표(Map)로 만들기 전의 목록(겹친 id 를 보려고), areaGroup: CSRankings 분야 → 묶음(src/data/courses/csrankings.ts).
  */
-export function checkWorld(w: CourseWorld, courses: Course[], areaGroup: Map<CsrArea, CsrGroup>): string[] {
+export function checkWorld(w: CourseWorld, courses: Course[], labs: Lab[], areaGroup: Map<CsrArea, CsrGroup>): string[] {
   const out: string[] = [];
   const known = (c: string, where: string) => { if (!w.course.has(c)) out.push(`${where}: 과목표에 없는 ${c}`); };
 
-  const codes = courses.map(c => c.code);
-  for (const c of new Set(codes.filter((c, i) => codes.indexOf(c) !== i))) out.push(`과목표: ${c} 가 두 번`);
+  const twice = (ids: string[], where: string) => new Set(ids.filter((x, i) => ids.indexOf(x) !== i)).forEach(x => out.push(`${where}: ${x} 가 두 번`));
+  twice(courses.map(c => c.code), '과목표');
+  twice(labs.map(l => l.id), '연구실');
+  twice(w.directions.map(d => d.id), '진로 방향');
 
   // 줄: 분야 줄은 한 묶음 안의 CSRankings 분야, 분야 하나는 줄 하나에만
   const areaRow = new Map<CsrArea, string>();

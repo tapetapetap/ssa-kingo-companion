@@ -10,7 +10,7 @@ import { TERMS, type Major } from './types';
 
 describe('교과 지도 데이터 검사(실제 데이터)', () => {
   it('문제 0건', () => {
-    expect(checkWorld(WORLD, COURSES, AREA_GROUP)).toEqual([]);
+    expect(checkWorld(WORLD, COURSES, LABS, AREA_GROUP)).toEqual([]);
   });
   it('로드맵 학기 칸 69개가 학기별 개수대로 놓이고 경험 층은 14개(SC-001)', () => {
     const count = Object.fromEntries(TERMS.map(t => [t, SWE.placements.filter(p => p.term === t).length]));
@@ -38,13 +38,16 @@ describe('교과 지도 데이터 검사(틀린 데이터)', () => {
     placements: [...SWE.placements, { code: 'NOPE000', term: '1-1', kind: 'advanced', field: 'base' }, { code: 'SWE3042', term: '4-1', kind: 'research', field: 'experience' }],
     prereqs: [...SWE.prereqs, { from: 'SWE3027', to: 'SWE3005' }]
   };
-  const problems = checkWorld(worldOf(broken, COURSES, LABS, [...DIRECTIONS, { id: 'x', name: 'x', side: '산업', area: 'ai', labs: ['nolab'] }]), COURSES, AREA_GROUP);
+  const problems = checkWorld(worldOf(broken, COURSES, LABS, [...DIRECTIONS, { id: 'x', name: 'x', side: '산업', area: 'ai', labs: ['nolab'] }, DIRECTIONS[1]]), COURSES, [...LABS, LABS[0]], AREA_GROUP);
   it('없는 학수번호, 두 묶음에 걸친 줄, 겹친 분야, 경험 줄의 학기, 선수 고리, 없는 연구실을 찾는다', () => {
     const has = (s: string) => problems.some(p => p.includes(s));
     expect(has('과목표에 없는 NOPE000')).toBe(true);
     expect(has('sec 는 ai 묶음이 아님')).toBe(true);
     expect(has('sec 가 줄 ml 에도 있음')).toBe(true);
     expect(has('SWE3042 가 두 번')).toBe(true);
+    expect(has('SWE3042: 경험 줄과 학기 없음이 맞지 않음')).toBe(true);
+    expect(has('진로 방향: search 가 두 번')).toBe(true);
+    expect(has('연구실: nlplab 가 두 번')).toBe(true);
     expect(has('고리')).toBe(true);
     expect(has('없는 연구실 nolab')).toBe(true);
   });

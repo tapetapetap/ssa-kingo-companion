@@ -25,7 +25,7 @@ export function LabList({ w, dir }: { w: CourseWorld; dir: Direction }) {
             <p className="cm-lab__who">
               <b>{l.prof}</b>
               {l.url ? (
-                <a href={l.url} target="_blank" rel="noopener noreferrer">{l.name || '연구실 홈페이지'}<Icon name="external" size={12} /><span className="sr-only">(새 창)</span></a>
+                <a className="ui-link" href={l.url} target="_blank" rel="noopener noreferrer">{l.name || '연구실 홈페이지'}<Icon name="external" size={14} /><span className="sr-only">(새 탭)</span></a>
               ) : <span>{l.name}</span>}
             </p>
             <p className="cm-lab__areas">CSRankings {l.areas.map(areaLabel).join(', ')}</p>

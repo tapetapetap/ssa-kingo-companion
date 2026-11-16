@@ -18,7 +18,9 @@ function CourseEntity({ id, onClose }: { id: string; onClose: () => void }) {
   if (course.dept !== WORLD.major.name) facts.push(['개설 학과', course.dept]);
   facts.push(['권장 학기', !place ? '로드맵 밖 과목' : place.term ? termLabel(place.term) : '학기 없음(경험 층)']);
   if (place) facts.push(['이수구분', KIND_LABEL[place.kind]]);
-  if (field) facts.push(['분야', place?.area ? `${field.label} · CSRankings ${areaLabel(place.area)}` : field.label]);
+  // 줄 이름과 CSRankings 분야 이름이 같으면(머신러닝 등) 한 번만 쓴다
+  const area = place?.area && areaLabel(place.area);
+  if (field) facts.push(['분야', !area ? field.label : area === field.label ? `${field.label}(CSRankings 분야)` : `${field.label} · CSRankings ${area}`]);
   facts.push(['개설', course.offered ? '최근 열린 과목' : '최근 열리지 않은 과목(교육과정 표 기준) · 다음 학기 시간표에서 확인해요']);
 
   const name = (c: string) => WORLD.course.get(c)?.name ?? c;
@@ -39,18 +41,19 @@ function CourseEntity({ id, onClose }: { id: string; onClose: () => void }) {
     <Drawer
       open title={course.name} onClose={onClose}
       footer={
-        <Button variant={isTaken ? 'secondary' : 'primary'} aria-pressed={isTaken} onClick={() => run({ type: 'courses/taken', code: id }, { toast: isTaken ? '들은 과목에서 뺐어요.' : '들은 과목에 넣었어요.', undoable: true })}>
+        // 누를 때마다 이름이 바뀌는 동작 버튼이라 aria-pressed 는 두지 않는다. 되돌리기는 이 버튼을 다시 누르는 것(토스트 되돌리기는 교과 조각 전체를 되돌려 함께 바꾼 학기·방향까지 지운다)
+        <Button variant={isTaken ? 'secondary' : 'primary'} onClick={() => run({ type: 'courses/taken', code: id }, { toast: isTaken ? '들은 과목에서 뺐어요.' : '들은 과목에 넣었어요.' })}>
           {isTaken ? '들었어요 취소' : '들었어요'}
         </Button>
       }
     >
       <div className="cm-drawer">
-        <dl className="cm-drawer__facts">
+        <dl className="app-entity__facts">
           {facts.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
         </dl>
         <section className="cm-drawer__sec" aria-labelledby="cm-before">
           <h3 id="cm-before">먼저 들을 과목</h3>
-          {links(WORLD.before.get(id) ?? [], '과목 설명에 적힌 먼저 들을 과목이 없어요.')}
+          {links(WORLD.before.get(id) ?? [], '먼저 들을 과목 없이 바로 들을 수 있어요.')}
         </section>
         <section className="cm-drawer__sec" aria-labelledby="cm-after">
           <h3 id="cm-after">다음 과목</h3>
@@ -60,7 +63,7 @@ function CourseEntity({ id, onClose }: { id: string; onClose: () => void }) {
           <h3 id="cm-dirs">이어지는 진로 방향</h3>
           {dirs.length ? <p>{dirs.map(d => d.name).join(', ')}</p> : <p className="cm-drawer__empty">이 과목을 꼽은 연구실이 아직 없어요.</p>}
         </section>
-        <p className="cm-drawer__note">분야·방향 연결은 예시(학과 확인 전)예요. 먼저 들을 과목은 권장이에요.</p>
+        <p className="cm-drawer__note">{WORLD.major.checked === 'example' && '분야·방향 연결은 학과 확인 전이에요. '}먼저 들을 과목은 권장이에요.</p>
       </div>
     </Drawer>
   );

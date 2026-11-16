@@ -15,7 +15,7 @@ export function exportMine(s: AppState): Record<string, unknown> {
     // 과목표·방향에 없는 옛 값은 빼고 이름으로
     교과: {
       지금학기: s.courses.term ? termLabel(s.courses.term) : '고르지 않음',
-      들은과목: s.courses.taken.flatMap(c => WORLD.course.get(c)?.name ?? []),
+      들은과목: s.courses.taken.flatMap(c => WORLD.course.has(c) ? [`${WORLD.course.get(c)!.name}(${c})`] : []),
       진로방향: WORLD.directions.find(d => d.id === s.courses.direction)?.name ?? '고르지 않음'
     }
   };
