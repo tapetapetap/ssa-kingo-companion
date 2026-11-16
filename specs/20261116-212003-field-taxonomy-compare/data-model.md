@@ -151,7 +151,7 @@ sha는 공지 글(제목 + 본문 앞 1,500자) sha1의 앞 8자다. 글이 바�
 
 **셋째 입력(저장소 밖)**: `<A.json과 같은 폴더>/<안 id>-split.jsonl`. 한 줄에 `{ no, link, board, title, body, a: { core, related, note }, b: { core, related, note } }` 하나다. 셋째 출력은 라벨러 출력과 같은 꼴이고, 갈린 글과 정확히 같은 글 집합이어야 한다.
 
-## 6. 비교 결과 `etl/out/fields-compare.json` (저장소)
+## 6. 비교 결과 `etl/out/fields-compare.json` (이 컴퓨터에만: 갈린 예에 정답 라벨이 들어 있어 스펙 1 FR-034를 따른다, `.git/info/exclude`)
 
 ```jsonc
 {

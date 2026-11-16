@@ -91,7 +91,7 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 - [x] T011 [US1] 확인 실행
   - `node etl/taxonomy/ncs.ts`, `node etl/notices/compare.ts check`, `npx vitest run etl/taxonomy`를 돌린다.
   - 위반은 목록 파일을 고쳐 없앤다. 출력을 이 파일 아래 '실행 기록'에 남긴다.
-- [ ] T012 [US1] 미리보기 `$T/report/preview.html`을 만든다(research R11, FR-007).
+- [x] T012 [US1] 미리보기 `$T/report/preview.html`을 만든다(research R11, FR-007).
   - 저장소 밖에서 에이전트가 손으로 만든다. 세 목록 JSON을 페이지 안에 넣고, `?v=custom|ncs|csrankings`로 안을 고른다.
   - 화면: 묶음별 세부 분야 칩(이름 + 설명), 이름·설명 찾기, 고른 수, 3개 이상일 때만 켜지는 '다음'. 결과가 없으면 '맞는 분야가 없어요'
   - 고른 것은 저장하지 않는다. 브라우저로 열어 quickstart S2를 확인한다.
@@ -246,22 +246,22 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
     - `etl/out/fields-compare.json`을 쓰고 지표 표를 낸다. `listChars`는 `listChars(t)`다.
     - 거절(1): 정답 없음·갈림 `O` 남음, 전체 실행 기록 없음, 분야 벡터 파일 없음(분야 30개 이하 안은 보지 않는다)
 - [x] T035 [US3] `node etl/notices/compare.ts sample`로 `etl/gold/fields/sample.csv`를 만든다. 종류별 배분을 '실행 기록'에 남긴다.
-- [ ] T036 [US3] 세 안 412건 판정을 `custom` → `ncs` → `csrankings` 순으로 돌린다. 안을 섞지 않는다(R5).
+- [x] T036 [US3] 세 안 412건 판정을 `custom` → `ncs` → `csrankings` 순으로 돌린다. 안을 섞지 않는다(R5).
   1. 안마다 전체 실행(`--limit` 없이)을 한 번 돌린다. 첫 안이 끝나면 실제 글당 시간으로 남은 시간을 다시 잰다. 세 안 합이 3시간을 넘을 것 같으면 보고서에 적고 계속한다(SC-006, R13).
   2. 실패와 못 물음이 남으면 그 안만 한 번 더 돌려 채운다. 이 실행은 cached가 커서 시간 계산에 쓰이지 않는다(R16).
   3. 그 뒤 한 번 더 돌려 `새로 0`인지 본다(SC-007). 끝까지 실패하는 글은 다시 묻고 실패로 남는다.
   4. 안마다 요약, 부하 줄, `runs.jsonl` 줄을 '실행 기록'에 남긴다(SC-001, SC-005).
-- [ ] T037 [US3] 안마다 `node etl/notices/compare.ts label-input <id> "$T"`를 돌린다.
-- [ ] T038 [US3] 라벨러 A·B를 띄운다. 안마다 둘, 모두 6개다.
+- [x] T037 [US3] 안마다 `node etl/notices/compare.ts label-input <id> "$T"`를 돌린다.
+- [x] T038 [US3] 라벨러 A·B를 띄운다. 안마다 둘, 모두 6개다.
   - Claude 하위 에이전트(general-purpose)로 백그라운드에서 돌린다.
   - 주는 것: `label-guide.md`, 그 안의 목록 파일, `$T/<id>-1~3.jsonl`
   - 막는 것: LLM 보관 답(`etl/.cache/llm-fields`)·벡터와 다른 라벨러 출력은 읽지 않게 한다. 저장소 파일은 고치지 않게 한다.
   - 출력: `$T/<id>-A.json`, `-B.json`. 오면 `gold <id> A B`로 검사하고, 위반이 있으면 그 라벨러에게 고쳐 달라고 다시 보낸다.
-- [ ] T039 [US3] 안마다 셋째 라벨러 C를 띄운다.
+- [x] T039 [US3] 안마다 셋째 라벨러 C를 띄운다.
   - 주는 것: `$T/<id>-split.jsonl`(data-model 5 꼴), 같은 기준과 목록. LLM 답은 주지 않는다.
   - 출력: `$T/<id>-C.json`. `gold <id> A B C`로 `etl/gold/fields/<id>.csv`를 완성한다(SC-002).
-- [ ] T040 [US3] `node etl/notices/compare.ts score`로 `etl/out/fields-compare.json`을 만든다. 지표 표를 '실행 기록'에 남긴다.
-- [ ] T041 [US3] 비교 보고서를 만든다.
+- [x] T040 [US3] `node etl/notices/compare.ts score`로 `etl/out/fields-compare.json`을 만든다. 지표 표를 '실행 기록'에 남긴다.
+- [x] T041 [US3] 비교 보고서를 만든다.
   - 에이전트가 손으로 `$T/report/index.html`과 T012의 `preview.html`을 만든다. artifact-design 스킬을 먼저 불러 따른다.
   - 담을 것
     - fields-compare.json의 세 안 지표 표. 후보 적중률은 후보 비율(30 / 분야 수)과 함께 보인다.
@@ -459,3 +459,20 @@ $ npm run audit:copy
 ```
 
 - 화면 코드는 건드리지 않았다. `npm run audit:layout`은 지휘자가 돌린다(구현 위임 범위).
+
+### T036–T041 (2026-11-17, 지휘자)
+
+```text
+custom 분야 판정 412(보관 20 · 새로 392 · 실패 0 · 못 물음 0 · 분야 없음 80) · 글당 4.3초 · 39분 / 부하: GPU 평균 68.8% · 칩 최고 76.4°C
+ncs 분야 판정 412(보관 5 · 새로 407 · 실패 0 · 못 물음 0 · 분야 없음 56) · 글당 4.8초 · 43분 / 부하: GPU 평균 70.7% · 칩 최고 71.7°C
+csrankings 분야 판정 412(보관 5 · 새로 407 · 실패 0 · 못 물음 0 · 분야 없음 132) · 글당 3.9초 · 35분 / 부하: GPU 평균 69.2% · 칩 최고 67.1°C
+다시 돌림(SC-007): 세 안 모두 보관 412 · 새로 0 · 분야 없음 같음
+정답(gold): custom 같음 71·셋째 49, ncs 같음 86·셋째 34, csrankings 같음 101·셋째 19 (갈림 O 없음)
+score: 핵심 정밀도 custom 62.7% (54/86) · ncs 44.4% (64/144) · csrankings 61.0% (47/77) → 세 안 모두 85% 미달
+       핵심 재현율 62.0% · 74.4% · 79.6%, 후보 적중률(핵심) 91.9% · 95.3% · 100.0%, 라벨러 일치(같음) 90.8% · 95.0% · 94.1%
+       핵심 빈칸 39.5% · 22.0% · 44.9%, 상위 3 쏠림 30.4% · 69.8% · 44.1%, 안 쓰인 분야 11 · 181 · 3, 교과 지도 12 · 2 · 12
+```
+
+- SC-001(실패·못 물음 0), SC-005(GPU 평균 80% 이하, 칩 80°C 이하), SC-006(세 안 1시간 57분), SC-007 통과. SC-004는 넣을 안이 없어 해당 없음(결과 파일 그대로).
+- 라벨러 9명(A·B 6, C 3)은 서로의 출력을 읽지 않았다(기록의 파일 이름으로 확인).
+- 보고서: https://claude.ai/artifact/UQsbEtL6jtsUF8XLWUCWmg (비공개, 미리보기 preview.html 포함). 고르기(T051)는 사용자·교수님 몫이다.
