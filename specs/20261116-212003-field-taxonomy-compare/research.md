@@ -103,7 +103,7 @@
     - requests·requestMs는 `after(ms)`로 받은 요청 수와 ms 합이다(쉼·온도 대기 제외).
     - gpuAvg는 실행 전체 5초 값의 평균(SC-005)이고, GPU를 한 번도 못 읽었으면 null이다.
     - tempMax는 실행 동안 읽은 모든 온도(before·after 읽기와 5초 표본)의 최고다.
-    - 기록 중이었으면 1분이 안 찬 마지막 표본 묶음도 한 줄로 남기고 멈춘다. logFile은 그 기록 파일의 경로다.
+    - 기록 중이었으면 1분이 안 찬 마지막 표본 묶음도 한 줄로 남기고 멈춘다. logFile은 이 실행이 한 줄이라도 쓴 기록 파일의 경로이고, 쓰지 못했으면 null이다(같은 초에 시작한 다른 실행도 파일 이름이 같다).
     - requests가 0이면 gpuAvg·tempMax·logFile은 모두 null이다(data-model 3).
     - line은 요청이 0이면 빈 글자다. 아니면 `부하: GPU 평균 n% · 칩 최고 n°C`이고, 리눅스는 `칩` 대신 `CPU`, gpuAvg가 null이면 `GPU 평균 -`이다.
   - **만드는 곳**: `run.ts`·`eval.ts`·`compare.ts`의 파일 끝 진입 줄(`if (import.meta.main) …`)에서만 만든다.

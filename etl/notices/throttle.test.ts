@@ -141,6 +141,21 @@ describe('기록과 stop()', () => {
     expect(readdirSync(f.logDir)).toEqual([]);
   });
 
+  it('같은 초에 시작한 다른 실행이 쓴 기록 파일은 이 실행의 logFile이 아니다', async () => {
+    const f = fake([70]);
+    const a = createThrottle(f.deps);
+    const ga = a.gate();
+    await ga.before();
+    await ga.after(10);
+    await f.tick(1);
+    expect(a.stop().logFile).toBe(join(f.logDir, '2026-11-17T01-00-00.jsonl'));
+    const b = createThrottle(f.deps); // 같은 시계·폴더라 기록 파일 이름이 같다
+    const gb = b.gate();
+    await gb.before();
+    await gb.after(10);
+    expect(b.stop().logFile).toBeNull();
+  });
+
   it('기록 폴더를 만들지 못해도 판정을 깨지 않는다: before()는 보내고 stop()은 던지지 않으며 두 번째부터 첫 값이다', async () => {
     const f = fake([70]);
     const blocker = join(f.logDir, 'file');
