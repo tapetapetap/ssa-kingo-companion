@@ -25,14 +25,11 @@ const answer = (core: string[], related: string[] = []) => JSON.stringify({ 핵�
 const reply = (content: string, n?: number) => ({ status: 200, text: async () => JSON.stringify({ message: { content }, ...(n === undefined ? {} : { prompt_eval_count: n }) }) });
 const postOf = (...contents: string[]) => vi.fn<Post>(async () => reply(contents.length > 1 ? contents.shift()! : contents[0], 1200));
 /** 분야 글에 '채움'이 있으면 공지와 같은 쪽 벡터라 후보가 된다(가짜 임베딩, 직접 만든 값) */
-const embedOf = (fields: 'ok' | 'fail' | 'down' = 'ok', notice: 'ok' | 'fail' | 'down' = 'ok') => Object.assign(
-  vi.fn(async (texts: string[]) => {
-    const isField = texts[0].includes(' > ');
-    const out = isField ? fields : notice;
-    return out !== 'ok' ? out : texts.map(s => (!isField || s.includes('채움') ? [1, 0] : [0, 1]));
-  }),
-  { model: 'bge-m3' }
-) satisfies Embed;
+const embedOf = (fields: 'ok' | 'fail' | 'down' = 'ok', notice: 'ok' | 'fail' | 'down' = 'ok') => vi.fn(async (texts: string[]) => {
+  const isField = texts[0].includes(' > ');
+  const out = isField ? fields : notice;
+  return out !== 'ok' ? out : texts.map(s => (!isField || s.includes('채움') ? [1, 0] : [0, 1]));
+}) satisfies Embed;
 
 describe('지시문과 스키마 (contracts/field-llm.md)', () => {
   it('지시문에는 후보만 묶음 순서대로 "## 묶음 경로"와 "- 이름: 설명" 줄로 들어간다', () => {

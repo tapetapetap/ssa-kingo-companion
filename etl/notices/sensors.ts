@@ -97,18 +97,14 @@ export async function readTemp(platform: string = process.platform, o: Partial<O
 /** GPU 사용률(맥 ioreg, 리눅스 nvidia-smi)과 GPU 온도(리눅스만, 기록에만 쓴다) */
 export async function readGpu(platform: string = process.platform, o: Partial<Opts> = {}): Promise<Gpu | null> {
   const { run } = { ...DEFAULTS, ...o };
-  try {
-    if (platform === 'darwin') {
-      const out = await run('ioreg', ['-r', '-d', '1', '-c', 'IOAccelerator']);
-      const util = out === null ? null : parseIoreg(out);
-      return util === null ? null : { util, temp: null };
-    }
-    if (platform === 'linux') {
-      const out = await run('nvidia-smi', ['--query-gpu=utilization.gpu,temperature.gpu', '--format=csv,noheader,nounits']);
-      return out === null ? null : parseNvidiaSmi(out);
-    }
-    return null;
-  } catch {
-    return null;
+  if (platform === 'darwin') {
+    const out = await run('ioreg', ['-r', '-d', '1', '-c', 'IOAccelerator']);
+    const util = out === null ? null : parseIoreg(out);
+    return util === null ? null : { util, temp: null };
   }
+  if (platform === 'linux') {
+    const out = await run('nvidia-smi', ['--query-gpu=utilization.gpu,temperature.gpu', '--format=csv,noheader,nounits']);
+    return out === null ? null : parseNvidiaSmi(out);
+  }
+  return null;
 }

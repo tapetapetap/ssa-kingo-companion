@@ -9,7 +9,7 @@ describe('ratio · passes · pct (research R10)', () => {
     expect(ratio(84, 100)).toEqual({ num: 84, den: 100 });
     expect(passes(ratio(84, 100))).toBe(false);
     expect(passes(ratio(85, 100))).toBe(true);
-    expect(passes(ratio(17, 20), 85)).toBe(true);
+    expect(passes(ratio(17, 20))).toBe(true);
     expect(passes(ratio(0, 0))).toBe(false);
   });
 

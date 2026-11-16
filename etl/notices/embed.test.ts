@@ -4,9 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { validList } from '../taxonomy/fixtures.ts';
 import type { NoticeRow } from './cse.ts';
-import {
-  CANDIDATE_RULE, EMBED_K, EMBED_MODEL, fieldText, fieldVectors, makeEmbed, noticeText, noticeVector, readFieldVectors, readNoticeVector, topCandidates
-} from './embed.ts';
+import { EMBED_K, fieldText, fieldVectors, makeEmbed, noticeText, noticeVector, readFieldVectors, readNoticeVector, topCandidates } from './embed.ts';
 import type { Gate, Post } from './llm.ts';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'embed-'));
@@ -28,7 +26,6 @@ describe('글 (research R17)', () => {
     expect(noticeText(row(1), ['첫 줄', '둘째 줄'])).toBe('[가나다] 드론 영상 분석 대회\n첫 줄\n둘째 줄');
     expect(noticeText(row(1), ['가'.repeat(2000)])).toBe(`[가나다] 드론 영상 분석 대회\n${'가'.repeat(1500)}`);
     expect(noticeText(row(1), [])).toBe('[가나다] 드론 영상 분석 대회');
-    expect(CANDIDATE_RULE).toEqual({ model: 'bge-m3', k: 30, field: '묶음 > 이름: 설명', notice: '제목 + 본문 앞 1500자', pick: '코사인 상위 k, k개 이하면 모두' });
   });
 });
 
@@ -36,7 +33,6 @@ describe('makeEmbed: 요청과 실패 구분', () => {
   it('/api/embed에 model·input·truncate·keep_alive를 보내고 벡터를 돌려준다', async () => {
     const post = okPost();
     const embed = makeEmbed({ host: 'localhost:9', post });
-    expect(embed.model).toBe(EMBED_MODEL);
     expect(await embed(['가', '나다'])).toEqual([vec('가'), vec('나다')]);
     const [url, body] = post.mock.calls[0];
     expect(url).toBe('http://localhost:9/api/embed');
@@ -90,7 +86,7 @@ describe('벡터 보관', () => {
     expect(Object.keys(JSON.parse(readFileSync(join(dir, 'bge-m3', files[0]), 'utf8')))).toEqual(['model', 'taxonomy', 'sha', 'at', 'ids', 'vectors']);
     expect(await fieldVectors(t, makeEmbed({ post }), dir)).toEqual(fv);
     expect(post).toHaveBeenCalledTimes(3);
-    expect(readFieldVectors(t, 'bge-m3', dir)).toEqual(fv);
+    expect(readFieldVectors(t, dir)).toEqual(fv);
   });
 
   it('설명 한 글자를 바꾸면 목록 sha가 바뀌어 새 파일이고, 실패면 보관하지 않는다', async () => {
@@ -98,7 +94,7 @@ describe('벡터 보관', () => {
     const t = validList('ncs');
     await fieldVectors(t, makeEmbed({ post: okPost() }), dir);
     t.fields[0].desc += '.';
-    expect(readFieldVectors(t, 'bge-m3', dir)).toBeNull();
+    expect(readFieldVectors(t, dir)).toBeNull();
     expect(await fieldVectors(t, makeEmbed({ post: vi.fn<Post>(async () => reply(500)) }), dir)).toBe('fail');
     expect(readdirSync(join(dir, 'bge-m3'))).toHaveLength(1);
     await fieldVectors(t, makeEmbed({ post: okPost() }), dir);
@@ -116,16 +112,16 @@ describe('벡터 보관', () => {
     expect(saved).not.toContain('드론');
     await noticeVector(row(7), [...body, '접수 기간이 바뀌었어요'], makeEmbed({ post }), dir);
     expect(post).toHaveBeenCalledTimes(2);
-    expect(readNoticeVector('bge-m3', 7, dir)).toEqual(vec(noticeText(row(7), [...body, '접수 기간이 바뀌었어요'])));
+    expect(readNoticeVector(7, dir)).toEqual(vec(noticeText(row(7), [...body, '접수 기간이 바뀌었어요'])));
   });
 
   it('readFieldVectors·readNoticeVector는 요청 없이 읽고, 없거나 꼴이 틀리면 null이다', () => {
     const dir = tmp();
-    expect(readFieldVectors(validList('ncs'), 'bge-m3', dir)).toBeNull();
-    expect(readNoticeVector('bge-m3', 7, dir)).toBeNull();
+    expect(readFieldVectors(validList('ncs'), dir)).toBeNull();
+    expect(readNoticeVector(7, dir)).toBeNull();
     mkdirSync(join(dir, 'bge-m3', 'notices'), { recursive: true });
     writeFileSync(join(dir, 'bge-m3', 'notices', '7.json'), '{"vector": ["x"]}');
-    expect(readNoticeVector('bge-m3', 7, dir)).toBeNull();
+    expect(readNoticeVector(7, dir)).toBeNull();
   });
 });
 

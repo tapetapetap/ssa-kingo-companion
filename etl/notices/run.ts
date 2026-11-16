@@ -101,7 +101,7 @@ export function buildResult(judged: Judgement[], opts: { since: string; collecte
 export const llmPart = (l: LlmStats) => `LLM 판정 ${l.cached + l.fresh}(보관 ${l.cached} · 새로 ${l.fresh} · 실패 ${l.failed})`;
 
 /** 요약에 붙는 줄(스펙 3 contracts/cli.md). llmNoTemp·fieldNoTemp는 기회 판정 문·분야 판정 문의 noTemp, field는 분야 판정 줄이나 넣지 않은 이유, load는 부하 줄 */
-export type SummaryExtra = { llmNoTemp?: number; fieldNoTemp?: number; field?: string; load?: string };
+type SummaryExtra = { llmNoTemp?: number; fieldNoTemp?: number; field?: string; load?: string };
 
 /** LLM을 썼으면 끝에 LLM 수를 붙이고, 서버에 닿지 못해 규칙만 쓴 글(K)이 있으면 다음 줄에 알린다(스펙 2 FR-012·FR-016).
  *  K에서는 온도 때문에 묻지 않은 글을 빼고 따로 알린다. 그 수는 보내지 않은 요청 수라 한 글이 두 번 셀 수 있다 */

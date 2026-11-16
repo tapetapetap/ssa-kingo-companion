@@ -147,7 +147,7 @@ describe('judge', () => {
 });
 
 // score: 세 안의 정답·보관 답·실행 기록·벡터를 갖춘 폴더. 표본은 1·2번, 정답셋 기회는 1~3번이다
-const fakeEmbed = Object.assign(async (texts: string[]) => texts.map(() => [1, 0]), { model: 'bge-m3' });
+const fakeEmbed = async (texts: string[]) => texts.map(() => [1, 0]);
 const RUN = { start: '2026-11-17T01:00:00.000Z', end: '2026-11-17T01:30:00.000Z', limit: null, total: 3, cached: 0, fresh: 2, failed: 1, notAsked: 0, noTemp: 0, empty: 0, requests: 5, requestMs: 9000, gpuAvg: 70, tempMax: 71.5, loadLog: null };
 async function scored() {
   const { goldDir, cacheDir } = goldAndBodies([1, 2, 3]);

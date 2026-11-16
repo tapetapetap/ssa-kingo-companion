@@ -15,7 +15,7 @@ export type FieldAsk = ((row: NoticeRow, lines: string[]) => Promise<FieldOutcom
 export type FieldStats = { cached: number; fresh: number; failed: number; notAsked: number; noTemp: number; empty: number };
 
 /** 세 안이 같은 값이다(research R5). 후보 30개와 본문 8,000자가 들어간다 */
-export const FIELD_OPTIONS = { temperature: 0, num_ctx: 32768 };
+const FIELD_OPTIONS = { temperature: 0, num_ctx: 32768 };
 export const FIELD_CACHE_DIR = fileURLToPath(new URL('../.cache/llm-fields', import.meta.url));
 
 // 라벨 기준(label-guide.md)과 같은 뜻이다. 예시는 개발용 정답셋에 없는 지어낸 말이다(research R3)
@@ -79,7 +79,7 @@ export function parseFieldAnswer(text: string, t: Taxonomy, ids: string[]): Fiel
 }
 
 /** 보관 답의 꼴: 손으로 고쳤거나 목록이 달라진 파일은 읽지 않고 다시 묻는다 */
-export function isFieldAnswer(t: Taxonomy): (a: unknown) => a is FieldAnswer {
+function isFieldAnswer(t: Taxonomy): (a: unknown) => a is FieldAnswer {
   const known = new Set(t.fields.map(f => f.id));
   return (a: unknown): a is FieldAnswer => {
     if (typeof a !== 'object' || a === null) return false;

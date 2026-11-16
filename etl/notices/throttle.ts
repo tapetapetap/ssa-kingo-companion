@@ -1,7 +1,7 @@
 // 부하 제한(research R6). 실행 하나에 하나 만들어 실제 LLM·임베딩 요청 앞뒤에만 건다(보관 답·보관 벡터는 쉬지 않는다).
 // 요청을 기다린 시간의 1/4을 쉬어 GPU 평균을 80% 아래로, 온도 + 가장 큰 오름폭이 80°C 이상이면 식을 때까지 기다린다.
 // 온도를 한 번이라도 못 읽으면 그 실행의 새 요청을 멈춘다. 끄는 설정은 없다(사용자 고정 지시)
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +18,7 @@ export type ThrottleDeps = {
 const LIMIT_C = 80;
 const STEP_MS = 5000; // 온도 대기와 표본 간격
 const PER_LINE = 12; // 5초 표본 12개 = 1분
-export const LOAD_DIR = fileURLToPath(new URL('../.cache/load', import.meta.url));
+const LOAD_DIR = fileURLToPath(new URL('../.cache/load', import.meta.url));
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
 
@@ -38,7 +38,6 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
   let gpuSum = 0;
   let gpuCount = 0;
   let logFile: string | null = null;
-  let wrote = false; // 5초 표본이 하나도 없던 짧은 실행은 기록 파일이 생기지 않는다
   let stopTimer: (() => void) | null = null;
   let bucket = { n: 0, gpu: [] as number[], temp: [] as number[], gpuTemp: [] as number[] };
   let summary: LoadSummary | null = null;
@@ -58,7 +57,6 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
     if (!logFile || bucket.n === 0) return;
     const gpu = bucket.gpu.length ? round1(bucket.gpu.reduce((a, b) => a + b, 0) / bucket.gpu.length) : null;
     appendFileSync(logFile, `${JSON.stringify({ at: new Date(deps.now()).toISOString(), gpu, temp: max(bucket.temp), gpuTemp: max(bucket.gpuTemp) })}\n`);
-    wrote = true;
     bucket = { n: 0, gpu: [], temp: [], gpuTemp: [] };
   };
   /** 못 읽은 표본은 빼기만 한다. 요청을 멈출지는 before·after의 읽기가 정한다 */
@@ -121,7 +119,8 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
     const gpuAvg = gpuCount ? round1(gpuSum / gpuCount) : null;
     const where = deps.platform === 'linux' ? 'CPU' : '칩';
     const line = `부하: GPU 평균 ${gpuAvg === null ? '-' : `${gpuAvg}%`} · ${where} 최고 ${tempMax === null ? '-' : `${tempMax}°C`}`;
-    return (summary = { requests, requestMs: Math.round(requestMs), gpuAvg, tempMax, logFile: wrote ? logFile : null, line });
+    // 5초 표본이 하나도 없던 짧은 실행은 기록 파일이 생기지 않는다
+    return (summary = { requests, requestMs: Math.round(requestMs), gpuAvg, tempMax, logFile: logFile && existsSync(logFile) ? logFile : null, line });
   };
 
   return { gate, stop };

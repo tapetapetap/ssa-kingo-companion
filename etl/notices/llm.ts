@@ -210,7 +210,7 @@ export async function postOnce(post: Post, url: string, body: string, gate?: Gat
 
 export type Outcome<T> = { answer: T; cached: boolean } | 'fail' | 'down';
 /** 글 하나의 요청 내용. 분야 판정은 후보가 글마다 달라 지시문·스키마·답 검사도 글마다 다르다 */
-export type ChatRequest<T> = { system: string; user: string; schema: object; parse: (text: string) => T | null };
+type ChatRequest<T> = { system: string; user: string; schema: object; parse: (text: string) => T | null };
 
 /** 두 판정(기회, 분야)이 함께 쓰는 요청·보관 몸통(스펙 3 research R2).
  *  순서: 보관 → 잠긴 down → request → gate.before → post → gate.after → 답 검사·잘림 막기 → 보관.

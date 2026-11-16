@@ -2,7 +2,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { USER_AGENT } from '../notices/cse.ts';
@@ -10,7 +10,7 @@ import { COURSE_ROWS, saveTaxonomy, TAXONOMY_DIR, type Field, type Group, type T
 
 /** 시트마다 첫 줄 A~H(research R7 '파일 모양') */
 export const HEAD = ['대분류코드', '대분류코드명', '중분류코드', '중분류코드명', '소분류코드', '소분류코드명', '세분류코드', '세분류코드명'];
-export const NCS_EDITION = '2026-02';
+const NCS_EDITION = '2026-02';
 const FILE_NAME = 'NCS정보망DB(대분류별,2026년2월).xlsx';
 const NCS_FILE = fileURLToPath(new URL(`../.cache/ncs/${FILE_NAME}`, import.meta.url));
 const SHEETS = Array.from({ length: 24 }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -20,7 +20,7 @@ const DOWNLOAD = { url: 'https://www.ncs.go.kr/common/file/downloadFile.do', bod
 
 /** 교과 지도 줄 → NCS 소분류 코드. 정보통신(20)의 소분류 이름만 보고, 줄 이름과 같은 일을 가리킬 때만 넣었다. 애매하면 넣지 않는다(research R7).
  *  2026-11-17 받은 표: 인공지능 → 인공지능, 보안 → 정보보호. 개인정보보호는 보안의 일부라, 유선·무선통신구축은 설비 공사 직무라 넣지 않았다 */
-export const NCS_COURSE_MAP: Record<string, string[]> = { ...Object.fromEntries(COURSE_ROWS.map(r => [r, []])), ai: ['200107'], security: ['200106'] };
+const NCS_COURSE_MAP: Record<string, string[]> = { ...Object.fromEntries(COURSE_ROWS.map(r => [r, []])), ai: ['200107'], security: ['200106'] };
 
 const ENTITY: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const unxml = (s: string) => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) =>
@@ -137,7 +137,7 @@ async function eachRows(file: string, part: string, shared: string[], onRows: (r
   }
 }
 
-export async function main(file = NCS_FILE, outDir = TAXONOMY_DIR): Promise<number> {
+async function main(file = NCS_FILE, outDir = TAXONOMY_DIR): Promise<number> {
   try {
     if (!existsSync(file)) await download(file);
     const shared = readShared(unzip(file, 'xl/sharedStrings.xml'));

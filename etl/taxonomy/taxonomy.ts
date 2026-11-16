@@ -26,8 +26,6 @@ export type Taxonomy = {
   courseMap: Record<string, string[]>;
   chosen: Chosen | null;
 };
-export type CheckCtx = { csrAreas: { id: string; group: string }[]; kindNames: string[] };
-export const CHECK_CTX: CheckCtx = { csrAreas: CSR_AREAS.map(a => ({ id: a.id, group: a.group })), kindNames: Object.values(KIND_LABEL) };
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isStr = (v: unknown): v is string => typeof v === 'string';
@@ -99,18 +97,18 @@ export function groupPath(t: Taxonomy, groupId: string): string {
 const twice = <T>(xs: T[]) => [...new Set(xs.filter((x, i) => xs.indexOf(x) !== i))];
 
 /** 규칙 위반 문장을 모두 모은다(data-model 1 검사 규칙). 빈 배열이면 통과다 */
-export function checkTaxonomy(t: Taxonomy, ctx: CheckCtx): string[] {
+export function checkTaxonomy(t: Taxonomy): string[] {
   const bad: string[] = [];
   const say = (m: string) => { bad.push(`${t.id}: ${m}`); };
   for (const id of twice([...t.groups.map(g => g.id), ...t.fields.map(f => f.id)])) say(`id가 겹쳐요: ${id}`);
   const groupIds = new Set(t.groups.map(g => g.id));
   for (const g of t.groups) if (g.parent !== null && !groupIds.has(g.parent)) say(`${g.id}의 위 묶음 ${g.parent}가 없어요`);
-  const csrKeys = new Set(ctx.csrAreas.map(a => a.id));
+  const csrKeys = new Set<string>(CSR_AREAS.map(a => a.id));
   for (const f of t.fields) {
     if (!groupIds.has(f.group)) say(`${f.id}의 묶음 ${f.group}가 없어요`);
     if (!f.desc.trim()) say(`${f.id}의 설명이 비었어요`);
     else if (f.desc.length > 240) say(`${f.id}의 설명이 240자를 넘어요(${f.desc.length}자)`);
-    if (ctx.kindNames.includes(f.name)) say(`${f.id}의 이름이 분류기 종류(${f.name})와 같아요`);
+    if (Object.values(KIND_LABEL).includes(f.name)) say(`${f.id}의 이름이 분류기 종류(${f.name})와 같아요`);
     const unknown = f.csr.filter(k => !csrKeys.has(k));
     if (unknown.length) say(`${f.id}의 csr에 모르는 키가 있어요: ${unknown.join(', ')}`);
   }
@@ -129,7 +127,7 @@ export function checkTaxonomy(t: Taxonomy, ctx: CheckCtx): string[] {
   }
 
   const used = t.fields.flatMap(f => f.csr);
-  const notUsed = ctx.csrAreas.filter(a => !used.includes(a.id)).map(a => a.id);
+  const notUsed = CSR_AREAS.filter(a => !used.includes(a.id)).map(a => a.id);
   if (t.id === 'custom') {
     const top = t.groups.filter(g => g.parent === null).length;
     if (top < 10 || top > 15) say(`큰 분야가 ${top}개예요(10~15개)`);
@@ -145,8 +143,8 @@ export function checkTaxonomy(t: Taxonomy, ctx: CheckCtx): string[] {
   }
   if (t.id === 'csrankings') {
     const research = t.fields.filter(f => f.csr.length > 0);
-    const groupOf = new Map(ctx.csrAreas.map(a => [a.id, a.group]));
-    if (research.length !== ctx.csrAreas.length) say(`연구 분야가 ${research.length}개예요(CSRankings 키마다 하나, ${ctx.csrAreas.length}개)`);
+    const groupOf = new Map<string, string>(CSR_AREAS.map(a => [a.id, a.group]));
+    if (research.length !== CSR_AREAS.length) say(`연구 분야가 ${research.length}개예요(CSRankings 키마다 하나, ${CSR_AREAS.length}개)`);
     for (const k of twice(used)) say(`CSRankings 키 ${k}가 두 분야에 있어요`);
     for (const f of research) {
       if (f.csr.length !== 1) say(`${f.id}의 csr은 키 하나여야 해요`);
@@ -176,12 +174,12 @@ export function checkTaxonomy(t: Taxonomy, ctx: CheckCtx): string[] {
 /** 읽고 검사한다. 위반이 있으면 모두 담아 던진다(compare.ts·gold.ts 하위 명령이 목록을 읽는 길) */
 export function readList(id: TaxonomyId, dir = TAXONOMY_DIR): Taxonomy {
   const t = loadTaxonomy(id, dir);
-  const bad = checkTaxonomy(t, CHECK_CTX);
+  const bad = checkTaxonomy(t);
   if (bad.length) throw new Error(bad.join('\n'));
   return t;
 }
 
-export type ChosenTaxonomy = Taxonomy & { chosen: Chosen };
+type ChosenTaxonomy = Taxonomy & { chosen: Chosen };
 
 /** chosen이 있는 안 하나. 많아야 하나라서 둘 이상이면 던진다 */
 export function findChosen(list: Taxonomy[]): ChosenTaxonomy | null {

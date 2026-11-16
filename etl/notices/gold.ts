@@ -10,8 +10,8 @@ import { strings, type FieldAnswer } from './fields.ts';
 import { clip } from './llm.ts';
 import { sameSet } from './score.ts';
 
-export const DEV_GOLD = 'dev-501.csv';
-export const SAMPLE_SIZE = 120;
+const DEV_GOLD = 'dev-501.csv';
+const SAMPLE_SIZE = 120;
 const BATCH = 40;
 const SAMPLE_HEAD = ['링크', '게시판', '제목', '게시일', '종류'];
 const GOLD_HEAD = ['링크', '제목', 'A 핵심', 'A 관련', 'B 핵심', 'B 관련', '최종 핵심', '최종 관련', '갈림', '메모'];
@@ -40,7 +40,7 @@ export const cachedBody = async (no: number, cacheDir: string) =>
   (await bodyOf(no, async () => { throw new Error('보관본만 읽어요'); }, cacheDir)).lines;
 
 /** 심볼릭 링크를 푼 경로가 저장소 뿌리 아래인가. 아직 없는 폴더는 있는 조상까지 풀고 나머지를 잇는다 */
-export function insideRepo(path: string, root: string): boolean {
+function insideRepo(path: string, root: string): boolean {
   const real = (p: string): string => {
     try {
       return realpathSync(p);
@@ -93,7 +93,7 @@ export function sample(goldDir: string): number {
   return 0;
 }
 
-export type SampleItem = { no: number; link: string; board: string; title: string; postedAt: string; kind: string };
+type SampleItem = { no: number; link: string; board: string; title: string; postedAt: string; kind: string };
 export function readSample(goldDir: string): SampleItem[] {
   const file = join(goldDir, 'fields', 'sample.csv');
   if (!existsSync(file)) throw new Error(`표본 파일이 없어요: ${file} (compare.ts sample을 먼저 돌려요)`);

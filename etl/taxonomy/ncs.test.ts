@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildNcs, HEAD, readRows, readShared } from './ncs.ts';
-import { CHECK_CTX, checkTaxonomy, COURSE_ROWS } from './taxonomy.ts';
+import { checkTaxonomy, COURSE_ROWS } from './taxonomy.ts';
 
 describe('readShared', () => {
   it('<si><t>와 서식 조각(<r><t>)을 이어 읽고, 읽는 법(rPh)은 빼고, 글자 참조를 푼다', () => {
@@ -49,7 +49,7 @@ describe('buildNcs', () => {
     expect(t.sourceCounts).toEqual({ major: 2, middle: 3, minor: 3, detail: 4 });
     expect(t).toMatchObject({ id: 'ncs', edition: '2026-02', chosen: null });
     expect(t.courseMap.security).toEqual(['ncs-200102']);
-    expect(checkTaxonomy(t, CHECK_CTX)).toEqual([]);
+    expect(checkTaxonomy(t)).toEqual([]);
   });
 
   it('설명은 240자 안에 드는 마지막 이름까지(말줄임표 없음), 첫 이름이 240자를 넘으면 240자에서 자른다', () => {

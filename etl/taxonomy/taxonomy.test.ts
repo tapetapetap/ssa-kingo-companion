@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { SWE } from '../../src/data/courses/swe.ts';
 import { JOBS, validList } from './fixtures.ts';
 import {
-  CHECK_CTX, checkTaxonomy, fieldGate, findChosen, groupPath, labelsOf, listChars, loadTaxonomy, readList, TAXONOMY_IDS,
+  checkTaxonomy, fieldGate, findChosen, groupPath, labelsOf, listChars, loadTaxonomy, readList, TAXONOMY_IDS,
   type Chosen, type Taxonomy, type TaxonomyId
 } from './taxonomy.ts';
 
@@ -14,12 +14,12 @@ const save = (dir: string, t: unknown, id = 'custom') => writeFileSync(join(dir,
 const broken = (id: TaxonomyId, change: (t: Taxonomy) => void) => {
   const t = validList(id);
   change(t);
-  return checkTaxonomy(t, CHECK_CTX);
+  return checkTaxonomy(t);
 };
 
 describe('checkTaxonomy (data-model 1 검사 규칙)', () => {
   it.each(TAXONOMY_IDS)('시험용 목록 %s는 위반이 없다', id => {
-    expect(checkTaxonomy(validList(id), CHECK_CTX)).toEqual([]);
+    expect(checkTaxonomy(validList(id))).toEqual([]);
   });
 
   it.each<[string, TaxonomyId, (t: Taxonomy) => void, string]>([
@@ -60,9 +60,9 @@ describe('LLM용 이름 · 글자 수 · 묶음 경로', () => {
     t.fields[1].name = t.fields[0].name; // 0은 g-a0, 1은 g-a1
     expect(labelsOf(t).nameOf.get(t.fields[1].id)).toBe(`${t.fields[0].name} (묶음 1)`);
     expect(labelsOf(t).idOf.get(`${t.fields[0].name} (묶음 0)`)).toBe(t.fields[0].id);
-    expect(checkTaxonomy(t, CHECK_CTX)).toEqual([]);
+    expect(checkTaxonomy(t)).toEqual([]);
     t.fields[9].name = t.fields[0].name; // 9도 g-a0
-    expect(checkTaxonomy(t, CHECK_CTX)).toContain(`custom: LLM용 이름이 겹쳐요: ${t.fields[0].name} (묶음 0)`);
+    expect(checkTaxonomy(t)).toContain(`custom: LLM용 이름이 겹쳐요: ${t.fields[0].name} (묶음 0)`);
   });
 
   it('목록 글자 수는 묶음 이름 + 분야 이름 + 설명이고, 묶음 경로는 위에서부터 › 로 잇는다', () => {
@@ -127,7 +127,7 @@ describe('저장소 목록 파일', () => {
   const lists = TAXONOMY_IDS.map(id => loadTaxonomy(id));
 
   it.each(TAXONOMY_IDS)('%s.json은 꼴과 규칙을 통과한다', id => {
-    expect(checkTaxonomy(loadTaxonomy(id), CHECK_CTX)).toEqual([]);
+    expect(checkTaxonomy(loadTaxonomy(id))).toEqual([]);
   });
 
   it('고른 안은 많아야 하나다', () => {

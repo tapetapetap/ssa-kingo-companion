@@ -20,10 +20,9 @@ export type CompareDeps = {
 };
 type Ctx = Required<Omit<CompareDeps, 'fieldAsk' | 'gate' | 'load'>> & Pick<CompareDeps, 'fieldAsk' | 'gate' | 'load'>;
 
-export const COMPARE_FILE = fileURLToPath(new URL('../out/fields-compare.json', import.meta.url));
 const ctxOf = (d: CompareDeps): Ctx => ({
-  taxonomyDir: TAXONOMY_DIR, goldDir: fileURLToPath(new URL('../gold', import.meta.url)), outFile: COMPARE_FILE, llmDir: FIELD_CACHE_DIR,
-  embedDir: EMBED_CACHE_DIR, cacheDir: CACHE_DIR, repoRoot: fileURLToPath(new URL('../..', import.meta.url)),
+  taxonomyDir: TAXONOMY_DIR, goldDir: fileURLToPath(new URL('../gold', import.meta.url)), outFile: fileURLToPath(new URL('../out/fields-compare.json', import.meta.url)),
+  llmDir: FIELD_CACHE_DIR, embedDir: EMBED_CACHE_DIR, cacheDir: CACHE_DIR, repoRoot: fileURLToPath(new URL('../..', import.meta.url)),
   now: () => new Date(), model: process.env.KINGO_LLM_MODEL || DEFAULT_MODEL, ...d
 });
 const NO_LOAD: LoadSummary = { requests: 0, requestMs: 0, gpuAvg: null, tempMax: null, logFile: null, line: '' };
@@ -137,11 +136,11 @@ function score(c: Ctx): number {
     const run = pickRun(readRuns(join(fieldFolder(t, c.model, c.llmDir), 'runs.jsonl')));
     if (!run) problems.push(`${t.id}: 전체 실행 기록이 없어요(judge ${t.id}를 --limit 없이 돌려요)`);
     const all = t.fields.length <= EMBED_K; // 30개 이하면 모두 후보라 벡터를 읽지 않는다
-    const fv = all ? null : readFieldVectors(t, EMBED_MODEL, c.embedDir);
+    const fv = all ? null : readFieldVectors(t, c.embedDir);
     if (!all && !fv) problems.push(`${t.id}: 분야 벡터 파일이 없어요(벡터 보관만 지웠다면 그 안의 답 폴더도 지우고 judge를 다시 돌려요)`);
     if (problems.length || !run) continue;
     const candidates = new Map(items.map(x => {
-      const v = fv ? readNoticeVector(EMBED_MODEL, x.no, c.embedDir) : null;
+      const v = fv ? readNoticeVector(x.no, c.embedDir) : null;
       return [x.no, all ? t.fields.map(f => f.id) : fv && v ? topCandidates(fv, v) : []]; // 공지 벡터가 없는 글은 후보가 없는 것으로 센다
     }));
     const answers = new Map(nos.flatMap(no => { const a = readFieldAnswer(t, c.model, no, c.llmDir); return a ? [[no, a] as [number, FieldAnswer]] : []; }));
