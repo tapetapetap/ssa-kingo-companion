@@ -58,6 +58,11 @@
 - [X] T024 /code-review(필요하면 /security-review)로 정확성·보안 점검, 지적 반영
 - [X] T025 `npm run check`, `npm run build`, `npm run audit:layout`, `npm run audit:copy` 통과 확인(출력 확인)
 - [X] T026 커밋(한 커밋 한 이유)·`tape`에 push·PR(머지는 사용자)
+- [X] T027 [US3] 연구실 목록 머리에 CSRankings 국내 대학 링크(방향의 대표 분야, 새 탭) — `src/data/courses/index.ts`, `src/screens/courses/LabList.tsx`, `src/domain/courses/check.test.ts`
+
+## 후속 (보류, 2026-11-16 사용자)
+
+- 학과 확인 요청: 과목-분야 줄 연결 69개, 방향-과목(연구실 기준) 28가지, 선수 관계 13개(로드맵과 거꾸로인 강화학습개론 ← 기계학습원론 포함)와 질문 4개(로드맵 학기를 권장 학기로 써도 되는지, '개설 여부' 칸의 뜻, 최신 C/L 목록, 1만라인 2024학번 경계)를 학과(교수님 경유 추천, 학과사무실 computing@skku.edu)에 묻는다. 준비물: 확인 시트(맞음/고침/모름), 화면 설명, 메일 초안(보내기는 사용자). 확인을 받으면 `SWE.checked`를 'dept'로 바꾸고 고친 연결을 데이터에 반영한다(research R11).
 
 ## Dependencies
 
