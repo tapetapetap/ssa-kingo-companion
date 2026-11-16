@@ -106,6 +106,7 @@ async function homeTime(browser, store, net) {
 
 const NAV_STEPS = [
   ['추천', p => p.locator('.app-nav a[href="#/recommend"]').click()],
+  ['교과 지도', p => p.locator('.app-nav a[href="#/courses"]').click()],
   ['내 활동', p => p.locator('.app-nav a[href="#/activities"]').click()],
   ['나의 분석', p => p.locator('.app-nav a[href="#/analysis"]').click()],
   ['경험 지도', p => p.locator('a[href="#/analysis/map"]').first().click()],

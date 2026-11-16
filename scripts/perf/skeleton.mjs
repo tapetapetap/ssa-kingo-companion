@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const SKELETON_ROUTES = [
-  'recommend', 'recommend/prepare/p-interview',
+  'recommend', 'recommend/prepare/p-interview', 'courses',
   'activities', 'activities/schedule', 'activities/records', 'activities/records/interview/a-hackathon',
   'analysis', 'analysis/techtree', 'analysis/map', 'analysis/flow', 'analysis/strengths',
   'profile', 'profile/friends', 'profile/recruit', 'profile/hall', 'settings'
