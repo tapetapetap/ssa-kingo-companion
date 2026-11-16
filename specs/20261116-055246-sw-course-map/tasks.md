@@ -16,7 +16,7 @@
 - [X] T004 데이터 검사(FR-015)와 테스트: 실제 데이터로 검사를 돌려 문제 0건, 학기별 배치 수가 SC-001 값(1-1 1, 1-2 2, 2-1 4, 2-2 4, 3-1 11, 3-2 14, 4-1 18, 4-2 15)이고 경험 층 14, 방향 28개 모두 과목·연구실 1개 이상(SC-002), 일부러 고리·없는 학수번호·두 묶음에 걸친 줄을 넣은 가짜 전공에서 문제를 찾아냄 — `src/domain/courses/check.ts`, `src/domain/courses/check.test.ts`
 - [X] T005 [P] 밝힘·묶음 규칙과 테스트(plan.md 규칙 1~9): `worldOf`, `pathCourses`, `closure`, `directionsOf`, `planOf`. 테스트: 선수 남은 과목은 '지금'에 없음, 들은 과목은 어디에도 없음, 개설 아니오는 `closed`, 배치 없음은 `other`, 4-2 학생의 늦은 과목은 `now`, 학기 없음이면 needsTerm이고 `left`, 경험 층 과목은 학기 비교 없이 `now`, 정렬(학기 없는 과목 맨 뒤), 이유 토막 표의 갈래마다 한 건, 진행 한 줄, 방향 없음이면 lit null·progress null — `src/domain/courses/plan.ts`, `src/domain/courses/plan.test.ts`
 - [X] T006 앱 상태에 `courses` 조각과 행동 `courses/term`·`courses/taken`·`courses/direction`을 더하고 `DATA_KEYS`·`INITIAL_STATE`(예시 3-2, exampleTaken)·`NEW_STUDENT_STATE`에 넣는다. 테스트: 토글, 예시↔새 학생 전환, '내 데이터 지우기' — `src/app/state.ts`, `src/app/state.test.ts`
-- [X] T007 저장·복원에 `courses`를 더한다(새 학생만 저장, 복원 때 모양만 본다: 학년·학기가 아니면 null, 글자가 아닌 학수번호·겹친 학수번호는 버림, 방향은 글자가 아니면 null. 과목표·방향에 없는 값은 계산이 쓰지 않는다, data-model). `AppState.tsx` 저장 의존 목록에 `state.courses`. 테스트: 왕복, 잘못된 값 버림 — `src/app/storage.ts`, `src/app/storage.test.ts`, `src/app/AppState.tsx`
+- [X] T007 저장·복원에 `courses`를 더한다(새 학생만 저장, 복원 때 학년·학기가 아니면 null, 과목표에 없는 학수번호·겹친 학수번호는 버림, 방향은 글자가 아니면 null, data-model). `AppState.tsx` 저장 의존 목록에 `state.courses`. 테스트: 왕복, 잘못된 값 버림 — `src/app/storage.ts`, `src/app/storage.test.ts`, `src/app/AppState.tsx`
 - [X] T008 [P] 내려받기에 `교과: { 지금학기, 들은과목, 진로방향 }`(지금학기 '3학년 2학기' 또는 '고르지 않음', 들은과목 = 과목표에 있는 들은 과목 이름 목록, 진로방향 = 방향 이름 또는 '고르지 않음')를 더하고 테스트 — `src/domain/exportData.ts`, `src/domain/exportData.test.ts`
 - [X] T009 라우트와 서랍 종류: `SCREENS`·`NAV`(홈·추천·교과 지도·내 활동·나의 분석, 아이콘 book, 메뉴 이름 '교과 지도' = 화면 제목)·`KNOWN_SUBS.courses = []`, `LAZY.courses`, `PRELOAD_ORDER`에 courses(recommend 다음), `deferEntity('course', …)`, `EntityKind`에 'course'·`ENTITY_LABEL.course = '과목'`·`entitySummary`의 course 갈래는 `undefined`(서랍은 CourseEntity가 그리고, 못 찾을 때만 기본 서랍이 '찾지 못했어요'를 보인다), `skeletonOf` courses → 'panel'. 이 단계에서 빈 화면 `screens/courses/index.tsx`와 빈 서랍 `CourseEntity.tsx` 자리표를 만든다. 테스트 갱신: router, entitySummary, sizes — `src/app/router.ts`, `src/app/router.test.ts`, `src/app/lazyScreens.tsx`, `src/app/entitySummary.ts`, `src/app/entitySummary.test.ts`, `src/screens/sizes.ts`, `src/screens/sizes.test.ts`, `src/screens/courses/index.tsx`, `src/screens/courses/CourseEntity.tsx`
 
@@ -41,7 +41,7 @@
 **Independent Test**: quickstart 2의 방향 부분, plan.test.
 
 - [X] T015 [US2] 지도 카드 머리에 방향 고르기(네이티브 select, optgroup = CSRankings 묶음, 첫 칸 '진로 방향 고르기'/'방향 없이 보기')를 두고 `planOf` 결과를 지도(lit·now·접기·선)와 안내 줄(진행 한 줄, '지금 들을 만한 과목 k개', '목록 보기')에 넘긴다 — `src/screens/courses/index.tsx`
-- [X] T016 [US2] 목록 '이 길의 과목': 묶음 제목과 과목 줄(이름 + 이유 토막들, 누르면 지도에 그려진 과목은 그 점을 찾아 표시하고 없으면 서랍), plan.md 규칙 9의 상태 문구(겹치면 위에서부터 모두), '연구실 보기' — `src/screens/courses/PlanList.tsx`, `src/screens/courses/index.tsx`
+- [X] T016 [US2] 목록 '들을 과목': 묶음 제목과 과목 줄(이름 + 이유 토막들, 누르면 지도에 그려진 과목은 그 점을 찾아 표시하고 없으면 서랍), plan.md 규칙 9의 상태 문구(겹치면 위에서부터 모두), '연구실 보기' — `src/screens/courses/PlanList.tsx`, `src/screens/courses/index.tsx`
 
 ## Phase 5: User Story 3 — 연구실과 근거 (P3)
 

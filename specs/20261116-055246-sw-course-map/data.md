@@ -338,9 +338,9 @@
 | `dicl` | 남범석 | Data Intensive Computing Lab | http://dicl.skku.edu | 데이터베이스, 운영체제 | 동시성 인덱스 / 새 하드웨어용 데이터베이스 | none | 성균관대학교 박사과정 4, 네이버 3, 카카오 3 등 25명 | SWE3003, SWE3033, SWE3004, ESW4004, SWE3021, SWE2015 |
 | `archlab` | 민동문 | Computer Architecture Laboratory | https://archlab.skku.edu | 컴퓨터 구조 | 양자·극저온 컴퓨터 시스템 / 피지컬 AI 시스템 | open | — | SWE3005, ISW3001, ICE2001, SWE2001, SWE3004, SWE3021 |
 | `csl` | 서의성 | Computer Systems Laboratory | https://csl.skku.edu | 운영체제 | 지속 가능한 AI 시스템 / 클라우드 유휴 자원 활용 | none | 삼성전자 15, 삼성리서치 2, 티맥스소프트 2 등 40명 | SWE3004, SWE2001, SWE2024, ESW4004, ESW7007, SWE3005 |
-| `iesl` | 신동군 | 지능형 임베디드 시스템 연구실 | https://nyx.skku.ac.kr/lab/ | 임베디드·실시간 시스템, 운영체제 | 온디바이스 머신러닝 / LLM 추론 최적화·서빙 | open | 삼성전자 41, SK하이닉스 4, FADU 3 등 67명 | SWE3004, SWE3005, ESW4007, ESW7007, SWE3052, SWE2001 |
+| `iesl` | 신동군 | 지능형 임베디드 시스템 연구실 | https://nyx.skku.ac.kr/lab/ | 임베디드·실시간 시스템, 운영체제 | 온디바이스 머신러닝 / LLM 추론 가속·서빙 | open | 삼성전자 41, SK하이닉스 4, FADU 3 등 67명 | SWE3004, SWE3005, ESW4007, ESW7007, SWE3052, SWE2001 |
 | `cpl` | 조형민 | Computing Platforms Lab | http://cpl.skku.edu/cplpage/ | 컴퓨터 구조, 설계 자동화 | 머신러닝용 컴퓨팅 플랫폼 / FPGA 신경망 가속 | open | 삼성전자 3, FADU 2, 리벨리온 2 등 9명 | SWE3005, SSE3061, ICE2001, ICE3001, SWE3052, SWE3025 |
-| `arcs` | 한환수 | ARCS Lab | https://arcs.skku.edu/ | 프로그래밍 언어, 고성능 컴퓨팅 | 딥러닝 컴파일러 최적화 / 빅데이터 플랫폼 최적화 | none | 삼성전자 22, Google 3, 현대자동차 2 등 49명 | ESW4007, SWE3006, SWE3021, SWE3004, SWE3005, SWE2001 |
+| `arcs` | 한환수 | ARCS Lab | https://arcs.skku.edu/ | 프로그래밍 언어, 고성능 컴퓨팅 | 딥러닝 컴파일러 성능 / 빅데이터 플랫폼 성능 | none | 삼성전자 22, Google 3, 현대자동차 2 등 49명 | ESW4007, SWE3006, SWE3021, SWE3004, SWE3005, SWE2001 |
 | `csi` | 김유성 | CSI Lab. | https://sites.google.com/view/csi-skku | 로보틱스, 컴퓨터 비전 | 피지컬 AI(로봇 지능) / 영상·언어로 로봇 행동을 만드는 모델 | open | 삼성전자 3, 삼성리서치 2, 넥슨 1 등 16명 | ESW4014, SWE3050, SWE3052, SWE3051, SWE3011, SWE3032 |
 | `cg` | 이성길 | CGLab@SKKU | http://cg.skku.edu/ | 컴퓨터 그래픽스 | 실시간 GPU 렌더링 / 뉴럴 렌더링(3D 가우시안 스플래팅) | open | 그 밖의 기업 10, 크래프톤 2, 삼성전자 2 등 20명 | SWE3008, SWE3021, SWE3051, SWE3052, SWE2015, SWE2016 |
 | `selab` | 이은석 | SELAB @SKKU | https://sites.google.com/view/skkuselab | 소프트웨어공학 | 결함 자동 수정 / 버그 위치 찾기 | none | 삼성전자 48, 그 밖의 기업 20, 교수 6 등 91명 | SWE3002, SWE2021, SWE2023, SWE3006, ESW4028 |

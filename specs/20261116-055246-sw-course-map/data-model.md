@@ -90,10 +90,10 @@
 | 칸 | 타입 | 규칙 |
 |---|---|---|
 | `term` | `Term \| null` | 지금 학년·학기. 예시 학생 `'3-2'`, 새 학생 `null` |
-| `taken` | `string[]` | 들은 과목 학수번호. 복원 때 글자가 아닌 값과 겹친 값은 버린다 |
+| `taken` | `string[]` | 들은 과목 학수번호. 복원 때 과목표에 없는 값과 겹친 값은 버린다 |
 | `direction` | `string \| null` | 고른 방향 id. 글자가 아니면 복원 때 null |
 
-과목표·방향에 없는 값(데이터가 바뀐 뒤의 옛 저장값)은 버리지 않고 남겨 두되 계산·지도·내려받기가 쓰지 않는다. 저장 모듈이 교과 데이터를 읽으면 첫 화면 덩어리에 과목표가 들어가서, 복원 단계에서는 모양만 본다.
+저장 모듈은 과목표(`catalog.ts`)만 읽는다. 방향·연구실 데이터까지 읽으면 첫 화면 덩어리가 커져서, 없는 방향 id 는 남겨 두고 화면이 '방향 없음'으로 본다.
 
 행동: `courses/term`(term), `courses/taken`(code 토글), `courses/direction`(id | null). `dataOf`에 들어가 예시↔새 학생 전환·'내 데이터 지우기'와 함께 움직인다. 새 학생만 저장한다(`AppState.tsx` 저장 의존 목록에 `state.courses`).
 
@@ -101,7 +101,7 @@
 
 ```ts
 type PlanGroup = 'now' | 'later' | 'left' | 'closed' | 'other';
-type PlanItem = {
+type PlanItem = {  // 화면은 code, group, reasons 만 읽는다
   code: string;
   group: PlanGroup;
   missing: string[];      // 안 들은 먼저 들을 과목(정렬 순)
