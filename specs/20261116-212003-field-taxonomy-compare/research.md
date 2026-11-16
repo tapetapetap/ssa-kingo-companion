@@ -97,6 +97,7 @@
     - 5초마다 GPU 사용률과 온도를 읽는다(R18). 못 읽은 표본은 빼기만 하고, 요청을 멈출지는 before·after의 읽기가 정한다.
     - 1분마다 그 1분의 평균 GPU, 최고 온도, 최고 GPU 온도(리눅스만)를 `etl/.cache/load/<시작 시각>.jsonl`에 한 줄씩 남긴다.
     - 타이머는 `unref()`라 프로세스가 끝나는 것을 막지 않는다.
+    - 기록 폴더를 만들거나 파일에 쓰지 못해도 판정은 계속한다. 그 1분 묶음은 버린다.
   - **끝**: `stop()`이 기록을 멈추고 `LoadSummary = { requests, requestMs, gpuAvg, tempMax, logFile, line }`을 돌려준다.
     - 여러 번 불러도 된다. 두 번째부터는 아무것도 하지 않고 첫 값을 돌려준다.
     - requests·requestMs는 `after(ms)`로 받은 요청 수와 ms 합이다(쉼·온도 대기 제외).

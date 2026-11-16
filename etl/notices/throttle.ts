@@ -56,7 +56,12 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
   const flush = () => {
     if (!logFile || bucket.n === 0) return;
     const gpu = bucket.gpu.length ? round1(bucket.gpu.reduce((a, b) => a + b, 0) / bucket.gpu.length) : null;
-    appendFileSync(logFile, `${JSON.stringify({ at: new Date(deps.now()).toISOString(), gpu, temp: max(bucket.temp), gpuTemp: max(bucket.gpuTemp) })}\n`);
+    try {
+      mkdirSync(deps.logDir, { recursive: true });
+      appendFileSync(logFile, `${JSON.stringify({ at: new Date(deps.now()).toISOString(), gpu, temp: max(bucket.temp), gpuTemp: max(bucket.gpuTemp) })}\n`);
+    } catch {
+      // 기록만 못 한 것이다(디스크, 권한). 판정은 계속하고 이 묶음은 버린다
+    }
     bucket = { n: 0, gpu: [], temp: [], gpuTemp: [] };
   };
   /** 못 읽은 표본은 빼기만 한다. 요청을 멈출지는 before·after의 읽기가 정한다 */
@@ -70,14 +75,13 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
     }
     if (typeof g?.temp === 'number') bucket.gpuTemp.push(g.temp);
     if (t !== null) seen(t);
-    if (++bucket.n === PER_LINE) flush();
+    if (++bucket.n >= PER_LINE) flush();
   };
-  /** 첫 실제 요청 앞에서 시작한다: 보관 답만 쓴 실행은 기록 파일을 만들지 않는다 */
+  /** 첫 실제 요청 앞에서 시작한다: 보관 답만 쓴 실행은 기록 파일을 만들지 않는다. 폴더는 첫 줄을 쓸 때 만든다(flush) */
   const startLog = () => {
     if (logFile) return;
-    mkdirSync(deps.logDir, { recursive: true });
     logFile = join(deps.logDir, `${new Date(deps.now()).toISOString().slice(0, 19).replace(/:/g, '-')}.jsonl`);
-    stopTimer = deps.every(STEP_MS, () => { sample().catch(() => {}); }); // 기록을 못 써도 판정은 계속한다
+    stopTimer = deps.every(STEP_MS, () => { sample().catch(() => {}); }); // 센서가 던져도 판정은 계속한다
   };
 
   const gate = (): Gate => {
@@ -110,7 +114,7 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
     return g;
   };
 
-  /** 기록을 멈추고 요약을 돌려준다. 두 번째부터는 첫 값을 돌려준다 */
+  /** 기록을 멈추고 요약을 돌려준다. 던지지 않고, 두 번째부터는 첫 값을 돌려준다(research R6) */
   const stop = (): LoadSummary => {
     if (summary) return summary;
     stopTimer?.();

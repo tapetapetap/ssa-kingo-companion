@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -139,6 +139,35 @@ describe('기록과 stop()', () => {
     expect(f.ticks).toHaveLength(0);
     expect(s.logFile).toBeNull(); // 5초 표본이 하나도 없으면 기록 파일이 생기지 않는다
     expect(readdirSync(f.logDir)).toEqual([]);
+  });
+
+  it('기록 폴더를 만들지 못해도 판정을 깨지 않는다: before()는 보내고 stop()은 던지지 않으며 두 번째부터 첫 값이다', async () => {
+    const f = fake([70]);
+    const blocker = join(f.logDir, 'file');
+    writeFileSync(blocker, '');
+    const t = createThrottle({ ...f.deps, logDir: join(blocker, 'load') }); // 파일 아래라 폴더를 만들 수 없다
+    const g = t.gate();
+    expect(await g.before()).toBe(true);
+    await g.after(10);
+    await f.tick(13);
+    const s = t.stop();
+    expect(s).toMatchObject({ requests: 1, logFile: null, line: '부하: GPU 평균 50% · 칩 최고 70°C' });
+    expect(t.stop()).toBe(s);
+  });
+
+  it('기록 파일에 쓰지 못한 묶음은 버린다: 다음 줄은 그 뒤 표본만 담는다', async () => {
+    const gpus: (Gpu | null)[] = [...Array.from({ length: 12 }, () => ({ util: 60, temp: null })), { util: 90, temp: null }];
+    const f = fake([70], gpus);
+    const file = join(f.logDir, '2026-11-17T01-00-00.jsonl');
+    mkdirSync(file); // 기록 파일 자리에 폴더가 있으면 쓰기가 실패한다
+    const t = createThrottle(f.deps);
+    const g = t.gate();
+    await g.before();
+    await g.after(10);
+    await f.tick(12);
+    rmdirSync(file);
+    await f.tick(3);
+    expect(lines(t.stop().logFile)).toMatchObject([{ gpu: 90 }]);
   });
 
   it('GPU를 못 읽었으면 GPU 평균 -, 리눅스는 CPU 최고이고 GPU 온도를 기록한다', async () => {
