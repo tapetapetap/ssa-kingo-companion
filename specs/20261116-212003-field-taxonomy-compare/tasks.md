@@ -316,12 +316,12 @@ description: "분야 목록 3안 비교와 공지 분야 판정 작업 목록"
 
 ## Phase 7: Polish & 마무리
 
-- [ ] T046 [P] `docs/product/decisions.md`에 2026-11-16 결정 한 덩이를 적는다.
+- [x] T046 [P] `docs/product/decisions.md`에 2026-11-16 결정 한 덩이를 적는다.
   - 예시 자료 삭제와 처음부터 다시 만들기, 순서 1~8
   - 분야 목록 3안 비교, 분야 두 단계(핵심·관련), 판정 두 단계(임베딩 후보 30개 → LLM, bge-m3)
   - 부하 제한을 분류기 안에 고정, 운영 서버(학교 데스크톱)에서는 CPU 패키지 온도와 nvidia-smi
   - 고르기와 85% 기준 분리
-- [ ] T047 검사를 돌린다.
+- [x] T047 검사를 돌린다.
   - `npm run check`와 `npm run build`가 통과해야 한다.
   - 화면 변화는 없지만 CI가 도는 `npm run audit:layout`·`npm run audit:copy`도 한 번 돌린다.
 - [ ] T048 리뷰를 돌린다.
@@ -445,3 +445,17 @@ $ node etl/notices/compare.ts sample
 - research R9의 배분과 같다. 두 번 돌려도 같은 파일이다(md5 `1aa6ed51…`).
 - 표본 120건과 판정 대상 412건 모두 본문 보관본이 있다(쓰지 않고 확인). label-input(T037)이 막히지 않는다.
 - `etl/gold/fields/sample.csv`는 커밋하지 않았다. 정답셋이라 스펙 1 FR-034(`.git/info/exclude`의 `etl/gold/`)대로 이 컴퓨터에만 둔다. 정답 파일(T039)도 같다.
+
+### T047 (2026-11-17)
+
+```text
+$ npm run check
+ Test Files  105 passed (105)
+      Tests  1302 passed (1302)
+$ npm run build
+✓ built in 110ms
+$ npm run audit:copy
+문구 통과(경로 57개). 표: .qa/copy/report.md
+```
+
+- 화면 코드는 건드리지 않았다. `npm run audit:layout`은 지휘자가 돌린다(구현 위임 범위).
