@@ -47,7 +47,7 @@
 
 **Storage**: 파일.
 - 저장소: 분야 목록 `etl/taxonomy/*.json`, 결과 파일 `etl/out/cse-notices.json`과 그 계약(스펙 1 `contracts/cse-notices.schema.json`)
-- 이 컴퓨터(커밋하지 않음): 표본·정답 `etl/gold/fields/*.csv`와 비교 결과 `etl/out/fields-compare.json`(갈린 예에 정답 라벨이 들어 있다). 정답셋이라 사용자가 올리기로 정하기 전까지 이 컴퓨터에만 둔다(스펙 1 FR-034, `.git/info/exclude`의 `etl/gold/`, 2026-11-17 구현 때 확인)
+- 이 컴퓨터(커밋하지 않음): 표본·정답 `etl/gold/fields/*.csv`와 비교 결과 `etl/out/fields-compare.json`(갈린 예에 정답 라벨이 들어 있다). 정답셋이라 사용자가 올리기로 정하기 전까지 이 컴퓨터에만 둔다(스펙 1 FR-034, `.gitignore`의 `etl/gold/`와 `etl/out/fields-compare.json`)
 - 저장소 밖(`.gitignore`의 `etl/.cache/`): 분야 답 보관과 판정 실행 기록(`llm-fields/…/runs.jsonl`), 분야·공지 벡터(`embed/`), NCS 원본, 센서 실행 파일, 부하 기록
 - 라벨러 입력은 저장소 밖 임시 폴더에 둔다.
 
