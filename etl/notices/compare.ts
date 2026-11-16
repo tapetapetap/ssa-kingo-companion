@@ -28,7 +28,7 @@ const ctxOf = (d: CompareDeps): Ctx => ({
 const NO_LOAD: LoadSummary = { requests: 0, requestMs: 0, gpuAvg: null, tempMax: null, logFile: null, line: '' };
 
 const USAGE = '쓰는 법: node etl/notices/compare.ts check | sample | judge <안> [--limit N] | label-input <안> <폴더> | gold <안> <A.json> <B.json> [<C.json>] | score | choose <안>';
-export const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** 세 목록을 검사하고 chosen이 많아야 하나인지 본다 */
 function check(taxonomyDir: string): number {
