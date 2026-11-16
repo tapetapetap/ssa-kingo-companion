@@ -2,11 +2,11 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { USER_AGENT } from '../notices/cse.ts';
-import { COURSE_ROWS, saveTaxonomy, TAXONOMY_DIR, type Field, type Group, type Taxonomy } from './taxonomy.ts';
+import { COURSE_ROWS, loadTaxonomy, saveTaxonomy, TAXONOMY_DIR, type Field, type Group, type Taxonomy } from './taxonomy.ts';
 
 /** 시트마다 첫 줄 A~H(research R7 '파일 모양') */
 export const HEAD = ['대분류코드', '대분류코드명', '중분류코드', '중분류코드명', '소분류코드', '소분류코드명', '세분류코드', '세분류코드명'];
@@ -90,6 +90,12 @@ export function buildNcs(rows: string[][], edition: string, courseMap: Record<st
   };
 }
 
+/** 다시 만들어도 사람이 고른 기록(chosen)은 그대로 옮겨 적는다. 기존 파일을 읽지 못하면 던져서 덮어쓰지 않는다 */
+export function saveNcs(t: Taxonomy, dir = TAXONOMY_DIR) {
+  const chosen = existsSync(join(dir, 'ncs.json')) ? loadTaxonomy('ncs', dir).chosen : null;
+  saveTaxonomy({ ...t, chosen }, dir);
+}
+
 /** 자료실 글에서 첨부 이름을 확인한 뒤 받는다. 요청은 1초에 1건이다 */
 async function download(file: string) {
   const post = (r: { url: string; body: string }) =>
@@ -154,7 +160,7 @@ async function main(file = NCS_FILE, outDir = TAXONOMY_DIR): Promise<number> {
       console.error(`시트 ${name} 읽음`);
     }
     const t = buildNcs([HEAD, ...seen.values()], NCS_EDITION);
-    saveTaxonomy(t, outDir);
+    saveNcs(t, outDir);
     const c = t.sourceCounts;
     console.log(`대분류 ${c?.major} · 중분류 ${c?.middle} · 소분류 ${c?.minor} · 세분류 ${c?.detail} (기준 ${NCS_EDITION})`);
     return 0;

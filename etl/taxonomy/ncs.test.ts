@@ -1,6 +1,9 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildNcs, HEAD, readRows, readShared } from './ncs.ts';
-import { checkTaxonomy, COURSE_ROWS } from './taxonomy.ts';
+import { buildNcs, HEAD, readRows, readShared, saveNcs } from './ncs.ts';
+import { checkTaxonomy, COURSE_ROWS, loadTaxonomy, saveTaxonomy } from './taxonomy.ts';
 
 describe('readShared', () => {
   it('<si><t>와 서식 조각(<r><t>)을 이어 읽고, 읽는 법(rPh)은 빼고, 글자 참조를 푼다', () => {
@@ -61,6 +64,16 @@ describe('buildNcs', () => {
     ], '2026-02', map());
     expect(t.fields[0].desc).toBe(`${long(100)}, ${long(100)}`);
     expect(t.fields[1].desc).toBe(long(240));
+  });
+
+  it('다시 만들어 저장할 때(saveNcs) 기존 ncs.json의 chosen을 옮겨 적는다. 파일이 없으면 null이다', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ncs-'));
+    saveNcs(buildNcs(rows, '2026-02', map()), dir);
+    expect(loadTaxonomy('ncs', dir).chosen).toBeNull();
+    const chosen = { date: '2026-11-20', corePrecision: { num: 88, den: 100 }, prompt: '1a2b3c4d', model: 'gemma4:12b' };
+    saveTaxonomy({ ...loadTaxonomy('ncs', dir), chosen }, dir);
+    saveNcs(buildNcs(rows, '2026-02', map()), dir);
+    expect(loadTaxonomy('ncs', dir).chosen).toEqual(chosen);
   });
 
   it.each<[string, string[][], string]>([
