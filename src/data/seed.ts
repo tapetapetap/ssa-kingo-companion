@@ -1,8 +1,16 @@
 import { discoveriesOf } from '../domain/discoveries';
+import type { CourseState } from '../domain/courses/types';
 import type { Activity, Confirm, Profile, RecordItem, Visibility } from '../domain/types';
 
 // 예시 학생(가상 인물). 실제 학생 데이터가 아니다. 인물 설명은 docs/product/example-student.md.
 // 소프트웨어학과 3학년: 1학년엔 개발로 시작 → 2학년에 데이터·AI 로 넓힘 → 3학년에 서비스 기획·리서치로 좁혀 간다. 멘토링·글로벌은 조금.
+
+/** 예시 학생의 교과 지도(3학년 2학기): 1-1~3-1 로드맵 과목 중 15과목을 들었다(specs/20261116-055246-sw-course-map/data.md I) */
+export const EXAMPLE_COURSES: CourseState = {
+  term: '3-2',
+  taken: ['SWE2020', 'SWE2015', 'SWE2019', 'SWE2001', 'SWE2026', 'SWE2021', 'SWE2023', 'SWE2016', 'SWE3005', 'SWE2024', 'SWE3006', 'SWE3003', 'SWE3004', 'SWE3026', 'SWE3047'],
+  direction: null
+};
 
 export const EMPTY_PROFILE: Profile = { interests: [], time: 3, format: 'any', goal: '', importCS: false };
 export const EXAMPLE_PROFILE: Profile = { interests: ['plan'], time: 3, format: 'any', goal: '서비스 기획 직무', importCS: false };
