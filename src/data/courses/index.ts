@@ -9,3 +9,5 @@ import { SWE } from './swe';
 export const WORLD = worldOf(SWE, COURSES, LABS, DIRECTIONS);
 export const AREA_GROUP = new Map<CsrArea, CsrGroup>(CSR_AREAS.map(a => [a.id, a.group]));
 export const areaLabel = (a: CsrArea) => CSR_AREAS.find(x => x.id === a)?.label ?? a;
+/** CSRankings 화면 주소: 그 분야(묶음 키)와 지역(kr = 한국). 데이터는 옮기지 않고 링크로만 보낸다(CC BY-NC-ND) */
+export const csrankingsUrl = (a: CsrArea, region = 'kr') => `https://csrankings.org/#/index?${a}&${region}`;

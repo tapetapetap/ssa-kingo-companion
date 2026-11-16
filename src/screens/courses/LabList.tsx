@@ -1,7 +1,7 @@
 import { Badge, Icon, type BadgeTone } from '../../components';
 import type { CourseWorld } from '../../domain/courses/plan';
 import type { Direction, Lab } from '../../domain/courses/types';
-import { areaLabel } from '../../data/courses';
+import { areaLabel, csrankingsUrl } from '../../data/courses';
 import { LABS_CHECKED } from '../../data/courses/directions';
 
 const UNDERGRAD: Record<Lab['undergrad'], { label: string; tone: BadgeTone }> = {
@@ -18,6 +18,10 @@ export function LabList({ w, dir }: { w: CourseWorld; dir: Direction }) {
       <div className="cm-labs__head">
         <h3 id="cm-labs-title" className="cm-sub__title">이 길의 연구실</h3>
         <span className="cm-labs__src">연구실 홈페이지 기준({LABS_CHECKED} 확인)</span>
+        {/* 2026-11-16 사용자 결정: 일단 넣어 보고 교수님 의견에 따라 뺄 수 있다(결정 로그) */}
+        <a className="ui-link cm-labs__csr" href={csrankingsUrl(dir.area)} target="_blank" rel="noopener noreferrer">
+          CSRankings에서 {areaLabel(dir.area)} 국내 대학 보기<Icon name="external" size={14} /><span className="sr-only">(새 탭)</span>
+        </a>
       </div>
       <ul className="cm-labs__list">
         {labs.map(l => (

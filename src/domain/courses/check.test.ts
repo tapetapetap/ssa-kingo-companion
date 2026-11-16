@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COURSES } from '../../data/courses/catalog';
 import { DIRECTIONS, LABS } from '../../data/courses/directions';
-import { AREA_GROUP, WORLD } from '../../data/courses';
+import { AREA_GROUP, csrankingsUrl, WORLD } from '../../data/courses';
 import { SWE } from '../../data/courses/swe';
 import { EXAMPLE_COURSES } from '../../data/seed';
 import { checkWorld } from './check';
@@ -25,6 +25,9 @@ describe('교과 지도 데이터 검사(실제 데이터)', () => {
       expect(d.labs.length, d.id).toBeGreaterThan(0);
       expect(pathCourses(d, WORLD).length, d.id).toBeGreaterThan(0);
     }
+  });
+  it('CSRankings 링크는 방향의 대표 분야 키와 한국 지역을 건다', () => {
+    expect(csrankingsUrl(DIRECTIONS.find(d => d.id === 'llm')!.area)).toBe('https://csrankings.org/#/index?nlp&kr');
   });
   it('예시 학생이 들은 과목은 모두 지도에 있다', () => {
     expect(EXAMPLE_COURSES.taken.filter(c => !WORLD.place.has(c))).toEqual([]);
