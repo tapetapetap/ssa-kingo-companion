@@ -36,7 +36,6 @@ npm run check          # 타입 검사 + 단위 테스트
 npm run build          # 배포 빌드 (dist/)
 npm run audit:layout   # 모든 경로 × 크기 × 학생 상태 레이아웃 검사 (Playwright, 처음 한 번 npx playwright install chromium)
 npm run audit:copy     # 보이는 글자의 기호·금지어·가운뎃점 사슬 검사
-npm run audit:design   # AI 티 스캐너 (출력만 본다)
 npm run audit:entries  # 같은 목적지로 가는 진입점 수 검사
 ```
 
@@ -59,29 +58,13 @@ Claude 리뷰는 같은 저장소 브랜치에서 연 PR 에서만 돈다(포크
 
 | 알고 싶은 것 | 문서 |
 |---|---|
-| 무엇을 왜 만드나, 화면과 원칙 | [docs/product/concept.md](docs/product/concept.md) |
-| 무엇을 언제 정했나 | [docs/product/decisions.md](docs/product/decisions.md) |
-| 색, 글자, 간격, 부품, 움직임의 계약 | [DESIGN.md](DESIGN.md) |
-| 메뉴 트리와 이동 규칙 | [docs/design/ia-navigation.md](docs/design/ia-navigation.md) |
-| 화면 틀, 경로 표, 다이어그램 부품, 레이아웃 검사 | [docs/design/web-desktop.md](docs/design/web-desktop.md) |
+| 무엇을 왜 만드나 | 팀 Notion [서비스 철학·컨셉 정리](https://app.notion.com/p/3f4b044fa973801d8d70e04f32e80648) |
+| 무엇을 언제 정했나 | 팀 Notion [결정 로그](https://app.notion.com/p/c9390f302a6c4b15803edee55e252813) |
+| 기능별 설계 | [specs/](specs) |
 | 조사 자료 | [docs/research/](docs/research) |
 | 화면 점검 기록 | [docs/qa/](docs/qa) |
-| 여러 에이전트가 나눠 일하는 방식 | [docs/orchestration/](docs/orchestration/README.md) |
-| 전체 목록과 옛 기획 | [docs/README.md](docs/README.md) |
 
-`docs/planning/`, `docs/history/` 는 v0.5 이전 기획이라 보존만 하고 따르지 않는다. 루트 `qa/` 는 이전 버전 검수 기록이다.
-
-## 스킬
-
-`.claude/skills/` 에 있다. 화면을 만들거나 고치는 작업은 끝내기 전에 해당하는 스킬로 점검한다.
-
-| 스킬 | 쓰는 때 |
-|---|---|
-| `kingo-ui-review` | 화면, CSS, 레이아웃을 건드렸을 때. 레이아웃 불변식, `audit:layout`, 두 학생 상태 스크린샷 |
-| `kingo-toss-ux` | 화면과 흐름을 설계하거나 고칠 때. 토스 제품 원칙 10가지 점검표 |
-| `kingo-ux-writing` | 제목, 버튼, 빈 상태, 안내, 오류, 토스트 같은 화면 문구를 쓸 때 |
-| `avoid-ai-design` | AI가 만든 듯한 모양을 점검할 때. `npm run audit:design` |
-| `web-interface-guidelines` | 키보드, 초점, 폼, 상태 설계, 주소 상태를 점검할 때 |
+`docs/history/` 는 v0.5 이전 기획이라 보존만 하고 따르지 않는다. 루트 `qa/` 는 이전 버전 검수 기록이다.
 
 ## 코드 위치
 
@@ -106,4 +89,4 @@ scripts/        audit-layout, audit-copy
 
 ## 버전
 
-v0.7 까지는 모바일(390px) 기준이었다. 2026-10-12 결정으로 데스크톱 웹으로 다시 지었고, 지금은 v3.x 다. 태그는 `prototype-v0.3` ~ `prototype-v0.7` 이 있고, 옛 화면 코드는 `git show prototype-v0.7:src/App.tsx` 처럼 본다. 변경 이유는 [결정 로그](docs/product/decisions.md)에 있다.
+v0.7 까지는 모바일(390px) 기준이었다. 2026-10-12 결정으로 데스크톱 웹으로 다시 지었고, 지금은 v3.x 다. 태그는 `prototype-v0.3` ~ `prototype-v0.7` 이 있고, 옛 화면 코드는 `git show prototype-v0.7:src/App.tsx` 처럼 본다. 변경 이유는 팀 Notion [결정 로그](https://app.notion.com/p/c9390f302a6c4b15803edee55e252813)에 있다.
