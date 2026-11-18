@@ -45,7 +45,7 @@ Postgres 17 + pgvector. 표 이름은 영어, 설명은 spec 용어를 쓴다. �
 
 ### student_fields(고른 분야)
 
-`student_id`(cascade), `field_id`, `picked_at`. 기본 키는 (student_id, field_id). 지금 분야 목록에 있는 세부 분야만 받고, 저장 함수가 3개 이상인지 본다(FR-017). 목록이 바뀌어 사라진 분야는 넣기가 지운다(FR-008).
+`student_id`(cascade), `field_id`, `picked_at`. 기본 키는 (student_id, field_id). 지금 분야 목록(활성 목록)에 있는 세부 분야만 받고, 저장 함수가 3개 이상인지 본다(FR-017). 목록의 새 판에서 사라진 분야는 넣기가 지우고, 목록을 갈아타면 모두 지운다(FR-008, research R11).
 
 ## 2. 분야 목록
 
@@ -56,7 +56,7 @@ Postgres 17 + pgvector. 표 이름은 영어, 설명은 spec 용어를 쓴다. �
 | id | text, 기본 키 | 1단계 목록 id(`custom`·`ncs`·`csrankings`) |
 | name, edition | text | 이름과 목록 판(1단계 파일의 `edition`) |
 | chosen | jsonb, 없을 수 있음 | 1단계 `Chosen`(고른 날, 핵심 정밀도, 지시문, 모델). 운영 모드는 이것이 있어야 넣는다(FR-003) |
-| active | boolean | 지금 쓰는 목록. 많아야 하나(부분 unique 색인) |
+| active | boolean | 지금 쓰는 목록(활성 목록). 많아야 하나(부분 unique 색인). 처음 넣은 목록이 활성이 되고, 다른 목록으로는 `ingest --switch`로만 갈아탄다(research R11) |
 | loaded_at | timestamptz | |
 
 ### field_groups
@@ -80,7 +80,7 @@ Postgres 17 + pgvector. 표 이름은 영어, 설명은 spec 용어를 쓴다. �
 | title, url | text | |
 | posted_on | date | 게시일(한국 날짜) |
 | host | text, 없을 수 있음 | 주최 |
-| is_notice | boolean | 학생에게 보이는 공지인가. 결과 파일의 기회는 참, 확인 필요 글은 거짓으로 들어오고(FR-004) 운영자가 바꿀 수 있다 |
+| is_notice | boolean | 학생에게 보이는 공지인가. 결과 파일의 기회는 참, 확인 필요 글은 거짓으로 들어오고(FR-004) 운영자가 바꿀 수 있다. 거짓인 공지는 학생 쪽에서 내려간 공지와 똑같이 다룬다 |
 | kind | text, 없을 수 있음 | 종류(확인 필요 글은 운영자가 넣기 전까지 없음) |
 | deadline | date, 없을 수 있음 | 마감 |
 | field_state | text | `off`(결과 파일에 분야 목록 머리 없음) · `missing`(머리는 있는데 이 글에 분야 칸 없음) · `judged`(분야 칸 있음, 비어 있어도) · `human`(운영자가 정함) |
@@ -95,13 +95,17 @@ Postgres 17 + pgvector. 표 이름은 영어, 설명은 spec 용어를 쓴다. �
 
 **열린 공지** = `is_notice`이고, 내려가지 않았고, `closes_on`이 오늘(한국) 이후다.
 
+**학생에게 주는 `down` 표시** = `down`이거나 `is_notice`가 거짓이다(기회였다가 확인 필요가 됐거나 운영자가 공지가 아니라고 고친 글). 행동이 남은 공지는 내 목록과 자세히에 이 표시로 보인다.
+
+**학생에게 주는 분야**: `field_state`가 `off`·`missing`이면 `fields`는 `null`이고, `judged`·`human`이면 `notice_fields`의 값이다(비어 있을 수 있다).
+
 ### notice_fields(공지 분야)
 
 `notice_id`(cascade), `field_id`, `level`(`core`·`related`), `ord`. 기본 키는 (notice_id, field_id). 핵심 2개·관련 5개까지, 서로 겹치지 않음(넣기와 운영자 고치기가 검사). 학생에게 보이는 분야다(사람 판정이 있으면 그 값).
 
 ### review_items(확인할 것)
 
-`notice_id`(기본 키), `reasons text[]`, `checked_by`, `checked_at`(없으면 아직 확인 안 함). 넣을 때마다 이유를 다시 계산하고, 이유가 같으면 확인 상태를 둔다(FR-050). 이유가 없어진 공지는 행을 지운다.
+`notice_id`(기본 키), `reasons text[]`, `checked_by`, `checked_at`(없으면 아직 확인 안 함). 넣을 때마다 이유를 다시 계산하고, 이유가 같으면 확인 상태를 둔다(FR-050). 이유가 없어진 공지는 행을 지운다. 운영자가 '맞아요'를 누르거나 그 공지를 고치면 확인한 것으로 남긴다(`checked_by`, `checked_at`).
 
 | 이유 | 붙는 때 |
 |---|---|
@@ -111,15 +115,15 @@ Postgres 17 + pgvector. 표 이름은 영어, 설명은 spec 용어를 쓴다. �
 
 ### human_verdicts(사람 판정)
 
-`notice_id`(cascade), `field`(`is_notice`·`kind`·`deadline`·`fields`), `value jsonb`(분야는 `{core, related}`), `by_operator`, `at`. 기본 키는 (notice_id, field). 넣기는 사람 판정이 있는 칸의 보이는 값을 결과 파일 값으로 바꾸지 않는다(FR-052).
+`notice_id`(cascade), `field`(`is_notice`·`kind`·`deadline`·`fields`), `value jsonb`(분야는 `{core, related}`), `by_operator`(운영자 목록의 `subject` 글. 학생 번호가 아니다), `at`. 기본 키는 (notice_id, field). 넣기는 사람 판정이 있는 칸의 보이는 값을 결과 파일 값으로 바꾸지 않는다(FR-052). 목록에서 사라진 분야 id는 넣기가 사람 판정의 분야에서도 빼고 고친 기록에 남긴다(research R11).
 
 ### verdict_log(고친 기록)
 
-`id`, `notice_id`, `field`, `action`(`edit`·`confirm`·`rejudge`), `old jsonb`, `new jsonb`, `by_operator`, `at`(FR-053). 지우지 않는다.
+`id`, `notice_id`, `field`, `action`(`edit`·`confirm`·`rejudge`), `old jsonb`, `new jsonb`, `by_operator`, `at`(FR-053). 지우지 않는다. 넣기가 사라진 분야를 사람 판정에서 뺄 때는 `action` `edit`, `by_operator` `ingest`다.
 
 ### rejudge_marks(다시 판정 표시)
 
-`notice_id`(기본 키), `by_operator`, `at`. 다음 매일 작업이 분류기를 돌리기 전에 그 글의 보관 답을 지우고, 넣은 뒤 표시를 지운다(FR-054, R11).
+`notice_id`(기본 키), `by_operator`, `at`. 다음 매일 작업이 분류기를 돌리기 전에 그 글의 분류기 보관 셋(본문 보관본, 기회 판정 답, 분야 판정 답)을 지우고, 넣은 뒤 표시를 지운다(FR-054, R11).
 
 ## 4. 학생 행동과 글
 
@@ -138,11 +142,11 @@ Postgres 17 + pgvector. 표 이름은 영어, 설명은 spec 용어를 쓴다. �
 
 ### prompts(나에 대한 프롬프트)
 
-`student_id`(기본 키, cascade), `body`(1,000자까지), `vector`(없을 수 있음, 다음 매일 작업에 다시 만듦), `updated_at`(FR-028).
+`student_id`(기본 키, cascade), `body`(1,000자까지), `vector`(없을 수 있음. 글을 쓰면 비우고, 다시 고르기 일꾼이 그 학생 차례에 만든다, research R9), `updated_at`(FR-028).
 
 ### activities(직접 넣은 활동)
 
-`student_id`(cascade), `id`(identity), `name`(100자까지), `term`(`YYYY-1`·`YYYY-2`), `kind`(공지 종류 목록), `field_ids text[]`(지금 목록에 있는 0~2개), `proof_url`(없을 수 있음), `created_at`, `updated_at`. 학생마다 100개까지(FR-030).
+`student_id`(cascade), `id`(identity), `name`(100자까지), `term`(`YYYY-1`·`YYYY-2`), `kind`(공지 종류 목록), `field_ids text[]`(지금 목록에 있는 0~2개. 목록에서 사라진 분야는 넣기가 뺀다), `proof_url`(없을 수 있음. `http://`·`https://`로 시작하고 500자까지), `created_at`, `updated_at`. 학생마다 100개까지(FR-030).
 
 ### excluded_lines(뺀 줄)
 
@@ -155,7 +159,7 @@ Postgres 17 + pgvector. 표 이름은 영어, 설명은 spec 용어를 쓴다. �
 | student_id | 기본 키 | cascade |
 | version | int | md가 실제로 바뀔 때만 +1(FR-032a) |
 | made_at | timestamptz | |
-| lines | jsonb | 사실 줄 `[{ key, section: done/interest, text, source, proof }]` |
+| lines | jsonb | 사실 줄 `[{ key, section: done/interest, text, source, proof }]`. 글의 틀과 출처 값은 research R10의 표다 |
 | flow | jsonb | 흐름 `[{ key, text, refs }]`(R10) |
 | flow_version | int, 없을 수 있음 | 흐름을 쓸 때의 판. `version`보다 작으면 다음 매일 작업이 흐름을 쓴다 |
 | md | text | 뺀 줄을 뺀 사실 줄과 흐름으로 만든 글 |
@@ -164,7 +168,7 @@ Postgres 17 + pgvector. 표 이름은 영어, 설명은 spec 용어를 쓴다. �
 
 ### picks(가장 추천)
 
-`student_id`(기본 키, cascade), `notice_id`, `reason`, `cited jsonb`(`[{ key, text }]` 또는 `[{ key: 'prompt' }]`, 0~3개), `analysis_version`, `method`(`llm:<모델 이름>`·`rule`), `prompt_version`, `computed_at`(FR-036).
+`student_id`(기본 키, cascade), `notice_id`, `reason`, `cited jsonb`(`[{ key, text }]` 또는 `[{ key: 'prompt' }]`, 0~3개), `analysis_version`, `method`(`llm:<모델 이름>`·`rule`), `prompt_version`(LLM 지시문의 판(해시)이다. 학생의 '나에 대한 프롬프트'와 상관없다), `computed_at`(FR-036).
 
 ### repick_queue(다시 고르기 줄)
 
@@ -173,7 +177,8 @@ Postgres 17 + pgvector. 표 이름은 영어, 설명은 spec 용어를 쓴다. �
 ## 5. 운영 기록
 
 - **ingest_runs**(넣기 기록): `id`, `at`, `source`, `collected_at`, `since`, `taxonomy_id`, `taxonomy_edition`, `summary jsonb`(FR-007), `rejected`(거절 이유, 없을 수 있음).
-- **daily_runs**(매일 작업 기록): `id`, `started_at`, `ended_at`, `steps jsonb`, `load jsonb`(FR-045).
+- **daily_runs**(매일 작업 기록): `id`, `started_at`, `ended_at`, `steps jsonb`, `load jsonb`(FR-045). `steps`는 단계 이름(`rejudge`·`classifier`·`ingest`·`backup`·`facts`·`flow`·`repick`)마다 `{ ok, skipped, seconds, error }`이고, 넣기는 FR-007 요약을, 흐름은 `{ written, failed }`를, 다시 고르기는 `{ queued, llm, rule, left }`를 더 담는다. `load`는 `{ gpuAvg, tempMax, requests, classifierLine }`이다(research R14). `ingest_runs.summary`와 `--json` 출력은 같은 키다(`new`, `changed`, `same`, `down`, `revived`, `review`, `humanKept`, `vectors: { kept, made, failed }`, `taxonomy: { id, edition, chosen }`).
+- **model_bursts**(부하 기록): `id`, `who`(`api`·`daily`·`ingest`), `started_at`, `ended_at`, `requests`, `request_ms`, `gpu_avg`(없을 수 있음), `temp_max`(없을 수 있음). 부하 제한 하나를 닫을 때마다 한 줄이다(research R7). 매일 작업 요약과 상태 보기가 읽는다.
 - **schema_migrations**: `name`(기본 키), `applied_at`(R4).
 
 ## 6. 상태 변화
@@ -189,7 +194,7 @@ stateDiagram-v2
 
 - **다음 할 일**(FR-018): 동의 → 처음 질문 → 분야 고르기(고른 분야가 3개 미만이면 다시) → 홈.
 - **카드 행동**: 없음 → 관심 있어요·나중에 보기·관심 없음 중 하나. 새 행동이 앞 행동을 바꾸고, 지우기로 없음이 된다.
-- **가장 추천**: 없음 → 규칙 또는 LLM. 재료가 바뀌면 줄에 들어가 '새로 고르는 중'이 되고, 끝나면 새 값이 된다. 앞의 가장 추천이 닫혔거나 내려갔거나 학생이 행동했으면, 홈을 열 때 규칙 1위로 바로 바꾼다(FR-038).
+- **가장 추천**: 없음 → 규칙 또는 LLM. 재료가 바뀌면 줄에 들어가 '새로 고르는 중'이 되고, 끝나면 새 값이 된다. 앞의 가장 추천이 지금 추천 후보가 될 수 없으면(닫힘, 내려감, 공지가 아니게 됨, 관심 있어요·관심 없음을 남김, 다시 볼 날 전인 나중에 보기), 홈을 열 때 규칙 1위로 바로 바꾼다(FR-038).
 
 ## 7. 밖으로 주지 않는 것
 
