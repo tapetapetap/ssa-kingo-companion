@@ -77,7 +77,7 @@
 - [X] T013 [US2] `etl/notices/embed.ts`에 `export const CORE_TOP = 3`을 더하고 `CANDIDATE_RULE`에 `coreTop: CORE_TOP`과 `core: '핵심은 유사도 상위 coreTop개 안, 밖이면 관련 맨 앞'`을 더한다
 - [X] T014 [US2] `etl/notices/fields.ts`에 `settle(a: FieldAnswer, top: string[]): FieldAnswer`를 더한다(rules.md 3절)
 - [X] T015 [US2] `etl/notices/fields.ts`의 `makeFieldAsk`가 굳힌 답을 돌려주게 한다: `makeChat`이 준 결과가 답이면, 분야가 `EMBED_K`개를 넘는 목록에서 분야 벡터와 공지 벡터(`vectors()`, `noticeVector`)로 `topCandidates(f, v, CORE_TOP)`을 구해 `settle`을 지난 답을 돌려준다. 벡터가 `fail`·`down`이면 그 결과를 돌려준다. `model`·`version`·`taxonomyId` 속성은 그대로 붙인다
-- [ ] T016 [US2] `npx vitest run etl/notices`가 통과하는지 확인한다(`run.test.ts`의 가짜 판정기는 `makeFieldAsk`를 지나지 않아 그대로 통과해야 한다). 이어서 US1·US2에서 고친 것(`custom.json`, `FIELD_SYSTEM`, `CANDIDATE_RULE`, `settle`, `makeFieldAsk`, 라벨 기준)을 ponytail-review와 code-review로 보고 지적을 고친다. 이 리뷰가 끝나야 T033(판정)과 T023(라벨러)을 시작한다(아래 '얼림')
+- [X] T016 [US2] `npx vitest run etl/notices`가 통과하는지 확인한다(`run.test.ts`의 가짜 판정기는 `makeFieldAsk`를 지나지 않아 그대로 통과해야 한다). 이어서 US1·US2에서 고친 것(`custom.json`, `FIELD_SYSTEM`, `CANDIDATE_RULE`, `settle`, `makeFieldAsk`, 라벨 기준)을 ponytail-review와 code-review로 보고 지적을 고친다. 이 리뷰가 끝나야 T033(판정)과 T023(라벨러)을 시작한다(아래 '얼림')
 
 **Checkpoint**: 판정 판이 정해졌다. T016의 리뷰까지 끝나면 T033(412건 판정)을 백그라운드로 시작할 수 있다.
 
@@ -105,10 +105,10 @@
 - [X] T020 [US3] `npx vitest run etl/notices/gold.test.ts etl/notices/compare.test.ts`가 통과하는지 확인한다
 - [X] T021 [US3] `node etl/notices/compare.ts sample --round 2`를 두 번 돌려 `shasum etl/gold/fields/sample-2.csv`가 같은지, `sample.csv`와 글 번호가 겹치지 않는지(겹침 0건), 줄 수가 120인지 확인한다
 - [X] T022 [US3] `node etl/notices/compare.ts label-input custom <밖>/r2 --round 2`로 라벨러 입력 세 파일을 만든다
-- [ ] T023 [US3] 라벨러 A와 B를 따로 띄운다(Claude 하위 에이전트, 서로 다른 실행). 주는 것은 라벨 기준(`specs/20261116-212003-field-taxonomy-compare/label-guide.md`), `etl/taxonomy/custom.json`, `<밖>/r2/custom-1.jsonl`~`-3.jsonl`, 출력 경로(`<밖>/r2/custom-A.json`, `custom-B.json`)뿐이다. 라벨러마다 입력 세 파일 120건을 모두 읽고 출력 파일 하나를 쓴다. `etl/.cache`, `etl/gold`, `etl/out`, 다른 라벨러의 출력은 읽지 말라고 적는다
-- [ ] T024 [US3] `node etl/notices/compare.ts gold custom <밖>/r2/custom-A.json <밖>/r2/custom-B.json --round 2`를 돌려 갈림 수를 적는다. 검사에 걸리면 그 라벨러에게 위반 줄을 주고 다시 받는다
-- [ ] T025 [US3] 라벨러 C를 띄운다. 주는 것은 라벨 기준, `etl/taxonomy/custom.json`, `<밖>/r2/custom-split.jsonl`, 출력 경로(`<밖>/r2/custom-C.json`)다. 그 뒤 `gold custom A B C --round 2`로 `etl/gold/fields/custom-2.csv`를 완성한다
-- [ ] T026 [US3] `custom-2.csv`에 갈림 `O`가 없는지, `shasum etl/gold/fields/custom.csv`가 작업 전과 같은지, 라벨러 셋이 읽은 파일에 금지한 폴더가 없는지(하위 에이전트 보고의 읽은 파일 목록) 확인한다
+- [X] T023 [US3] 라벨러 A와 B를 따로 띄운다(Claude 하위 에이전트, 서로 다른 실행). 주는 것은 라벨 기준(`specs/20261116-212003-field-taxonomy-compare/label-guide.md`), `etl/taxonomy/custom.json`, `<밖>/r2/custom-1.jsonl`~`-3.jsonl`, 출력 경로(`<밖>/r2/custom-A.json`, `custom-B.json`)뿐이다. 라벨러마다 입력 세 파일 120건을 모두 읽고 출력 파일 하나를 쓴다. `etl/.cache`, `etl/gold`, `etl/out`, 다른 라벨러의 출력은 읽지 말라고 적는다
+- [X] T024 [US3] `node etl/notices/compare.ts gold custom <밖>/r2/custom-A.json <밖>/r2/custom-B.json --round 2`를 돌려 갈림 수를 적는다. 검사에 걸리면 그 라벨러에게 위반 줄을 주고 다시 받는다
+- [X] T025 [US3] 라벨러 C를 띄운다. 주는 것은 라벨 기준, `etl/taxonomy/custom.json`, `<밖>/r2/custom-split.jsonl`, 출력 경로(`<밖>/r2/custom-C.json`)다. 그 뒤 `gold custom A B C --round 2`로 `etl/gold/fields/custom-2.csv`를 완성한다
+- [X] T026 [US3] `custom-2.csv`에 갈림 `O`가 없는지, `shasum etl/gold/fields/custom.csv`가 작업 전과 같은지, 라벨러 셋이 읽은 파일에 금지한 폴더가 없는지(하위 에이전트 보고의 읽은 파일 목록) 확인한다
 
 **Checkpoint**: 2회차 정답이 있다.
 
@@ -138,11 +138,11 @@
 - [X] T030 [US4] `etl/notices/compare.ts`의 `score`를 cli.md대로 고친다: 재는 안 고르기(준 안, 1회차 세 안, N회차는 정답 파일이 있는 안), 보관 답을 `settle`로 굳히기(목록이 `EMBED_K`개 이하면 그대로, 공지 벡터가 없으면 답 없음), `ROWS`에 두 줄과 첫 칸 폭 24, 표 뒤 줄(통과·미달·참고), 지표 파일의 `round`. `main`의 `score` 분기가 안 id 여러 개를 받는다
 - [X] T031 [US4] `etl/notices/compare.ts`의 `choose`가 회차의 지표 파일을 읽고, 다음 회차의 표본 파일이 있으면 거절하고, 2회차부터 출력에 회차를 넣는다(cli.md). `chosen`의 칸은 그대로다
 - [X] T032 [US4] `npm run check`가 통과하는지 확인한다
-- [ ] T033 [US4] `node etl/notices/compare.ts judge custom`을 돌린다(412건, 백그라운드, 40분 안팎. US2가 끝나면 시작할 수 있다). 끝나면 요약 줄을 적는다: 실패 0·못 물음 0, GPU 평균 80% 이하, 칩 최고 80°C 이하. 실패가 있으면 다시 돌려 채운다
-- [ ] T034 [US4] `node etl/notices/compare.ts score --round 2`를 돌려 지표 표와 통과 줄을 적는다. 이어서 `node etl/notices/compare.ts score custom`(1회차 참고 값)을 돌려 적는다
-- [ ] T035 [US4] 2회차에서 LLM의 굳힌 핵심과 정답 핵심이 다른 글을 모두 뽑아 무리로 나눈다. 지표 파일의 `misses`는 10건까지라 쓰지 않고, 저장소 밖 일회용 스크립트(research R8)로 표본 120건의 굳힌 답과 정답을 다시 맞춘다. 무리마다 수와 예(제목)를 적는다(분석 글과 스크립트는 저장소 밖)
+- [X] T033 [US4] `node etl/notices/compare.ts judge custom`을 돌린다(412건, 백그라운드, 40분 안팎. US2가 끝나면 시작할 수 있다). 끝나면 요약 줄을 적는다: 실패 0·못 물음 0, GPU 평균 80% 이하, 칩 최고 80°C 이하. 실패가 있으면 다시 돌려 채운다
+- [X] T034 [US4] `node etl/notices/compare.ts score --round 2`를 돌려 지표 표와 통과 줄을 적는다. 이어서 `node etl/notices/compare.ts score custom`(1회차 참고 값)을 돌려 적는다
+- [X] T035 [US4] 2회차에서 LLM의 굳힌 핵심과 정답 핵심이 다른 글을 모두 뽑아 무리로 나눈다. 지표 파일의 `misses`는 10건까지라 쓰지 않고, 저장소 밖 일회용 스크립트(research R8)로 표본 120건의 굳힌 답과 정답을 다시 맞춘다. 무리마다 수와 예(제목)를 적는다(분석 글과 스크립트는 저장소 밖)
 - [ ] T036 [US4] 결과를 두 곳에 적는다(spec FR-017, research R8). ① 기획 문서 '킹고 컴패니언 새 기획'의 '1단계' 목록: 굳히기 전·후 핵심 정밀도와 재현율, 95% 구간, 통과 여부, 틀린 곳의 무리, 다음 선택지 ② 새 Claude Docs 문서 '분야 판정 다듬기 결과'(비공개): 같은 숫자에 갈린 예(제목, 링크, LLM이 붙인 분야와 정답 분야의 이름)와 1회차 참고 값을 더한다. 미달이면 다음 선택지에 3안을 2회차로 재기와 3회차 표본을 넣는다. 참고로 '산업·전공 밖 묶음 분야는 굳히기에서 내리지 않았다면'의 정밀도·재현율도 함께 낸다(통과 판단에는 쓰지 않는다, 2026-11-19 사용자 결정 '굳히기 그대로'). 본문 문장은 어디에도 넣지 않는다
-- [ ] T037 [US4] `etl/taxonomy/custom.json`의 `chosen`이 `null`인지 확인한다(고르기는 사용자·교수님이 한다)
+- [X] T037 [US4] `etl/taxonomy/custom.json`의 `chosen`이 `null`인지 확인한다(고르기는 사용자·교수님이 한다)
 
 **Checkpoint**: 통과 여부가 나왔고 사용자가 고를 수 있다.
 
@@ -150,8 +150,8 @@
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T038 `npm run check`와 `npm run build`가 통과하는지 확인한다
-- [ ] T039 ponytail-review로 과설계를 본다(T016에서 보지 않은 US3·US4 코드: 회차, 지표, 고르기. 새 추상화·쓰이지 않는 인자·겹치는 코드). 지적은 고친다
+- [X] T038 `npm run check`와 `npm run build`가 통과하는지 확인한다
+- [X] T039 ponytail-review로 과설계를 본다(T016에서 보지 않은 US3·US4 코드: 회차, 지표, 고르기. 새 추상화·쓰이지 않는 인자·겹치는 코드). 지적은 고친다
 - [ ] T040 code-review로 정확성을 본다(회차 파일 이름, score의 굳히기, 표 뒤 줄, 고르기 막기). 지적은 고친다. 판정 판 재료나 `settle`을 건드리는 지적은 아래 '얼림'을 따른다
 - [ ] T041 quickstart.md의 1~6을 순서대로 확인한다
 - [ ] T042 `git status`에 `etl/gold`, `etl/.cache`, `etl/out/fields-compare*.json`, 라벨러 입력이 없는지 확인하고, PR을 올려 CI와 Claude 리뷰를 확인한 뒤 머지하고 브랜치를 지운다
@@ -221,3 +221,11 @@ US1만으로도 라벨 기준과 지시문이 같은 규칙을 갖는다. 다만
 - 안을 고르는 `choose`는 돌리지 않는다(spec FR-016). 시험에서만 부른다
 - 파일은 500줄을 넘기지 않는다(쓰기 훅). `gold.test.ts`와 `compare.test.ts`가 480줄에 가까워지면 회차 시험을 `round.test.ts`로 나눈다
 - 정답·표본·지표 파일과 라벨러 입력은 커밋하지 않는다
+
+## 결과 (2026-11-19)
+
+- 판정: 412건 · 실패 0 · 못 물음 0 · 글당 5.5초 · 49분 · GPU 평균 62.9% · 칩 최고 72.8°C(판정 판 6389b68e)
+- 2회차 정답: 라벨러 일치 88.3%(같음), 갈림 38건은 셋째가 정함
+- **2회차 굳힌 핵심 정밀도 70.0% (35/50) · 95% 구간 56~81% · 85% 기준 미달**. 굳히기 전 57.4% (62/108), 재현율 35.7%(굳히기 전 63.2%)
+- 틀린 핵심 15개: 회사 채용의 직무·산업 판단 9, 가까운 분야 혼동 3, 고루 다루는 공지에 핵심을 붙임 3
+- 고른 표시(`chosen`)는 그대로 비어 있다. 다음 선택지는 기획 문서와 밤 개발 보고에 적었다
