@@ -4,13 +4,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COURSE_ROWS, findChosen, isTaxonomyId, listChars, readList, saveTaxonomy, TAXONOMY_DIR, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { CACHE_DIR } from './cse.ts';
-import { EMBED_CACHE_DIR, EMBED_K, EMBED_MODEL, makeEmbed, readFieldVectors, readNoticeVector, topCandidates } from './embed.ts';
+import { CORE_TOP, EMBED_CACHE_DIR, EMBED_K, EMBED_MODEL, makeEmbed, readFieldVectors, readNoticeVector, topCandidates } from './embed.ts';
 import { pad } from './eval.ts';
-import { countField, FIELD_CACHE_DIR, fieldFolder, fieldPart, fieldVersion, makeFieldAsk, newStats, readFieldAnswer, type FieldAnswer, type FieldAsk } from './fields.ts';
-import { cachedBody, devOpportunities, gold, labelInput, noOf, readGoldFile, readSample, rowOf, sample, type GoldLabel } from './gold.ts';
+import { countField, FIELD_CACHE_DIR, fieldFolder, fieldPart, fieldVersion, makeFieldAsk, newStats, readFieldAnswer, settle, type FieldAnswer, type FieldAsk } from './fields.ts';
+import { cachedBody, devOpportunities, gold, labelInput, noOf, readGoldFile, readSample, roundFile, rowOf, sample, type GoldLabel } from './gold.ts';
 import { DEFAULT_MODEL, modelDir, type Gate } from './llm.ts';
 import { localDay, messageOf, writeResult } from './run.ts';
-import { passes, pct, pickRun, ratio, scoreTaxonomy, type Ratio, type RunLine, type TaxonomyScore } from './score.ts';
+import { passes, pct, pickRun, ratio, scoreTaxonomy, wilson, type Ratio, type RunLine, type TaxonomyScore } from './score.ts';
 import { createThrottle, type LoadSummary } from './throttle.ts';
 
 /** 시험에서만 바꾼다(모두 선택). 폴더가 없으면 저장소 기본 자리다. fieldAsk·gate·load는 진입 줄이 throttle 하나로 만든다 */
@@ -18,16 +18,18 @@ export type CompareDeps = {
   taxonomyDir?: string; goldDir?: string; outFile?: string; llmDir?: string; embedDir?: string; cacheDir?: string; repoRoot?: string;
   fieldAsk?: (t: Taxonomy) => FieldAsk; gate?: Gate; load?: () => LoadSummary; now?: () => Date; model?: string;
 };
-type Ctx = Required<Omit<CompareDeps, 'fieldAsk' | 'gate' | 'load'>> & Pick<CompareDeps, 'fieldAsk' | 'gate' | 'load'>;
+/** round는 표본·정답·지표의 회차다(--round N, 없으면 1). 1회차 파일은 이름 그대로이고 N회차는 -N이 붙는다(스펙 4 research R5) */
+type Ctx = Required<Omit<CompareDeps, 'fieldAsk' | 'gate' | 'load'>> & Pick<CompareDeps, 'fieldAsk' | 'gate' | 'load'> & { round: number };
 
-const ctxOf = (d: CompareDeps): Ctx => ({
-  taxonomyDir: TAXONOMY_DIR, goldDir: fileURLToPath(new URL('../gold', import.meta.url)), outFile: fileURLToPath(new URL('../out/fields-compare.json', import.meta.url)),
+const ctxOf = (d: CompareDeps, round: number): Ctx => ({
+  taxonomyDir: TAXONOMY_DIR, goldDir: fileURLToPath(new URL('../gold', import.meta.url)),
+  outFile: fileURLToPath(new URL(`../out/fields-compare${round > 1 ? `-${round}` : ''}.json`, import.meta.url)),
   llmDir: FIELD_CACHE_DIR, embedDir: EMBED_CACHE_DIR, cacheDir: CACHE_DIR, repoRoot: fileURLToPath(new URL('../..', import.meta.url)),
-  now: () => new Date(), model: process.env.KINGO_LLM_MODEL || DEFAULT_MODEL, ...d
+  now: () => new Date(), model: process.env.KINGO_LLM_MODEL || DEFAULT_MODEL, ...d, round
 });
 const NO_LOAD: LoadSummary = { requests: 0, requestMs: 0, gpuAvg: null, tempMax: null, logFile: null, line: '' };
 
-const USAGE = '쓰는 법: node etl/notices/compare.ts check | sample | judge <안> [--limit N] | label-input <안> <폴더> | gold <안> <A.json> <B.json> [<C.json>] | score | choose <안>';
+const USAGE = '쓰는 법: node etl/notices/compare.ts check | sample | judge <안> [--limit N] | label-input <안> <폴더> | gold <안> <A.json> <B.json> [<C.json>] | score [<안>…] | choose <안> (sample·label-input·gold·score·choose는 --round N)';
 
 /** 세 목록을 검사하고 chosen이 많아야 하나인지 본다 */
 function check(taxonomyDir: string): number {
@@ -103,6 +105,7 @@ const readRuns = (file: string): RunLine[] => (existsSync(file) ? readFileSync(f
 
 const ROWS: [string, (e: TaxonomyScore) => string][] = [
   ['핵심 정밀도', e => pct(e.metrics.corePrecision)], ['핵심 재현율', e => pct(e.metrics.coreRecall)],
+  ['핵심 정밀도(굳히기 전)', e => pct(e.metrics.rawCorePrecision)], ['핵심 재현율(굳히기 전)', e => pct(e.metrics.rawCoreRecall)],
   ['전체 재현율', e => pct(e.metrics.totalRecall)], ['관련 정밀도', e => pct(e.metrics.relatedPrecision)],
   ['후보 적중률(핵심)', e => pct(e.metrics.candidateCore)], ['후보 적중률(전체)', e => pct(e.metrics.candidateAll)],
   ['후보 비율', e => pct(ratio(Math.min(EMBED_K, e.fields), e.fields))], // 분야가 적은 안일수록 적중률이 높게 나와 함께 본다(research R10)
@@ -113,18 +116,24 @@ const ROWS: [string, (e: TaxonomyScore) => string][] = [
   ['교과 지도 연결', e => `${e.metrics.courseMapRows}/12`]
 ];
 
-/** 세 안의 보관 답·벡터·실행 기록·정답으로 지표를 계산한다. 요청은 보내지 않는다. 무엇이 없으면 모두 내고 1이다 */
-function score(c: Ctx): number {
-  const lists = TAXONOMY_IDS.map(id => listOf(id, c));
+/** 다음 회차의 표본이 있으면 이 회차는 규칙을 고른 표본이다. 그 값으로는 통과를 말하지도, 고르지도 않는다(스펙 4 research R5) */
+const hasLater = (c: Ctx) => existsSync(roundFile(c.goldDir, 'sample', c.round + 1));
+
+/** 재는 안의 보관 답·벡터·실행 기록·정답으로 지표를 계산한다. 요청은 보내지 않는다. 무엇이 없으면 모두 내고 1이다.
+ *  안을 주면 그 안만, 안 주면 1회차는 세 안이고 N회차는 그 회차 정답 파일이 있는 안이다 */
+function score(ids: string[], c: Ctx): number {
+  const items = readSample(c.goldDir, c.round);
+  const picked = ids.length ? [...new Set(ids)] : c.round === 1 ? [...TAXONOMY_IDS] : TAXONOMY_IDS.filter(id => existsSync(roundFile(c.goldDir, id, c.round)));
+  if (!picked.length) throw new Error(`${c.round}회차 정답 파일이 있는 안이 없어요`);
+  const lists = picked.map(id => listOf(id, c));
   const nos = devOpportunities(c.goldDir).map(g => noOf(g.id));
-  const items = readSample(c.goldDir);
   const docs = new Map(items.map(x => [x.no, { link: x.link, title: x.title }]));
   const problems: string[] = [];
   const entries: TaxonomyScore[] = [];
   for (const t of lists) {
     let labels: Map<number, GoldLabel> | null = null; // 읽지 못했으면 그 이유 한 줄만 낸다
     try {
-      labels = readGoldFile(t, c.goldDir);
+      labels = readGoldFile(t, c.goldDir, c.round);
     } catch (e) {
       problems.push(messageOf(e));
     }
@@ -139,21 +148,27 @@ function score(c: Ctx): number {
     const fv = all ? null : readFieldVectors(t, c.embedDir);
     if (!all && !fv) problems.push(`${t.id}: 분야 벡터 파일이 없어요(벡터 보관만 지웠다면 그 안의 답 폴더도 지우고 judge를 다시 돌려요)`);
     if (problems.length || !run) continue;
-    const candidates = new Map(items.map(x => {
-      const v = fv ? readNoticeVector(x.no, c.embedDir) : null;
-      return [x.no, all ? t.fields.map(f => f.id) : fv && v ? topCandidates(fv, v) : []]; // 공지 벡터가 없는 글은 후보가 없는 것으로 센다
-    }));
-    const answers = new Map(nos.flatMap(no => { const a = readFieldAnswer(t, c.model, no, c.llmDir); return a ? [[no, a] as [number, FieldAnswer]] : []; }));
-    entries.push(scoreTaxonomy({ t, prompt: fieldVersion(t), listChars: listChars(t), nos, answers, gold, candidates, docs, run }));
+    const near = (no: number, k: number) => { const v = fv ? readNoticeVector(no, c.embedDir) : null; return fv && v ? topCandidates(fv, v, k) : null; };
+    const candidates = new Map(items.map(x => [x.no, all ? t.fields.map(f => f.id) : near(x.no, EMBED_K) ?? []])); // 공지 벡터가 없는 글은 후보가 없는 것으로 센다
+    const rawAnswers = new Map(nos.flatMap(no => { const a = readFieldAnswer(t, c.model, no, c.llmDir); return a ? [[no, a] as [number, FieldAnswer]] : []; }));
+    // 기준 값은 분류기가 내는 굳힌 답이다(makeFieldAsk와 같은 규칙). 핵심이 빈 답은 그대로이고, 굳혀야 하는데 공지 벡터가 없는 글은 답이 없는 글(실패)이다
+    const answers = all ? rawAnswers : new Map([...rawAnswers].flatMap(([no, a]) => { if (!a.core.length) return [[no, a] as [number, FieldAnswer]]; const top = near(no, CORE_TOP); return top ? [[no, settle(a, top)] as [number, FieldAnswer]] : []; }));
+    entries.push(scoreTaxonomy({ t, prompt: fieldVersion(t), listChars: listChars(t), nos, answers, rawAnswers, gold, candidates, docs, run }));
   }
   if (problems.length) {
     console.error(problems.join('\n'));
     return 1;
   }
-  const out = { at: c.now().toISOString(), model: c.model, embed: { model: EMBED_MODEL, k: EMBED_K }, total: nos.length, sample: items.length, taxonomies: entries };
+  const out = { at: c.now().toISOString(), round: c.round, model: c.model, embed: { model: EMBED_MODEL, k: EMBED_K }, total: nos.length, sample: items.length, taxonomies: entries };
   writeResult(c.outFile, out);
   const table = [['지표', ...entries.map(e => e.id)], ...ROWS.map(([name, value]) => [name, ...entries.map(value)])];
-  console.log(table.map(r => r.map((cell, i) => pad(cell, i === 0 ? 20 : 22)).join('').trimEnd()).join('\n'));
+  const later = hasLater(c);
+  const verdicts = entries.map(e => {
+    const [cp, ci] = [e.metrics.corePrecision, wilson(e.metrics.corePrecision)];
+    const verdict = later ? `참고(${c.round + 1}회차 표본이 있어요)` : passes(cp) ? '85% 기준 통과' : '85% 기준 미달';
+    return `${e.id} ${c.round}회차 핵심 정밀도 ${pct(cp)}${ci ? ` · 95% 구간 ${ci[0]}~${ci[1]}%` : ''} · ${verdict}`;
+  });
+  console.log([...table.map(r => r.map((cell, i) => pad(cell, i === 0 ? 24 : 22)).join('').trimEnd()), ...verdicts].join('\n'));
   return 0;
 }
 
@@ -161,6 +176,7 @@ const isRatio = (v: unknown): v is Ratio => typeof v === 'object' && v !== null 
 
 /** 사람이 보고서를 보고 고른 안을 목록 파일에 적는다. 정밀도와 상관없이 적고, 85% 기준은 출력만 한다(research R12) */
 function choose(t: Taxonomy, c: Ctx): number {
+  if (hasLater(c)) throw new Error(`${t.id}: ${c.round + 1}회차 표본이 있어 ${c.round}회차 값으로는 고르지 않아요(choose ${t.id} --round ${c.round + 1})`);
   const lists = TAXONOMY_IDS.map(id => listOf(id, c)); // 다른 안의 chosen을 지우려면 셋 다 읽어야 한다
   if (!existsSync(c.outFile)) throw new Error(`비교 결과 파일이 없어요: ${c.outFile} (score를 먼저 돌려요)`);
   // score가 쓴 파일이라 꼴은 그대로 믿고, 고르기에 쓰는 칸만 확인한다
@@ -176,7 +192,7 @@ function choose(t: Taxonomy, c: Ctx): number {
     if (x.id === t.id) saveTaxonomy({ ...x, chosen: { date: localDay(c.now()), corePrecision: { num: cp.num, den: cp.den }, prompt: version, model: c.model } }, c.taxonomyDir);
     else if (x.chosen) saveTaxonomy({ ...x, chosen: null }, c.taxonomyDir);
   }
-  console.log(`${t.id} 고름 · 핵심 정밀도 ${pct(cp)} · ${passes(cp) ? '85% 기준 통과' : '85% 기준 미달: 결과 파일에 분야를 넣지 않아요'}`);
+  console.log(`${t.id} 고름 · ${c.round > 1 ? `${c.round}회차 ` : ''}핵심 정밀도 ${pct(cp)} · ${passes(cp) ? '85% 기준 통과' : '85% 기준 미달: 결과 파일에 분야를 넣지 않아요'}`);
   return 0;
 }
 
@@ -188,16 +204,23 @@ function listOf(id: string, c: Ctx): Taxonomy {
 
 /** 종료 코드: 0 성공, 1 실행 실패·거절, 2 쓰는 법 틀림 */
 export async function main(args: string[], deps: CompareDeps = {}): Promise<number> {
-  const c = ctxOf(deps);
-  const [cmd, ...rest] = args;
+  // --round N은 인자 어디에나 올 수 있어 먼저 떼어 낸다. 수가 없거나 1 미만이거나 두 번 나오면 쓰는 법이다
+  const at = args.indexOf('--round');
+  const n = at < 0 ? '1' : args[at + 1] ?? '';
+  if (!/^[1-9]\d*$/.test(n) || (at >= 0 && args.includes('--round', at + 1))) {
+    console.error(USAGE);
+    return 2;
+  }
+  const c = ctxOf(deps, Number(n));
+  const [cmd, ...rest] = at < 0 ? args : [...args.slice(0, at), ...args.slice(at + 2)];
   const pick = (): Promise<number> | number | null => {
     if (cmd === 'check' && rest.length === 0) return check(c.taxonomyDir);
     const limited = rest.length === 3 && rest[1] === '--limit' && /^[1-9]\d*$/.test(rest[2]);
     if (cmd === 'judge' && (rest.length === 1 || limited)) return judge(listOf(rest[0], c), limited ? Number(rest[2]) : null, c);
-    if (cmd === 'sample' && rest.length === 0) return sample(c.goldDir);
+    if (cmd === 'sample' && rest.length === 0) return sample(c.goldDir, c.round);
     if (cmd === 'label-input' && rest.length === 2) return labelInput(listOf(rest[0], c), rest[1], c);
     if (cmd === 'gold' && (rest.length === 3 || rest.length === 4)) return gold(listOf(rest[0], c), rest[1], rest[2], rest[3], c);
-    if (cmd === 'score' && rest.length === 0) return score(c);
+    if (cmd === 'score') return score(rest, c);
     if (cmd === 'choose' && rest.length === 1) return choose(listOf(rest[0], c), c);
     return null;
   };

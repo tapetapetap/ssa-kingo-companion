@@ -1,7 +1,7 @@
 {
   "id": "custom",
   "name": "직접 만든 2단 목록",
-  "edition": "2026-11-17",
+  "edition": "2026-11-19",
   "sources": [
     {
       "name": "CSRankings",
@@ -68,6 +68,17 @@
     }
   ],
   "fields": [
+    {
+      "id": "ai-general",
+      "name": "AI 일반",
+      "group": "g-ai",
+      "desc": "AI 전반을 넓게 다루는 것: 한 갈래로 좁혀지지 않는 AI 개론·입문, 여러 AI 기술을 함께 다루는 교육·행사",
+      "descFrom": "made",
+      "csr": [
+        "ai"
+      ],
+      "ncs": null
+    },
     {
       "id": "ml",
       "name": "머신러닝",
@@ -1004,6 +1015,7 @@
   ],
   "courseMap": {
     "ai": [
+      "ai-general",
       "rl",
       "ai-agent",
       "ai-security"

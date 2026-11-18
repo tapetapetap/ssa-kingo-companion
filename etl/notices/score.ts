@@ -11,6 +11,16 @@ export const ratio = (num: number, den: number): Ratio => ({ num, den });
 /** 기준 비교는 정수로 한다(eval.ts와 같은 이유: 17/20이 85%를 넘는다). 분모가 0이면 통과가 아니다 */
 export const passes = (r: Ratio) => r.den > 0 && r.num * 100 >= 85 * r.den;
 
+/** 95% Wilson 구간(z = 1.96)을 정수 %로 낸다. 아래 끝은 내림, 위 끝은 올림이고 0~100으로 자른다. 분모가 0이면 null(스펙 4 research R6) */
+export function wilson(r: Ratio): [number, number] | null {
+  if (r.den === 0) return null;
+  const [z, p] = [1.96, r.num / r.den];
+  const d = 1 + (z * z) / r.den;
+  const mid = (p + (z * z) / (2 * r.den)) / d;
+  const half = (z * Math.sqrt((p * (1 - p)) / r.den + (z * z) / (4 * r.den * r.den))) / d;
+  return [Math.max(0, Math.floor((mid - half) * 100)), Math.min(100, Math.ceil((mid + half) * 100))];
+}
+
 /** 내림이라 미달인 값이 85.0%로 보이지 않는다 */
 export const pct = (r: Ratio) => (r.den === 0 ? '해당 없음' : `${(Math.floor((r.num * 1000) / r.den) / 10).toFixed(1)}% (${r.num}/${r.den})`);
 
@@ -28,11 +38,11 @@ export function pickRun(lines: RunLine[]): RunLine | null {
   return best;
 }
 
-/** gold는 표본 120건(갈림 O가 없는 정답), answers는 보관 답(없으면 실패), candidates는 표본 글의 후보.
- *  prompt(판정 판)와 listChars는 부르는 쪽이 계산해 넣는다 */
+/** gold는 표본 120건(갈림 O가 없는 정답), answers는 굳힌 답(없으면 실패), candidates는 표본 글의 후보.
+ *  rawAnswers는 굳히기 전 답(보관 답 그대로)이고, 없으면 answers로 센다(굳히지 않는 목록). prompt(판정 판)와 listChars는 부르는 쪽이 계산해 넣는다 */
 export type ScoreInput = {
-  t: Taxonomy; prompt: string; listChars: number; nos: number[]; answers: Map<number, FieldAnswer>; gold: Map<number, GoldLabel>;
-  candidates: Map<number, string[]>; docs: Map<number, { link: string; title: string }>; run: RunLine;
+  t: Taxonomy; prompt: string; listChars: number; nos: number[]; answers: Map<number, FieldAnswer>; rawAnswers?: Map<number, FieldAnswer>;
+  gold: Map<number, GoldLabel>; candidates: Map<number, string[]>; docs: Map<number, { link: string; title: string }>; run: RunLine;
 };
 
 const EMPTY: FieldAnswer = { core: [], related: [] };
@@ -45,7 +55,8 @@ const pair = (a: FieldAnswer) => ({ core: a.core, related: a.related });
 /** 안 하나의 지표(data-model 6 taxonomies의 한 칸, research R10). 맞은 비율은 표본을 모두 합쳐(micro) 센다 */
 export function scoreTaxonomy(x: ScoreInput) {
   const sample = [...x.gold.keys()].sort((a, b) => a - b);
-  const s = { cp: 0, cpd: 0, crd: 0, tr: 0, trd: 0, rp: 0, rpd: 0, cc: 0, ca: 0, exact: 0, overlap: 0 };
+  const s = { cp: 0, cpd: 0, crd: 0, tr: 0, trd: 0, rp: 0, rpd: 0, cc: 0, ca: 0, exact: 0, overlap: 0, raw: 0, rawd: 0 };
+  const rawOf = x.rawAnswers ?? x.answers;
   for (const no of sample) {
     const g = x.gold.get(no);
     if (!g) continue;
@@ -53,6 +64,9 @@ export function scoreTaxonomy(x: ScoreInput) {
     s.cp += hits(llm.core, gold.core);
     s.cpd += llm.core.length;
     s.crd += gold.core.length;
+    const raw = rawOf.get(no) ?? EMPTY;
+    s.raw += hits(raw.core, gold.core);
+    s.rawd += raw.core.length;
     s.tr += hits(all(llm), all(gold));
     s.trd += all(gold).length;
     s.rp += hits(llm.related, all(gold));
@@ -88,7 +102,8 @@ export function scoreTaxonomy(x: ScoreInput) {
     id: x.t.id, name: x.t.name, edition: x.t.edition, prompt: x.prompt, groups: x.t.groups.length, fields: x.t.fields.length, listChars: x.listChars,
     run: { start: x.run.start, end: x.run.end, cached: x.run.cached, fresh: x.run.fresh, failed: x.run.failed, requests: x.run.requests, gpuAvg: x.run.gpuAvg, tempMax: x.run.tempMax },
     metrics: {
-      corePrecision: ratio(s.cp, s.cpd), coreRecall: ratio(s.cp, s.crd), totalRecall: ratio(s.tr, s.trd), relatedPrecision: ratio(s.rp, s.rpd),
+      corePrecision: ratio(s.cp, s.cpd), coreRecall: ratio(s.cp, s.crd), rawCorePrecision: ratio(s.raw, s.rawd), rawCoreRecall: ratio(s.raw, s.crd),
+      totalRecall: ratio(s.tr, s.trd), relatedPrecision: ratio(s.rp, s.rpd),
       candidateCore: ratio(s.cc, s.crd), candidateAll: ratio(s.ca, s.trd),
       agreeExact: ratio(s.exact, sample.length), agreeOverlap: ratio(s.overlap, sample.length),
       blankCore: ratio(blankCore, x.nos.length), blankAll: ratio(blankAll, x.nos.length),

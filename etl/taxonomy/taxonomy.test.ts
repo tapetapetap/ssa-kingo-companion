@@ -134,6 +134,10 @@ describe('저장소 목록 파일', () => {
     expect(() => findChosen(lists)).not.toThrow();
   });
 
+  it("1안에는 넓은 분야 'AI 일반'이 인공지능 묶음 맨 앞에 있다(스펙 4)", () => {
+    expect(lists[0].fields.find(f => f.group === 'g-ai')).toMatchObject({ id: 'ai-general', name: 'AI 일반', csr: ['ai'] });
+  });
+
   it('1안·3안의 직무는 research R8 표 그대로이고 두 안이 같다(임베딩 글이 같아야 한다)', () => {
     const jobs = (t: Taxonomy) => t.fields.filter(f => f.group === 'g-job');
     const [custom, , csr] = lists;

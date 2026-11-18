@@ -15,7 +15,9 @@ const SAMPLE_SIZE = 120;
 const BATCH = 40;
 const SAMPLE_HEAD = ['링크', '게시판', '제목', '게시일', '종류'];
 const GOLD_HEAD = ['링크', '제목', 'A 핵심', 'A 관련', 'B 핵심', 'B 관련', '최종 핵심', '최종 관련', '갈림', '메모'];
-type GoldCtx = { goldDir: string; cacheDir: string; repoRoot: string };
+type GoldCtx = { goldDir: string; cacheDir: string; repoRoot: string; round: number };
+/** 회차 파일: 1회차는 이름 그대로(sample.csv, <안 id>.csv)이고 N회차는 -N이 붙는다(스펙 4 research R5) */
+export const roundFile = (goldDir: string, name: string, round: number) => join(goldDir, 'fields', `${name}${round > 1 ? `-${round}` : ''}.csv`);
 
 /** 개발용 정답셋의 기회(스펙 2에서 기회로 라벨한 412건). 판정·표본·지표가 모두 정답셋 순서로 쓴다 */
 export function devOpportunities(goldDir: string): GoldRow[] {
@@ -74,15 +76,22 @@ export function allocate(counts: Map<string, number>, n: number): Map<string, nu
   return new Map([...counts.keys()].map(k => [k, small.has(k) ? 1 : share.get(k) ?? 0]));
 }
 
-/** 기회 412건에서 종류 비율대로 120건. 줄 순서는 종류(많은 순, 같으면 이름 순), 종류 안에서는 sampleBySha1 순서다 */
-export function sample(goldDir: string): number {
+/** 기회 412건에서 종류 비율대로 120건. 줄 순서는 종류(많은 순, 같으면 이름 순), 종류 안에서는 sampleBySha1 순서다.
+ *  N회차는 앞 회차 표본의 글을 뺀 나머지에서 같은 규칙으로 뽑는다(남은 글이 120건보다 적으면 모두). 앞 회차 파일이 없으면 readSample이 던진다 */
+export function sample(goldDir: string, round = 1): number {
+  const taken = new Set(Array.from({ length: round - 1 }, (_, i) => readSample(goldDir, i + 1)).flat().map(x => x.no));
+  const left = devOpportunities(goldDir).filter(g => !taken.has(noOf(g.id)));
+  if (!left.length) {
+    console.error(`남은 글이 없어 ${round}회차 표본을 뽑지 못했어요`);
+    return 1;
+  }
   const byKind = new Map<string, GoldRow[]>();
-  for (const g of devOpportunities(goldDir)) {
+  for (const g of left) {
     const k = g.kind ? KIND_LABEL[g.kind] : '';
     byKind.set(k, [...(byKind.get(k) ?? []), g]);
   }
   const kinds = [...byKind].sort(([ka, a], [kb, b]) => b.length - a.length || (ka < kb ? -1 : 1));
-  const alloc = allocate(new Map(kinds.map(([k, list]) => [k, list.length])), SAMPLE_SIZE);
+  const alloc = allocate(new Map(kinds.map(([k, list]) => [k, list.length])), Math.min(SAMPLE_SIZE, left.length));
   const rows = kinds.flatMap(([k, list]) => {
     const byId = new Map(list.map(g => [g.id, g]));
     return sampleBySha1(list.map(g => g.id), alloc.get(k) ?? 0).flatMap(id => {
@@ -91,15 +100,15 @@ export function sample(goldDir: string): number {
     });
   });
   mkdirSync(join(goldDir, 'fields'), { recursive: true });
-  writeFileSync(join(goldDir, 'fields', 'sample.csv'), writeCsv([SAMPLE_HEAD, ...rows]));
-  console.log(`표본 ${rows.length}건: ${[...alloc].map(([k, n]) => `${k} ${n}`).join(' · ')}`);
+  writeFileSync(roundFile(goldDir, 'sample', round), writeCsv([SAMPLE_HEAD, ...rows]));
+  console.log(`${round > 1 ? `${round}회차 ` : ''}표본 ${rows.length}건: ${[...alloc].map(([k, n]) => `${k} ${n}`).join(' · ')}`);
   return 0;
 }
 
 type SampleItem = { no: number; link: string; board: string; title: string; postedAt: string; kind: string };
-export function readSample(goldDir: string): SampleItem[] {
-  const file = join(goldDir, 'fields', 'sample.csv');
-  if (!existsSync(file)) throw new Error(`표본 파일이 없어요: ${file} (compare.ts sample을 먼저 돌려요)`);
+export function readSample(goldDir: string, round = 1): SampleItem[] {
+  const file = roundFile(goldDir, 'sample', round);
+  if (!existsSync(file)) throw new Error(`표본 파일이 없어요: ${file} (compare.ts sample${round > 1 ? ` --round ${round}` : ''}을 먼저 돌려요)`);
   const [head = [], ...rows] = readCsv(decodeCsv(readFileSync(file)));
   if (head.join() !== SAMPLE_HEAD.join()) throw new Error(`표본 파일 머리줄이 달라요: ${file}`);
   return rows.filter(r => r.some(Boolean)).map(([link, board, title, postedAt, kind]) => ({ no: noFromLink(link), link, board, title, postedAt, kind }));
@@ -108,7 +117,7 @@ export function readSample(goldDir: string): SampleItem[] {
 /** 표본 120건을 sample.csv 순서로 40건씩 <dir>/<안 id>-<묶음>.jsonl에 쓴다. body는 LLM과 같은 clip 결과다 */
 export async function labelInput(t: Taxonomy, dir: string, c: GoldCtx): Promise<number> {
   if (insideRepo(dir, c.repoRoot)) return refuseRepo(dir);
-  const items = readSample(c.goldDir);
+  const items = readSample(c.goldDir, c.round);
   const bodies: (string[] | null)[] = [];
   for (const x of items) bodies.push(await cachedBody(x.no, c.cacheDir));
   const missing = items.filter((_, i) => !bodies[i]).map(x => x.no);
@@ -174,7 +183,7 @@ const cell = (ids: string[]) => (ids.length ? ids.join('|') : '-');
 export async function gold(t: Taxonomy, aFile: string, bFile: string, cFile: string | undefined, c: GoldCtx): Promise<number> {
   const dir = dirname(resolve(aFile));
   if (insideRepo(dir, c.repoRoot)) return refuseRepo(dir);
-  const items = readSample(c.goldDir);
+  const items = readSample(c.goldDir, c.round);
   const nos = items.map(x => x.no);
   const [A, B] = [readLabels('A', aFile), readLabels('B', bFile)];
   if (typeof A === 'string' || typeof B === 'string') {
@@ -223,7 +232,7 @@ export async function gold(t: Taxonomy, aFile: string, bFile: string, cFile: str
       fin ? cell(fin.core) : '', fin ? cell(fin.related) : '', isSplit ? (C ? 'C' : 'O') : 'X', isSplit ? fin?.note ?? '' : ''];
   });
   mkdirSync(join(c.goldDir, 'fields'), { recursive: true });
-  writeFileSync(join(c.goldDir, 'fields', `${t.id}.csv`), writeCsv([GOLD_HEAD, ...rows]));
+  writeFileSync(roundFile(c.goldDir, t.id, c.round), writeCsv([GOLD_HEAD, ...rows]));
   console.log(C ? `갈림 ${split.length}건 · 셋째가 정함` : `갈림 ${split.length}건`);
   return 0;
 }
@@ -235,8 +244,8 @@ const isMark = (s: string): s is GoldLabel['split'] => s === 'X' || s === 'O' ||
 /** score가 읽는다. '-'는 분야 없음, 빈칸은 안 정함이다. 사람이 고친 파일도 들어오므로 칸이 모자라거나
  *  data-model 5의 규칙(A·B·최종 모두 핵심 2개·관련 5개까지, 칸 안 중복과 핵심·관련 겹침 없음, 목록 안 id)을 어긴 줄은 던진다.
  *  줄 번호는 스프레드시트 행 번호다(머리줄이 1, eval.ts와 같다) */
-export function readGoldFile(t: Taxonomy, goldDir: string): Map<number, GoldLabel> {
-  const file = join(goldDir, 'fields', `${t.id}.csv`);
+export function readGoldFile(t: Taxonomy, goldDir: string, round = 1): Map<number, GoldLabel> {
+  const file = roundFile(goldDir, t.id, round);
   if (!existsSync(file)) throw new Error(`${t.id}: 정답 파일이 없어요 (${file})`);
   const [head = [], ...rows] = readCsv(decodeCsv(readFileSync(file)));
   if (head.join() !== GOLD_HEAD.join()) throw new Error(`${t.id}: 정답 파일 머리줄이 달라요 (${file})`);

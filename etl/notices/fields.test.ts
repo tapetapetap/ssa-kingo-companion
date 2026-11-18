@@ -7,7 +7,7 @@ import type { Taxonomy } from '../taxonomy/taxonomy.ts';
 import type { NoticeRow } from './cse.ts';
 import { CANDIDATE_RULE, type Embed } from './embed.ts';
 import {
-  countField, fieldPart, fieldParts, fieldVersion, makeFieldAsk, newStats, parseFieldAnswer, readFieldAnswer, schemaFor, systemFor, type FieldAnswer, type FieldOutcome
+  countField, fieldPart, fieldParts, fieldVersion, makeFieldAsk, newStats, parseFieldAnswer, readFieldAnswer, schemaFor, settle, systemFor, type FieldAnswer, type FieldOutcome
 } from './fields.ts';
 import { modelDir, PROMPT_PARTS, versionOf, type Post } from './llm.ts';
 
@@ -55,6 +55,17 @@ describe('지시문과 스키마 (contracts/field-llm.md)', () => {
   });
 });
 
+describe('지시문의 규칙 글 (스펙 4 contracts/rules.md)', () => {
+  it('rules.md 2절의 네 줄이 글자 그대로 있고 옛 줄은 없다', () => {
+    const rules = readFileSync(new URL('../../specs/20261118-121436-field-refine/contracts/rules.md', import.meta.url), 'utf8');
+    const lines = rules.split('## 2. ')[1].split('```text\n')[1].split('\n```')[0].split('\n');
+    expect(lines).toHaveLength(4);
+    const system = fieldParts(validList('ncs')).system;
+    for (const line of lines) expect(system).toContain(`\n${line}\n`);
+    expect(system).not.toContain('회사 이름만으로 고르지 않고');
+  });
+});
+
 describe('parseFieldAnswer: 답 정리', () => {
   const t = validList('csrankings');
   const ids = ['ai', 'vision', 'mlmining', 'nlp', 'inforet', 'arch', 'comm', 'backend'];
@@ -76,6 +87,18 @@ describe('parseFieldAnswer: 답 정리', () => {
   });
 });
 
+describe('settle: 핵심 굳히기 (스펙 4 contracts/rules.md 3절)', () => {
+  const a = (core: string[], related: string[]): FieldAnswer => ({ core, related });
+  it.each<[string, FieldAnswer, string[], FieldAnswer]>([
+    ['일부 내림', a(['가', '나'], ['다']), ['가', '라', '마'], a(['가'], ['나', '다'])],
+    ['모두 내림', a(['가', '나'], ['다']), ['라', '마', '바'], a([], ['가', '나', '다'])],
+    ['관련이 넘치면 뒤에서 버림', a(['가'], ['다', '라', '마', '바', '사']), ['나', '다', '라'], a([], ['가', '다', '라', '마', '바'])],
+    ['모두 남음(순서는 LLM이 고른 순서)', a(['가', '나'], []), ['나', '가', '다'], a(['가', '나'], [])]
+  ])('%s', (_name, answer, top, expected) => {
+    expect(settle(answer, top)).toEqual(expected);
+  });
+});
+
 describe('판정 판', () => {
   it('재료는 지시문 틀·사용자 틀·스키마 틀·think·options·자르기 기준·목록·후보 규칙이고, 하나만 바뀌어도 바뀐다', () => {
     const t = validList('custom');
@@ -89,6 +112,7 @@ describe('판정 판', () => {
     expect(changed(x => { x.groups[0].name += '.'; })).not.toBe(fieldVersion(t));
     expect(versionOf({ ...parts, candidates: { ...CANDIDATE_RULE, k: 31 } })).not.toBe(fieldVersion(t));
     expect(versionOf({ ...parts, candidates: { ...CANDIDATE_RULE, model: 'nomic-embed-text' } })).not.toBe(fieldVersion(t));
+    expect(versionOf({ ...parts, candidates: { ...CANDIDATE_RULE, coreTop: 5 } })).not.toBe(fieldVersion(t));
     // 고른 표시·목록 판은 판정 판을 바꾸지 않는다(choose가 chosen을 써도 판이 그대로다)
     expect(changed(x => { x.chosen = { date: '2026-11-20', corePrecision: { num: 1, den: 1 }, prompt: '1a2b3c4d', model: 'm' }; x.edition = '2026-12-01'; })).toBe(fieldVersion(t));
   });
@@ -110,11 +134,11 @@ describe('makeFieldAsk', () => {
     expect(body.messages[1].content).toContain('제목: [가나다] 드론 영상 분석 대회 참가자 모집');
   });
 
-  it('보관이 있으면 LLM도 임베딩도 부르지 않는다', async () => {
-    const dir = tmp();
-    await makeFieldAsk({ taxonomy: validList('custom'), embed: embedOf(), dir, embedDir: tmp(), post: postOf(answer(['채움 1'])) })(row(7), BODY);
+  it('보관이 있으면 LLM도 임베딩도 부르지 않는다(굳힐 때는 보관한 벡터를 읽는다)', async () => {
+    const [dir, embedDir] = [tmp(), tmp()];
+    await makeFieldAsk({ taxonomy: validList('custom'), embed: embedOf(), dir, embedDir, post: postOf(answer(['채움 1'])) })(row(7), BODY);
     const [embed, post] = [embedOf(), postOf(answer([]))];
-    expect(await makeFieldAsk({ taxonomy: validList('custom'), embed, dir, post })(row(7), BODY)).toMatchObject({ cached: true });
+    expect(await makeFieldAsk({ taxonomy: validList('custom'), embed, dir, embedDir, post })(row(7), BODY)).toMatchObject({ cached: true });
     expect(embed).not.toHaveBeenCalled();
     expect(post).not.toHaveBeenCalled();
   });
@@ -128,7 +152,32 @@ describe('makeFieldAsk', () => {
     expect(system.split('\n').filter(l => l.startsWith('- 채움 '))).toHaveLength(30);
     expect(system).not.toContain('- 채움 30:');
     expect(system).not.toContain('- 백엔드:');
-    expect(await ask(row(2), BODY)).toEqual({ answer: { core: ['fill-3'], related: ['fill-29'] }, cached: false });
+    expect(await ask(row(2), BODY)).toEqual({ answer: { core: [], related: ['fill-3', 'fill-29'] }, cached: false }); // 가짜 임베딩의 3위는 fill-0·1·2라 핵심이 내려간다
+  });
+
+  it('받은 답은 굳힌 답이고 보관 파일은 LLM 답 그대로다. 다시 불러도 같은 굳힌 답이다', async () => {
+    const [t, dir, embedDir] = [validList('custom'), tmp(), tmp()];
+    const settled = { core: ['fill-1'], related: ['fill-5', 'fill-7'] }; // 3위(fill-0·1·2) 밖인 fill-5가 관련 맨 앞으로
+    const ask = () => makeFieldAsk({ taxonomy: t, embed: embedOf(), model: 'm', dir, embedDir, post: postOf(answer(['채움 1', '채움 5'], ['채움 7'])) });
+    expect(await ask()(row(3), BODY)).toEqual({ answer: settled, cached: false });
+    expect(readFieldAnswer(t, 'm', 3, dir)).toEqual({ core: ['fill-1', 'fill-5'], related: ['fill-7'] });
+    expect(await ask()(row(3), BODY)).toEqual({ answer: settled, cached: true });
+  });
+
+  it('핵심이 빈 보관 답은 벡터를 보지 않고 그대로 돌려준다(굳혀도 같다)', async () => {
+    const [t, dir] = [validList('custom'), tmp()];
+    await makeFieldAsk({ taxonomy: t, embed: embedOf(), dir, embedDir: tmp(), post: postOf(answer([], ['채움 9'])) })(row(5), BODY);
+    const embed = embedOf('down', 'down');
+    expect(await makeFieldAsk({ taxonomy: t, embed, dir, embedDir: tmp(), post: postOf(answer([])) })(row(5), BODY)).toEqual({ answer: { core: [], related: ['fill-9'] }, cached: true });
+    expect(embed).not.toHaveBeenCalled();
+  });
+
+  it.each(['fail', 'down'] as const)('보관 답이 있어도 굳힐 공지 벡터가 %s면 그 결과다(굳히지 못한 답을 내지 않는다)', async out => {
+    const [t, dir] = [validList('custom'), tmp()];
+    await makeFieldAsk({ taxonomy: t, embed: embedOf(), dir, embedDir: tmp(), post: postOf(answer(['채움 1'])) })(row(4), BODY);
+    const post = postOf(answer([]));
+    expect(await makeFieldAsk({ taxonomy: t, embed: embedOf('ok', out), dir, embedDir: tmp(), post })(row(4), BODY)).toBe(out);
+    expect(post).not.toHaveBeenCalled();
   });
 
   it.each(['fail', 'down'] as const)('공지 벡터가 %s면 LLM에 묻지 않고 그 결과다', async out => {

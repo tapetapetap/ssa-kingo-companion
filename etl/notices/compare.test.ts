@@ -6,7 +6,7 @@ import { validList } from '../taxonomy/fixtures.ts';
 import { listChars, loadTaxonomy, saveTaxonomy, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import type { NoticeRow } from './cse.ts';
 import { main } from './compare.ts';
-import { fieldVectors } from './embed.ts';
+import { fieldVectors, noticeVector } from './embed.ts';
 import { writeCsv } from './eval.ts';
 import { fieldFolder, fieldVersion, type FieldAsk, type FieldOutcome } from './fields.ts';
 import type { LoadSummary } from './throttle.ts';
@@ -31,7 +31,10 @@ const said = (spy: ReturnType<typeof quiet>['log']) => spy.mock.calls.map(c => S
 describe('compare.ts 쓰는 법', () => {
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it.each([[[]], [['nope']], [['check', 'x']], [['judge']], [['choose', 'custom', 'ncs']]])('%j는 쓰는 법을 내고 2', async args => {
+  it.each([
+    [[]], [['nope']], [['check', 'x']], [['judge']], [['choose', 'custom', 'ncs']],
+    [['sample', '--round']], [['sample', '--round', '0']], [['score', '--round', 'x']], [['score', '--round', '2', '--round', '3']]
+  ])('%j는 쓰는 법을 내고 2', async args => {
     const { err } = quiet();
     expect(await main(args, {})).toBe(2);
     expect(String(err.mock.calls[0][0])).toMatch(/^쓰는 법: /);
@@ -166,6 +169,8 @@ async function scored() {
     writeFileSync(join(folder, 'runs.jsonl'), `${JSON.stringify({ ...RUN, limit: 5 })}\n${JSON.stringify(RUN)}\n`);
     if (t.fields.length > 30) await fieldVectors(t, fakeEmbed, embedDir); // 30개 이하인 ncs(시험용 3개)는 벡터가 없어도 된다
   }
+  // 굳히려면 공지 벡터가 있어야 한다. 가짜 벡터가 모두 같아 3위는 목록 앞 셋이다
+  for (const no of [1, 2]) await noticeVector({ no, title: `제목 ${no}`, board: '채용/모집', postedAt: '2026-11-01', pinned: false }, [], fakeEmbed, embedDir);
   return { taxonomyDir, goldDir, cacheDir, llmDir, embedDir, outFile: join(tmp(), 'out', 'fields-compare.json'), model: 'gemma4:12b', now: clock('2026-11-17T09:00:00.000Z') };
 }
 
@@ -184,6 +189,44 @@ describe('score', () => {
     expect(out.taxonomies[1].metrics.candidateCore).toEqual({ num: 1, den: 1 }); // 분야 3개라 모두 후보
     expect(said(log)).toMatch(/^지표\s+custom\s+ncs\s+csrankings/);
     expect(said(log)).toContain('100.0% (1/1)');
+  });
+
+  it('보관 답을 굳혀서 세고 굳히기 전 값을 함께 낸다. 안을 주면 그 안만 재고, 공지 벡터가 없는 글은 실패다 (스펙 4)', async () => {
+    const { err, log } = quiet();
+    const d = await scored();
+    const t = validList('custom');
+    rmSync(join(d.goldDir, 'fields', 'ncs.csv')); // 재지 않는 안은 정답·실행 기록이 없어도 된다
+    rmSync(fieldFolder(validList('csrankings'), 'gemma4:12b', d.llmDir), { recursive: true });
+    // 2번 글의 LLM 핵심은 3위(목록 앞 셋) 밖이라 굳히면 관련으로 내려간다
+    writeFileSync(join(fieldFolder(t, 'gemma4:12b', d.llmDir), '2.json'), JSON.stringify({ answer: { core: [t.fields[10].id], related: [] } }));
+    expect(await main(['score', 'custom'], d)).toBe(0);
+    const out = JSON.parse(readFileSync(d.outFile, 'utf8'));
+    expect([out.round, out.taxonomies.map((x: { id: string }) => x.id)]).toEqual([1, ['custom']]);
+    expect(out.taxonomies[0].metrics).toMatchObject({ corePrecision: { num: 1, den: 1 }, rawCorePrecision: { num: 1, den: 2 }, rawCoreRecall: { num: 1, den: 1 }, failRate: { num: 1, den: 3 } });
+    expect(said(log)).toMatch(/핵심 정밀도\(굳히기 전\) +50\.0% \(1\/2\)\n핵심 재현율\(굳히기 전\) +100\.0% \(1\/1\)/);
+    expect(said(log)).toContain('custom 1회차 핵심 정밀도 100.0% (1/1) · 95% 구간 20~100% · 85% 기준 통과');
+    rmSync(join(d.embedDir, 'bge-m3', 'notices', '1.json'));
+    expect(await main(['score', 'custom'], d)).toBe(0);
+    expect(JSON.parse(readFileSync(d.outFile, 'utf8')).taxonomies[0].metrics).toMatchObject({ corePrecision: { num: 0, den: 0 }, failRate: { num: 2, den: 3 } });
+    expect(said(log)).toContain('custom 1회차 핵심 정밀도 해당 없음 · 85% 기준 미달');
+    expect(await main(['score', 'nope'], d)).toBe(1);
+    expect(said(err)).toContain('없는 안이에요: nope');
+  });
+
+  it('--round 2는 그 회차 정답 파일이 있는 안만 재고 지표 파일에 round를 적는다. 다음 회차 표본이 있는 회차의 줄은 참고다', async () => {
+    const { err, log } = quiet();
+    const d = await scored();
+    const fields = join(d.goldDir, 'fields');
+    writeFileSync(join(fields, 'sample-2.csv'), readFileSync(join(fields, 'sample.csv'))); // 시험에서는 같은 글로 꾸민다
+    expect(await main(['score', '--round', '2'], d)).toBe(1);
+    expect(said(err)).toContain('2회차 정답 파일이 있는 안이 없어요');
+    writeFileSync(join(fields, 'custom-2.csv'), readFileSync(join(fields, 'custom.csv')));
+    expect(await main(['score', '--round', '2'], d)).toBe(0);
+    const out = JSON.parse(readFileSync(d.outFile, 'utf8'));
+    expect([out.round, out.taxonomies.map((x: { id: string }) => x.id)]).toEqual([2, ['custom']]);
+    expect(said(log)).toContain('custom 2회차 핵심 정밀도 100.0% (1/1) · 95% 구간 20~100% · 85% 기준 통과');
+    expect(await main(['score', 'custom'], d)).toBe(0);
+    expect(said(log)).toContain('custom 1회차 핵심 정밀도 100.0% (1/1) · 95% 구간 20~100% · 참고(2회차 표본이 있어요)');
   });
 
   it.each<[string, (d: Awaited<ReturnType<typeof scored>>) => void, string]>([
@@ -219,7 +262,7 @@ describe('choose', () => {
     const outFile = join(tmp(), 'fields-compare.json');
     const entry = (t: Taxonomy) => ({ id: t.id, prompt: o.prompt ?? fieldVersion(t), metrics: { corePrecision: { num, den } } });
     writeFileSync(outFile, JSON.stringify({ model: o.model ?? 'gemma4:12b', taxonomies: TAXONOMY_IDS.map(id => entry(validList(id))) }));
-    return { taxonomyDir, outFile, model: 'gemma4:12b', now: clock('2026-11-20T12:00:00.000Z') };
+    return { taxonomyDir, outFile, goldDir: tmp(), model: 'gemma4:12b', now: clock('2026-11-20T12:00:00.000Z') }; // goldDir: 고르기 막기가 이 컴퓨터의 etl/gold를 보지 않게
   };
 
   it.each([[81, '85% 기준 미달: 결과 파일에 분야를 넣지 않아요'], [88, '85% 기준 통과']])('정밀도 %i/100이어도 그 안에만 chosen을 쓰고 다른 안의 chosen은 지운다', async (num, verdict) => {
@@ -230,6 +273,26 @@ describe('choose', () => {
     expect(loadTaxonomy('custom', d.taxonomyDir).chosen).toEqual({ date: '2026-11-20', corePrecision: { num, den: 100 }, prompt: fieldVersion(validList('custom')), model: 'gemma4:12b' });
     expect(loadTaxonomy('ncs', d.taxonomyDir).chosen).toBeNull();
     expect(loadTaxonomy('csrankings', d.taxonomyDir).chosen).toBeNull();
+  });
+
+  it('--round 2는 그 회차의 지표 파일로 고르고 출력에 회차를 넣는다. 고른 표시의 칸은 그대로다 (스펙 4)', async () => {
+    const { log } = quiet();
+    const d = chooseSetup(88);
+    expect(await main(['choose', 'custom', '--round', '2'], d)).toBe(0);
+    expect(said(log)).toBe('custom 고름 · 2회차 핵심 정밀도 88.0% (88/100) · 85% 기준 통과');
+    expect(Object.keys(loadTaxonomy('custom', d.taxonomyDir).chosen ?? {})).toEqual(['date', 'corePrecision', 'prompt', 'model']);
+  });
+
+  it('다음 회차의 표본 파일이 있으면 고르지 않는다(규칙을 고른 표본의 값으로 관문을 열지 않게)', async () => {
+    const { err } = quiet();
+    const d = chooseSetup(88);
+    mkdirSync(join(d.goldDir, 'fields'));
+    writeFileSync(join(d.goldDir, 'fields', 'sample-2.csv'), '');
+    const before = readFileSync(join(d.taxonomyDir, 'custom.json'), 'utf8');
+    expect(await main(['choose', 'custom'], d)).toBe(1);
+    expect(said(err)).toContain('custom: 2회차 표본이 있어 1회차 값으로는 고르지 않아요(choose custom --round 2)');
+    expect(readFileSync(join(d.taxonomyDir, 'custom.json'), 'utf8')).toBe(before);
+    expect(await main(['choose', 'custom', '--round', '2'], d)).toBe(0);
   });
 
   it.each<[string, () => ReturnType<typeof chooseSetup>, string]>([
