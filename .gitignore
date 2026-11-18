@@ -22,4 +22,4 @@ etl/.cache/
 
 # 정답셋과 정답 라벨이 든 분야 비교 결과(사용자가 올리기로 정하기 전까지 공개 저장소에 올리지 않는다, 스펙 1 FR-034)
 etl/gold/
-etl/out/fields-compare.json
+etl/out/fields-compare*.json

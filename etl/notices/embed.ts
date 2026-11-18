@@ -9,11 +9,16 @@ import { fetchPost, keep, modelDir, ollamaBase, postOnce, readJson, sha8, type G
 /** 바꾸면 판정 판이 바뀐다(CANDIDATE_RULE) */
 export const EMBED_MODEL = 'bge-m3';
 export const EMBED_K = 30;
+/** 핵심 굳히기: LLM이 고른 핵심 가운데 유사도 상위 몇 개 안에 든 것만 핵심으로 둔다(스펙 4 research R2). 2회차 표본을 보기 전에 정한 값이다 */
+export const CORE_TOP = 3;
 const NOTICE_CHARS = 1500;
 const BATCH = 32;
 export const EMBED_CACHE_DIR = fileURLToPath(new URL('../.cache/embed', import.meta.url));
 /** 판정 판 재료(contracts/field-llm.md '판정 판'). 글자 수는 NOTICE_CHARS에서 만들어, 바꾸면 판도 바뀐다 */
-export const CANDIDATE_RULE = { model: EMBED_MODEL, k: EMBED_K, field: '묶음 > 이름: 설명', notice: `제목 + 본문 앞 ${NOTICE_CHARS}자`, pick: '코사인 상위 k, k개 이하면 모두' };
+export const CANDIDATE_RULE = {
+  model: EMBED_MODEL, k: EMBED_K, field: '묶음 > 이름: 설명', notice: `제목 + 본문 앞 ${NOTICE_CHARS}자`, pick: '코사인 상위 k, k개 이하면 모두',
+  coreTop: CORE_TOP, core: '핵심은 유사도 상위 coreTop개 안, 밖이면 관련 맨 앞'
+};
 
 export type Embed = (texts: string[]) => Promise<number[][] | 'fail' | 'down'>;
 export type FieldVectors = { ids: string[]; vectors: number[][] };

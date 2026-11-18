@@ -69,6 +69,40 @@ describe('sample (research R9)', () => {
     expect(readFileSync(join(dir, 'fields', 'sample.csv')).equals(first)).toBe(true);
   });
 
+  it('--round 2는 1회차 표본에 없는 글에서 남은 글 수로 배분해 뽑고, 다시 뽑아도 같은 파일이다 (스펙 4 research R5)', async () => {
+    const { log } = quiet();
+    const { dir } = devGold();
+    await main(['sample'], { goldDir: dir });
+    expect(await main(['sample', '--round', '2'], { goldDir: dir })).toBe(0);
+    const first = new Set(csvAt(join(dir, 'fields', 'sample.csv')).slice(1).map(r => r[0]));
+    const file = join(dir, 'fields', 'sample-2.csv');
+    const [, ...body] = csvAt(file);
+    expect(body).toHaveLength(120);
+    expect(body.filter(r => first.has(r[0]))).toHaveLength(0);
+    // 남은 292건(종류마다 COUNTS에서 1회차 배분을 뺀 수)에 같은 배분 규칙을 쓴다. 봉사는 1회차가 다 가져가 없다
+    const took = ALLOCATED.split(' · ').map(x => Number(x.split(' ').pop()));
+    const left = new Map(COUNTS.map(([k, n], i): [string, number] => [k, n - took[i]]).filter(([, n]) => n > 0));
+    const alloc = [...allocate(left, 120)].map(([k, n]) => `${k} ${n}`).join(' · ');
+    expect(String(log.mock.calls[1][0])).toBe(`2회차 표본 120건: ${alloc}`);
+    expect(alloc).not.toContain('봉사');
+    const kept = readFileSync(file);
+    await main(['--round', '2', 'sample'], { goldDir: dir });
+    expect(readFileSync(file).equals(kept)).toBe(true);
+  });
+
+  it('앞 회차 표본 파일이 없으면 뽑지 않는다. 남은 글이 120건보다 적으면 모두 뽑고, 없으면 1이다', async () => {
+    const { err } = quiet();
+    const { dir } = devGold();
+    expect(await main(['sample', '--round', '2'], { goldDir: dir })).toBe(1);
+    expect(said(err)).toContain('표본 파일이 없어요');
+    expect(existsSync(join(dir, 'fields', 'sample-2.csv'))).toBe(false);
+    for (const r of ['1', '2', '3', '4']) expect(await main(['sample', '--round', r], { goldDir: dir })).toBe(0); // --round 1은 안 준 것과 같다
+    expect(csvAt(join(dir, 'fields', 'sample-4.csv'))).toHaveLength(1 + 412 - 360);
+    expect(await main(['sample', '--round', '5'], { goldDir: dir })).toBe(1);
+    expect(said(err)).toContain('남은 글이 없어 5회차 표본을 뽑지 못했어요');
+    expect(existsSync(join(dir, 'fields', 'sample-5.csv'))).toBe(false);
+  });
+
   it('기회가 0건인 정답셋은 거절한다(eval.ts와 같이). 표본 파일을 쓰지 않고 1이다', async () => {
     const { err } = quiet();
     const dir = tmp();
@@ -223,6 +257,27 @@ describe('gold', () => {
     expect(await main(['gold', 'csrankings', write(dir, 'a.json', A(s.nos)), write(dir, 'b.json', B(s.nos))], s)).toBe(1);
     expect(said(err)).toContain('1002');
     expect(existsSync(join(s.goldDir, 'fields', 'csrankings.csv'))).toBe(false);
+  });
+});
+
+describe('회차 (스펙 4 research R5)', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('label-input과 gold는 --round 2면 sample-2.csv를 읽고 <안>-2.csv를 쓴다. 1회차 정답 파일은 만들지 않는다', async () => {
+    quiet();
+    const s = sampled();
+    const fields = join(s.goldDir, 'fields');
+    // 2회차 표본은 1회차 표본의 뒤 80건으로 꾸민다(직접 만든 파일)
+    const [head, ...rows] = csvAt(join(fields, 'sample.csv'));
+    writeFileSync(join(fields, 'sample-2.csv'), writeCsv([head, ...rows.slice(40)]));
+    const out = tmp();
+    expect(await main(['label-input', 'csrankings', out, '--round', '2'], s)).toBe(0);
+    expect(readdirSync(out).sort()).toEqual(['csrankings-1.jsonl', 'csrankings-2.jsonl']);
+    const labels = s.nos.slice(40).map(no => ({ no, core: ['ai'], related: [], note: '' }));
+    const file = (name: string) => { writeFileSync(join(out, name), JSON.stringify(labels)); return join(out, name); };
+    expect(await main(['gold', 'csrankings', file('a.json'), file('b.json'), '--round', '2'], s)).toBe(0);
+    expect(existsSync(join(fields, 'csrankings.csv'))).toBe(false);
+    expect(readGoldFile(validList('csrankings'), s.goldDir, 2).size).toBe(80);
   });
 });
 

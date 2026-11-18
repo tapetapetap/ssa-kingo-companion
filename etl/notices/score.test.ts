@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { validList } from '../taxonomy/fixtures.ts';
 import type { FieldAnswer } from './fields.ts';
 import type { GoldLabel } from './gold.ts';
-import { passes, pct, pickRun, ratio, scoreTaxonomy, type RunLine, type ScoreInput } from './score.ts';
+import { passes, pct, pickRun, ratio, scoreTaxonomy, wilson, type RunLine, type ScoreInput } from './score.ts';
 
 describe('ratio · passes · pct (research R10)', () => {
   it('기준은 정수로 비교한다: 84/100은 미달, 85/100은 통과', () => {
@@ -18,6 +18,12 @@ describe('ratio · passes · pct (research R10)', () => {
     expect(pct(ratio(85, 100))).toBe('85.0% (85/100)');
     expect(pct(ratio(2, 3))).toBe('66.6% (2/3)');
     expect(pct(ratio(0, 0))).toBe('해당 없음');
+  });
+});
+
+describe('wilson: 95% 구간 (스펙 4 research R6)', () => {
+  it.each<[number, number, [number, number] | null]>([[44, 50, [76, 95]], [36, 41, [74, 95]], [41, 41, [91, 100]], [0, 5, [0, 44]], [0, 0, null]])('%i/%i', (num, den, expected) => {
+    expect(wilson(ratio(num, den))).toEqual(expected);
   });
 });
 
@@ -77,6 +83,13 @@ describe('scoreTaxonomy (손으로 센 값)', () => {
       corePrecision: ratio(2, 3), coreRecall: ratio(2, 3), totalRecall: ratio(2, 5), relatedPrecision: ratio(0, 2),
       candidateCore: ratio(2, 3), candidateAll: ratio(3, 5)
     });
+  });
+
+  it('굳히기 전 답(rawAnswers)을 주면 굳히기 전 핵심 정밀도·재현율을 그 답으로 세고, 안 주면 굳힌 값과 같다 (스펙 4)', () => {
+    expect(out.metrics).toMatchObject({ rawCorePrecision: ratio(2, 3), rawCoreRecall: ratio(2, 3) });
+    // 굳히기 전에는 3번 글에 틀린 핵심이 하나 더 있었다
+    const raw = scoreTaxonomy({ ...input, rawAnswers: new Map([...input.answers, [3, ans(['backend'])]]) });
+    expect(raw.metrics).toMatchObject({ rawCorePrecision: ratio(2, 4), rawCoreRecall: ratio(2, 3), corePrecision: ratio(2, 3), coreRecall: ratio(2, 3) });
   });
 
   it('라벨러 일치도: 둘 다 빈 핵심은 두 비율 모두 맞음이다', () => {
