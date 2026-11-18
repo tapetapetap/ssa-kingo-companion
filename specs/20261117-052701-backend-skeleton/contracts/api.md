@@ -17,6 +17,7 @@
 | login_off | 403 | 이 모드에서 꺼진 로그인 방식(운영 모드의 개발 로그인) |
 | consent_required | 403 | 동의 전에는 학생 자료를 받지 않음(FR-015) |
 | forbidden | 403 | 남의 자료, 또는 운영자가 아님 |
+| bad_request | 400 | JSON이 아니거나 본문이 64KB를 넘음 |
 | not_found | 404 | |
 | invalid | 422 | 값이 규칙에 어긋남. `field`로 칸 이름을 줌 |
 | too_few_fields | 422 | 분야를 3개보다 적게 고름 |
@@ -41,6 +42,10 @@
 - `action`은 이 학생의 지금 행동이고 없으면 `null`이다.
 - 규칙 점수와 벡터 유사도는 어디에도 없다(FR-024).
 
+## 상태
+
+`GET /api/health`는 로그인 없이 `{ "ok": true }`만 준다(문지기와 상태 보기 명령이 쓴다). 다른 정보는 주지 않는다.
+
 ## 로그인과 계정
 
 | 요청 | 본문 | 답 |
@@ -57,7 +62,7 @@
 | 요청 | 본문 | 답 |
 |---|---|---|
 | `GET /api/consent` | | `{ version, text }`(문구는 서버 설정 파일에서) |
-| `POST /api/consent` | `{ version }` | 204. 지금 판이 아니면 `invalid` |
+| `POST /api/consent` | `{ version }` | 204. 지금 판이 아니면 `invalid`. 문구의 판이 바뀌면 `next`가 다시 `consent`다(R23) |
 | `GET /api/me/answers` | | `{ grade, term, goal, answeredAt }`, 없으면 404 |
 | `PUT /api/me/answers` | `{ grade: 1~4, term: 1\|2, goal: "job"\|"grad"\|"startup"\|"unsure" }` | 200 같은 꼴. 거절: `consent_required`, `invalid` |
 | `GET /api/fields` | | `{ taxonomy: { id, name, edition }, groups: [{ id, name, parent }], fields: [{ id, name, group, desc }] }`(목록 순서, FR-017) |
