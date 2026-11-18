@@ -12,6 +12,20 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # DB 시험은 진짜 Postgres에서 돈다(2단계 research R19). 개발 DB와 같은 이미지·값이다
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: kingo
+          POSTGRES_PASSWORD: kingo
+          POSTGRES_DB: kingo
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U kingo -d kingo" --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      DATABASE_URL: postgres://kingo:kingo@127.0.0.1:54329/kingo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

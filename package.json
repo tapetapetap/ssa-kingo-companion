@@ -15,9 +15,12 @@
     "test": "vitest",
     "audit:entries": "vitest run src/app/audit --silent=false",
     "audit:layout": "node scripts/audit-layout/run.mjs",
-    "audit:copy": "node scripts/audit-copy/run.mjs"
+    "audit:copy": "node scripts/audit-copy/run.mjs",
+    "server": "node --env-file-if-exists=.env server/main.ts",
+    "cli": "node --env-file-if-exists=.env server/cli.ts"
   },
   "dependencies": {
+    "postgres": "^3.4.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
