@@ -4,7 +4,7 @@
 
 **Input**: Feature specification from `specs/20261117-052701-backend-skeleton/spec.md`
 
-**상태**: 2026-11-18 밤 위임으로 초안을 쓰고, 같은 날 사용자가 spec '사용자 확인 필요' 20개를 추천값으로 정했다. 그 뒤 계획을 다시 검토해 고친 곳: 포트를 여는 문지기(R16, 실험으로 확인), 사람 판정과 보이는 값(R22), 확인할 것의 이유(R11), 백업 도구(R15).
+**상태**: 2026-11-18 밤 위임으로 초안을 쓰고, 같은 날 사용자가 spec '사용자 확인 필요' 20개를 추천값으로 정했다. 그 뒤 계획을 다시 검토해 고친 곳: 포트를 여는 문지기(R16, 실험으로 확인), 사람 판정과 보이는 값(R22), 확인할 것의 이유(R11), 백업 도구(R15), Node 판과 경로 표(R1·R2, CI가 Node 22).
 
 ## Summary
 
@@ -17,9 +17,9 @@
 
 ## Technical Context
 
-**Language/Version**: TypeScript, Node 26(빌드 없이 타입 제거로 실행, 1단계와 같음), ESM
+**Language/Version**: TypeScript, Node 22.18 이상(빌드 없이 타입 제거로 실행, 1단계와 같음. CI는 `.nvmrc`의 22), ESM
 
-**Primary Dependencies**: Node 표준(`node:http`, `URLPattern`, `node:crypto`), `postgres`(새, R3), 1단계 모듈(`etl/notices/throttle.ts`·`sensors.ts`·`embed.ts`, `etl/taxonomy/taxonomy.ts`). 운영자 화면은 Vite + React + astryx(R17)
+**Primary Dependencies**: Node 표준(`node:http`, `node:crypto`), `postgres`(새, R3), 1단계 모듈(`etl/notices/throttle.ts`·`sensors.ts`·`embed.ts`, `etl/taxonomy/taxonomy.ts`). 운영자 화면은 Vite + React + astryx(R17)
 
 **Storage**: Postgres 17 + pgvector(`vector(1024)`), 표 25개([data-model.md](data-model.md))
 
@@ -75,7 +75,7 @@ specs/20261117-052701-backend-skeleton/
 ```text
 server/
 ├── main.ts              # api 시작: 모드 확인, 경로 표, 다시 고르기 일꾼
-├── http.ts              # URLPattern 경로 표, JSON·쿠키, 오류, 로그인·운영자 확인
+├── http.ts              # 경로 표(`/api/notices/:id` 꼴), JSON·쿠키, 오류, 로그인·운영자 확인
 ├── config.ts            # 환경 변수, 운영자 목록 파일
 ├── limits.ts            # 첫 숫자 값(R21)
 ├── log.ts               # JSON 기록, 금지어를 남기지 않음

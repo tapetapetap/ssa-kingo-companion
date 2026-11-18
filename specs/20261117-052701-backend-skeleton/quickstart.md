@@ -4,13 +4,13 @@
 
 ## 준비
 
-- Docker(Compose 포함), Node 26 LTS, 저장소 루트에서 `npm install`
+- Docker(Compose 포함), Node 22.18 이상, 저장소 루트에서 `npm install`
 - 개발 맥: Ollama를 맥에서 바로 띄우고 `gemma4:12b`, `bge-m3`를 받아 둔다. 학교 데스크톱: compose의 `ollama` 서비스
 - 저장소 밖 `.env`: `.env.example`을 복사해 DB 비밀번호를 채운다
 - 1단계 결과 파일 `etl/out/cse-notices.json`과 분야 목록 `etl/taxonomy/<id>.json`, 1단계 벡터 보관(`etl/.cache/embed`)
 
 ```sh
-docker compose up -d db
+docker compose -f deploy/compose.dev.yaml up -d   # 개발·시험용 DB(127.0.0.1:54329)
 node server/cli.ts migrate
 ```
 
@@ -65,8 +65,8 @@ curl로 `login → consent → answers → fields → home`을 차례로 부른�
 ## 6. 학교 데스크톱(US6, SC-006, SC-009, SC-012)
 
 ```sh
-docker compose --profile setup run --rm ollama-pull   # 처음 한 번: 모델 받기
-docker compose up -d          # db, ollama, api, proxy
+docker compose -f deploy/compose.yaml --profile setup run --rm ollama-pull   # 처음 한 번: 모델 받기
+docker compose -f deploy/compose.yaml up -d          # db, ollama, api, proxy
 sudo systemctl enable --now kingo-daily.timer
 node server/cli.ts status
 ```
