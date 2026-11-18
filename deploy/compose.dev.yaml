@@ -1,0 +1,20 @@
+# 개발·시험용 DB 하나(research R16·R19). 이 컴퓨터 안(127.0.0.1)에서만 열고, 값은 개발용이다.
+# 운영 묶음은 deploy/compose.yaml(US6)이다. 운영의 db는 internal 네트워크에만 있어 포트를 열지 않는다.
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: kingo
+      POSTGRES_PASSWORD: kingo
+      POSTGRES_DB: kingo
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - kingo-dev-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kingo -d kingo"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  kingo-dev-db:

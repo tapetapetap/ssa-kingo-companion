@@ -11,6 +11,7 @@ test-results/
 # 환경·로컬 파일
 .env
 .env.*
+!.env.example
 .DS_Store
 *.log
 

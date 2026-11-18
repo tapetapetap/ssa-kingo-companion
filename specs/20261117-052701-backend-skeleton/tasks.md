@@ -18,11 +18,11 @@
 
 **Purpose**: 서버 코드가 설 자리와 시험용 DB
 
-- [ ] T001 `package.json`에 의존성 `postgres`를 더하고(research R3) scripts에 `"server": "node --env-file-if-exists=.env server/main.ts"`, `"cli": "node --env-file-if-exists=.env server/cli.ts"`를 넣는다(research R20). `tsconfig.json`의 `include`에 `server`를 더한다
-- [ ] T002 [P] `deploy/compose.dev.yaml`을 쓴다(개발·시험용 DB 하나): `pgvector/pgvector:pg17`, 사용자·비밀번호·DB 이름 모두 `kingo`(이 컴퓨터 안에서만 여는 개발 값), 이름 있는 볼륨, healthcheck(`pg_isready`), 포트 `127.0.0.1:54329:5432`. 운영 묶음(`deploy/compose.yaml`)은 US6에서 쓴다(운영의 db는 internal 네트워크에만 있어 포트를 열 수 없다, research R16)
-- [ ] T003 [P] `.env.example`을 쓴다(research R20 표의 변수와 개발 기본값. `DATABASE_URL`은 개발 DB 주소). `.gitignore`의 `.env.*`가 이 파일도 막으므로 `!.env.example`을 더하고, `.env`는 여전히 막히는지 `git check-ignore`로 확인한다
-- [ ] T004 [P] `.github/workflows/ci.yml`의 check 작업과 `.github/workflows/deploy.yml`의 check 단계(main에 push될 때 `npm run check`를 돌린다)에 `services.postgres`(같은 이미지, 사용자·비밀번호·DB `kingo`, healthcheck)와 `DATABASE_URL` 환경 변수를 더한다
-- [ ] T005 [P] `server/limits.ts`에 research R21의 첫 숫자 값을 이름 붙인 상수로 둔다(spec 사용자 확인 19번의 값 그대로)
+- [X] T001 `package.json`에 의존성 `postgres`를 더하고(research R3) scripts에 `"server": "node --env-file-if-exists=.env server/main.ts"`, `"cli": "node --env-file-if-exists=.env server/cli.ts"`를 넣는다(research R20). `tsconfig.json`의 `include`에 `server`를 더한다
+- [X] T002 [P] `deploy/compose.dev.yaml`을 쓴다(개발·시험용 DB 하나): `pgvector/pgvector:pg17`, 사용자·비밀번호·DB 이름 모두 `kingo`(이 컴퓨터 안에서만 여는 개발 값), 이름 있는 볼륨, healthcheck(`pg_isready`), 포트 `127.0.0.1:54329:5432`. 운영 묶음(`deploy/compose.yaml`)은 US6에서 쓴다(운영의 db는 internal 네트워크에만 있어 포트를 열 수 없다, research R16)
+- [X] T003 [P] `.env.example`을 쓴다(research R20 표의 변수와 개발 기본값. `DATABASE_URL`은 개발 DB 주소). `.gitignore`의 `.env.*`가 이 파일도 막으므로 `!.env.example`을 더하고, `.env`는 여전히 막히는지 `git check-ignore`로 확인한다
+- [X] T004 [P] `.github/workflows/ci.yml`의 check 작업과 `.github/workflows/deploy.yml`의 check 단계(main에 push될 때 `npm run check`를 돌린다)에 `services.postgres`(같은 이미지, 사용자·비밀번호·DB `kingo`, healthcheck)와 `DATABASE_URL` 환경 변수를 더한다
+- [X] T005 [P] `server/limits.ts`에 research R21의 첫 숫자 값을 이름 붙인 상수로 둔다(spec 사용자 확인 19번의 값 그대로)
 
 ---
 
@@ -30,16 +30,16 @@
 
 **Purpose**: 모든 이야기가 쓰는 바탕(설정, 기록, DB 연결과 스키마 바꾸기, HTTP 틀, 시험 틀)
 
-- [ ] T006 [P] `server/config.test.ts`를 쓴다(research R20 표): `KINGO_MODE`가 없거나 dev·prod가 아니면 던진다, `DATABASE_URL`이 없으면 던진다, 기본값(`PORT` 8080, `OLLAMA_HOST`, `KINGO_LLM_MODEL`, `KINGO_API_URL`, 개발 모드의 `KINGO_CONSENT_FILE`)이 채워진다, 운영 모드에 `KINGO_CONSENT_FILE`이 없으면 던진다
-- [ ] T007 [P] `server/log.test.ts`를 쓴다: 한 줄 JSON이고, 요청 기록에 방법·경로 틀·상태·걸린 시간·학생 번호만 있고 본문·쿠키가 없다(FR-047)
-- [ ] T008 [P] `server/db/migrate.test.ts`를 쓴다: 빈 스키마에 번호 순서로 적용한다, 두 번 돌려도 한 번만 적용한다, 적용한 이름이 `schema_migrations`에 남는다
-- [ ] T009 `server/http.test.ts`를 쓴다: 경로 표가 `/api/notices/:id`의 `id`를 꺼낸다, 없는 경로는 404 `not_found`, JSON이 아니거나 64KB를 넘으면 400 `bad_request`, 상태를 바꾸는 요청에 같은 출처 `Origin`과 JSON `Content-Type`이 없으면 403 `bad_origin`, 오류 꼴이 `{ error: { code, message } }`, 던진 오류는 500 `server_error`이고 기록에 본문이 없다, `GET /api/health`는 `{ ok: true }` 같은 출처는 `Origin`의 host와 `Host`가 같음(스킴은 안 봄), 본문이 없는 POST는 `{}`로 봄.
-- [ ] T010 `server/config.ts`, `server/log.ts`를 쓴다(T006·T007 통과)
-- [ ] T011 `server/db/sql.ts`(연결, `search_path`를 `<스키마>, public`으로 정하기, `withModelLock`은 US3에서)와 `server/db/migrate.ts`, `server/db/migrations/001_base.sql`(`create extension if not exists vector with schema public`, `schema_migrations`)을 쓴다(T008 통과)
-- [ ] T012 `server/test/db.ts`를 쓴다: 시험 파일마다 `t_<무작위>` 스키마를 만들고 마이그레이션을 적용해 연결을 돌려주며, 끝나면 스키마를 지운다. 확장은 DB에 하나라 `pg_advisory_xact_lock` 안에서 `public`에 한 번 만든다(여러 시험 파일이 함께 시작해도 부딪히지 않게, research R19). 주소는 `DATABASE_URL`이고 없으면 개발 DB 주소다. DB에 닿지 못하면 `DB 시험에는 Postgres가 필요해요: docker compose -f deploy/compose.dev.yaml up -d`로 실패한다(건너뛰지 않는다)
-- [ ] T013 `server/http.ts`를 쓴다(T009 통과): 경로 표, `HttpError`, JSON·쿠키, `Origin` 검사, 요청 기록
-- [ ] T014 `server/test/app.ts`(시험에서 서버를 임시 포트로 띄우고 쿠키를 들고 요청하는 도우미)와 `server/main.ts`(설정 → DB 연결 → 적용 안 된 마이그레이션이 있으면 이유를 내고 끝 → 서버 시작)를 쓴다. `server/test/`와 `*.test.ts`는 T082의 바깥 요청 검사에서 뺀다
-- [ ] T015 `server/cli.test.ts`와 `server/cli.ts`의 틀을 쓴다: 명령 나누기, `migrate`, 끝 코드(0·1·2), `--json`, 모르는 명령은 쓰는 법과 2(contracts/cli.md)
+- [X] T006 [P] `server/config.test.ts`를 쓴다(research R20 표): `KINGO_MODE`가 없거나 dev·prod가 아니면 던진다, `DATABASE_URL`이 없으면 던진다, 기본값(`PORT` 8080, `OLLAMA_HOST`, `KINGO_LLM_MODEL`, `KINGO_API_URL`, 개발 모드의 `KINGO_CONSENT_FILE`)이 채워진다, 운영 모드에 `KINGO_CONSENT_FILE`이 없으면 던진다
+- [X] T007 [P] `server/log.test.ts`를 쓴다: 한 줄 JSON이고, 요청 기록에 방법·경로 틀·상태·걸린 시간·학생 번호만 있고 본문·쿠키가 없다(FR-047)
+- [X] T008 [P] `server/db/migrate.test.ts`를 쓴다: 빈 스키마에 번호 순서로 적용한다, 두 번 돌려도 한 번만 적용한다, 적용한 이름이 `schema_migrations`에 남는다
+- [X] T009 `server/http.test.ts`를 쓴다: 경로 표가 `/api/notices/:id`의 `id`를 꺼낸다, 없는 경로는 404 `not_found`, JSON이 아니거나 64KB를 넘으면 400 `bad_request`, 상태를 바꾸는 요청에 같은 출처 `Origin`과 JSON `Content-Type`이 없으면 403 `bad_origin`, 오류 꼴이 `{ error: { code, message } }`, 던진 오류는 500 `server_error`이고 기록에 본문이 없다, `GET /api/health`는 `{ ok: true }` 같은 출처는 `Origin`의 host와 `Host`가 같음(스킴은 안 봄), 본문이 없는 POST는 `{}`로 봄.
+- [X] T010 `server/config.ts`, `server/log.ts`를 쓴다(T006·T007 통과)
+- [X] T011 `server/db/sql.ts`(연결, `search_path`를 `<스키마>, public`으로 정하기, `withModelLock`은 US3에서)와 `server/db/migrate.ts`, `server/db/migrations/001_base.sql`(`create extension if not exists vector with schema public`, `schema_migrations`)을 쓴다(T008 통과)
+- [X] T012 `server/test/db.ts`를 쓴다: 시험 파일마다 `t_<무작위>` 스키마를 만들고 마이그레이션을 적용해 연결을 돌려주며, 끝나면 스키마를 지운다. 확장은 DB에 하나라 `pg_advisory_xact_lock` 안에서 `public`에 한 번 만든다(여러 시험 파일이 함께 시작해도 부딪히지 않게, research R19). 주소는 `DATABASE_URL`이고 없으면 개발 DB 주소다. DB에 닿지 못하면 `DB 시험에는 Postgres가 필요해요: docker compose -f deploy/compose.dev.yaml up -d`로 실패한다(건너뛰지 않는다)
+- [X] T013 `server/http.ts`를 쓴다(T009 통과): 경로 표, `HttpError`, JSON·쿠키, `Origin` 검사, 요청 기록
+- [X] T014 `server/test/app.ts`(시험에서 서버를 임시 포트로 띄우고 쿠키를 들고 요청하는 도우미)와 `server/main.ts`(설정 → DB 연결 → 적용 안 된 마이그레이션이 있으면 이유를 내고 끝 → 서버 시작)를 쓴다. `server/test/`와 `*.test.ts`는 T082의 바깥 요청 검사에서 뺀다
+- [X] T015 `server/cli.test.ts`와 `server/cli.ts`의 틀을 쓴다: 명령 나누기, `migrate`, 끝 코드(0·1·2), `--json`, 모르는 명령은 쓰는 법과 2(contracts/cli.md)
 - [ ] T016 단계 마무리(PR '2단계 바탕': Phase 1~2). PR 본문에 `docker compose -f deploy/compose.dev.yaml up -d`와 `npm run check`를 적는다
 
 **Checkpoint**: 빈 서버가 뜨고 `GET /api/health`가 답한다. DB 시험이 CI에서 돈다.
