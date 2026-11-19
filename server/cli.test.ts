@@ -15,7 +15,7 @@ afterEach(() => { vi.restoreAllMocks(); });
 const quiet = () => ({ err: vi.spyOn(console, 'error').mockImplementation(() => {}), log: vi.spyOn(console, 'log').mockImplementation(() => {}) });
 
 describe('cli (contracts/cli.md)', () => {
-  it.each([[[]], [['nope']], [['migrate', 'x']], [['ingest']], [['ingest', 'a.json']], [['ingest', 'a.json', '--taxonomy']], [['ingest', 'a.json', 'b.json', '--taxonomy', 'custom']]])('%j는 쓰는 법과 2', async args => {
+  it.each([[[]], [['nope']], [['migrate', 'x']], [['ingest']], [['ingest', 'a.json']], [['ingest', 'a.json', '--taxonomy']], [['ingest', 'a.json', 'b.json', '--taxonomy', 'custom']], [['account']], [['account', 'make', 'a@b.co']], [['account', 'delete', 'a@b.co', '--dept', 'x']]])('%j는 쓰는 법과 2', async args => {
     const { err } = quiet();
     expect(await main(args, { sql: db.sql })).toBe(2);
     expect(String(err.mock.calls[0][0])).toMatch(/^쓰는 법: /);
@@ -50,5 +50,23 @@ describe('cli (contracts/cli.md)', () => {
     expect(String(err.mock.calls[0][0])).toContain('넣지 않았어요: 지금 분야 목록은 custom이에요');
     expect(await main(['ingest', join(dir, 'none.json'), '--taxonomy', 'custom'], { sql: db.sql, ingest: extra })).toBe(1);
     expect(String(err.mock.calls[1][0])).toContain('결과 파일을 읽지 못했어요');
+  });
+
+  it('account: 만들기·비밀번호 바꾸기·지우기. 비밀번호는 표준 입력으로 받고, 운영 모드는 만들기·바꾸기를 거절한다', async () => {
+    const { err, log } = quiet();
+    const pw = (s: string) => async () => `${s}\n`;
+    expect(await main(['account', 'create', 'Dev1@Example.com', '--dept', '지능형소프트웨어학과'], { sql: db.sql, stdin: pw('correct horse') })).toBe(0);
+    expect(String(log.mock.calls[0][0])).toBe('개발 계정을 만들었어요: dev1@example.com');
+    expect((await db.sql`select s.dept, m.subject from students s join login_methods m on m.student_id = s.id`)[0]).toMatchObject({ dept: '지능형소프트웨어학과', subject: 'dev1@example.com' });
+    expect(await main(['account', 'create', 'dev1@example.com'], { sql: db.sql, stdin: pw('correct horse') })).toBe(1);
+    expect(String(err.mock.calls.at(-1)?.[0])).toContain('이미 있는 계정이에요');
+    expect(await main(['account', 'create', 'dev2@example.com'], { sql: db.sql, stdin: pw('short') })).toBe(1);
+    expect(String(err.mock.calls.at(-1)?.[0])).toContain('8자 이상');
+    expect(await main(['account', 'password', 'dev1@example.com'], { sql: db.sql, stdin: pw('another horse') })).toBe(0);
+    expect(await main(['account', 'password', 'dev1@example.com'], { sql: db.sql, env: { KINGO_MODE: 'prod' }, stdin: pw('another horse') })).toBe(1);
+    expect(String(err.mock.calls.at(-1)?.[0])).toContain('운영 모드에서는 개발 계정을');
+    expect(await main(['account', 'delete', 'dev1@example.com'], { sql: db.sql, env: { KINGO_MODE: 'prod' } })).toBe(0);
+    expect(Number((await db.sql`select count(*) n from students`)[0].n)).toBe(0);
+    expect(await main(['account', 'delete', 'dev1@example.com'], { sql: db.sql })).toBe(1);
   });
 });

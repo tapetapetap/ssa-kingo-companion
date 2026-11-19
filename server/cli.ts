@@ -2,14 +2,24 @@
 import { readFileSync } from 'node:fs';
 import { makeEmbed } from '../etl/notices/embed.ts';
 import { createThrottle } from '../etl/notices/throttle.ts';
+import { accountCommand } from './auth/accounts.ts';
 import { loadConfig, type Mode } from './config.ts';
 import { migrate } from './db/migrate.ts';
 import { connect, type Sql } from './db/sql.ts';
 import { ingest, summaryLine, type IngestDeps } from './ingest/ingest.ts';
 
-const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] (모두 --json)';
+const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] | account create <이메일> [--dept <학과>] | account password <이메일> | account delete <이메일> (모두 --json)';
 
-type Deps = { sql?: Sql; env?: Record<string, string | undefined>; ingest?: Partial<IngestDeps> };
+/** stdin은 비밀번호를 받는 곳이다(시험은 글로 넣는다). 명령 기록에 남지 않게 인자로 받지 않는다 */
+type Deps = { sql?: Sql; env?: Record<string, string | undefined>; ingest?: Partial<IngestDeps>; stdin?: () => Promise<string> };
+const readStdin = async () => { let s = ''; for await (const c of process.stdin) s += String(c); return s; };
+
+function accountArgs(rest: string[]): { action: string; email: string; dept?: string } | null {
+  const [action, email, ...more] = rest;
+  if (!['create', 'password', 'delete'].includes(action) || !email || email.startsWith('--')) return null;
+  if (more.length === 0) return { action, email };
+  return action === 'create' && more.length === 2 && more[0] === '--dept' && !more[1].startsWith('--') ? { action, email, dept: more[1] } : null;
+}
 
 /** ingest 인자: 파일 하나와 --taxonomy <id>, 깃발 둘. 틀리면 null */
 function ingestArgs(rest: string[]): { path: string; taxonomy: string; switch: boolean; dryRun: boolean } | null {
@@ -26,7 +36,8 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
   const json = args.includes('--json');
   const [cmd, ...rest] = args.filter(a => a !== '--json');
   const ing = cmd === 'ingest' ? ingestArgs(rest) : null;
-  if (!(cmd === 'migrate' && rest.length === 0) && !ing) {
+  const acc = cmd === 'account' ? accountArgs(rest) : null;
+  if (!(cmd === 'migrate' && rest.length === 0) && !ing && !acc) {
     console.error(USAGE);
     return 2;
   }
@@ -35,6 +46,12 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
     const mode: Mode = deps.sql ? (deps.env?.KINGO_MODE === 'prod' ? 'prod' : 'dev') : loadConfig(deps.env).mode;
     sql ??= connect(loadConfig(deps.env).databaseUrl);
     if (ing) return await runIngest(sql, ing, mode, json, deps.ingest);
+    if (acc) {
+      const password = acc.action === 'delete' ? undefined : (await (deps.stdin ?? readStdin)()).replace(/\r?\n$/, '');
+      const msg = await accountCommand(sql, mode, acc.action, acc.email, { password, dept: acc.dept });
+      console.log(json ? JSON.stringify({ ok: true, message: msg }) : msg);
+      return 0;
+    }
     const done = await migrate(sql);
     console.log(json ? JSON.stringify({ applied: done }) : done.length ? `스키마 바꾸기 ${done.length}개를 적용했어요: ${done.join(', ')}` : '적용할 스키마 바꾸기가 없어요');
     return 0;

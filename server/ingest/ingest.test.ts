@@ -97,6 +97,18 @@ describe('ingest (US1)', () => {
     expect((await db.sql`select id from taxonomies where active`).map(x => x.id)).toEqual(['csrankings']);
   });
 
+  it('목록의 새 판에서 사라진 분야는 고른 분야에서 빠지고, 목록을 갈아타면 고른 분야가 모두 지워진다(FR-008)', async () => {
+    const d = deps();
+    await ingest(file(), 'custom', {}, d);
+    const [s] = await db.sql`insert into students default values returning id`;
+    for (const f of ['backend', 'qa', 'frontend']) await db.sql`insert into student_fields (student_id, field_id) values (${s.id}, ${f})`;
+    // 'qa'가 사라진 새 판(1안 규칙 80개 이상을 지키려고 이름만 바꾼다)
+    await ingest(file(), 'custom', {}, { ...d, taxonomyDir: lists((id, t) => { if (id === 'custom') t.fields = t.fields.map(f => (f.id === 'qa' ? { ...f, id: 'qa-new' } : f)); }) });
+    expect((await db.sql`select field_id from student_fields order by field_id`).map(x => x.field_id)).toEqual(['backend', 'frontend']);
+    await ingest(file(), 'csrankings', { switch: true }, d);
+    expect(await count('select count(*) n from student_fields')).toBe(0);
+  });
+
   it('--dry-run은 요약만 내고 아무것도 쓰지 않으며 모델을 부르지 않는다', async () => {
     const embed = fakeEmbed();
     const r = await ingest(file(), 'custom', { dryRun: true }, deps({ embed }));

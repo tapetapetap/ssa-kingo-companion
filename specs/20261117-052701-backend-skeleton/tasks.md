@@ -79,20 +79,20 @@
 
 ### Tests for User Story 2
 
-- [ ] T026 [P] [US2] `server/auth/password.test.ts`를 쓴다: 같은 비밀번호도 저장 글이 다르다(솔트), 맞으면 참·틀리면 거짓, 꼴이 틀린 저장 글은 거짓, 8자 미만은 거절
-- [ ] T027 [US2] `server/auth/auth.test.ts`를 쓴다(계약 시험: login, logout, me, DELETE me): spec US2의 시나리오 1·5·6·7·8·9, 30일이 지난 로그인은 `login_required`, 쓸 때 늘어남, 로그아웃하면 그 쿠키가 바로 끝남, 운영 모드에 켜진 로그인 방식이 없으면 서버가 시작하지 않고 이유를 냄, 시험용 로그인 방식을 켠 운영 모드 서버에서 개발 로그인은 `login_off`(SC-008), 운영 모드는 판이 `dev-`로 시작하는 동의 문구로는 시작하지 않음(research R23), 쿠키 속성(HttpOnly, SameSite=Lax, Path=/, Max-Age 30일, 운영 모드 Secure) 운영 모드에서 `X-Forwarded-Proto: https`가 없는 로그인은 `https_required`, 잠금이 끝난 뒤 첫 시도는 실패 수를 0부터 셈.
-- [ ] T028 [US2] `server/me/onboarding.test.ts`를 쓴다(계약 시험: consent, answers, fields, me/fields): spec US2의 시나리오 2·3·4, `next`의 네 값, 문구 판이 바뀌면 다시 `consent`(R23), 목록이 바뀌어 고른 분야가 3개보다 적어지면 `next`가 `fields`(FR-008), `GET /api/fields`가 목록 순서대로 준다
+- [X] T026 [P] [US2] `server/auth/password.test.ts`를 쓴다: 같은 비밀번호도 저장 글이 다르다(솔트), 맞으면 참·틀리면 거짓, 꼴이 틀린 저장 글은 거짓, 8자 미만은 거절
+- [X] T027 [US2] `server/auth/auth.test.ts`를 쓴다(계약 시험: login, logout, me, DELETE me): spec US2의 시나리오 1·5·6·7·8·9, 30일이 지난 로그인은 `login_required`, 쓸 때 늘어남, 로그아웃하면 그 쿠키가 바로 끝남, 운영 모드에 켜진 로그인 방식이 없으면 서버가 시작하지 않고 이유를 냄, 시험용 로그인 방식을 켠 운영 모드 서버에서 개발 로그인은 `login_off`(SC-008), 운영 모드는 판이 `dev-`로 시작하는 동의 문구로는 시작하지 않음(research R23), 쿠키 속성(HttpOnly, SameSite=Lax, Path=/, Max-Age 30일, 운영 모드 Secure) 운영 모드에서 `X-Forwarded-Proto: https`가 없는 로그인은 `https_required`, 잠금이 끝난 뒤 첫 시도는 실패 수를 0부터 셈.
+- [X] T028 [US2] `server/me/onboarding.test.ts`를 쓴다(계약 시험: consent, answers, fields, me/fields): spec US2의 시나리오 2·3·4, `next`의 네 값, 문구 판이 바뀌면 다시 `consent`(R23), 목록이 바뀌어 고른 분야가 3개보다 적어지면 `next`가 `fields`(FR-008), `GET /api/fields`가 목록 순서대로 준다
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] `server/db/migrations/003_students.sql`을 쓴다(data-model 1의 `students`, `login_methods`, `sessions`, `consents`, `answers`, `student_fields`)
-- [ ] T030 [P] [US2] `server/auth/password.ts`를 쓴다(scrypt, research R5. T026 통과)
-- [ ] T031 [US2] `server/auth/methods.ts`(로그인 방식 꼴과 개발 로그인, 잠금), `server/auth/sessions.ts`(토큰 만들기·확인·지우기, DB에는 해시만)를 쓴다
-- [ ] T032 [US2] `server/auth/routes.ts`를 쓴다: login, logout, me, DELETE me. `server/http.ts`의 로그인 확인이 `sessions.ts`를 쓴다. 운영 모드의 시작 검사를 `server/main.ts`에 넣는다(T027 통과)
-- [ ] T033 [US2] `server/me/consent.ts`(문구 파일 읽기, 동의 기록, 동의 확인 함수), `server/me/answers.ts`, `server/me/fields.ts`(분야 목록 읽기와 고른 분야), `server/me/next.ts`(다음 할 일)를 쓰고 경로를 잇는다(T028 통과). `deploy/consent.dev.md`를 둔다
-- [ ] T034 [US2] `server/ingest/ingest.ts`가 목록에서 사라진 분야를 `student_fields`에서 지우고, `--switch`로 갈아탈 때는 모두 지우게 한다(FR-008, research R11. 시험은 `server/ingest/ingest.test.ts`에 더한다)
-- [ ] T035 [US2] `server/cli.ts`에 `account create|password|delete`를 더한다(비밀번호는 표준 입력, 운영 모드는 create·password 거절. 시험은 `server/cli.test.ts`)
-- [ ] T036 [US2] quickstart 2를 curl로 돌려 확인한다(홈 줄은 홈이 생긴 뒤 T055에서 본다)
+- [X] T029 [US2] `server/db/migrations/003_students.sql`을 쓴다(data-model 1의 `students`, `login_methods`, `sessions`, `consents`, `answers`, `student_fields`)
+- [X] T030 [P] [US2] `server/auth/password.ts`를 쓴다(scrypt, research R5. T026 통과)
+- [X] T031 [US2] `server/auth/methods.ts`(로그인 방식 꼴과 개발 로그인, 잠금), `server/auth/sessions.ts`(토큰 만들기·확인·지우기, DB에는 해시만)를 쓴다
+- [X] T032 [US2] `server/auth/routes.ts`를 쓴다: login, logout, me, DELETE me. `server/http.ts`의 로그인 확인이 `sessions.ts`를 쓴다. 운영 모드의 시작 검사를 `server/main.ts`에 넣는다(T027 통과)
+- [X] T033 [US2] `server/me/consent.ts`(문구 파일 읽기, 동의 기록, 동의 확인 함수), `server/me/answers.ts`, `server/me/fields.ts`(분야 목록 읽기와 고른 분야), `server/me/next.ts`(다음 할 일)를 쓰고 경로를 잇는다(T028 통과). `deploy/consent.dev.md`를 둔다
+- [X] T034 [US2] `server/ingest/ingest.ts`가 목록에서 사라진 분야를 `student_fields`에서 지우고, `--switch`로 갈아탈 때는 모두 지우게 한다(FR-008, research R11. 시험은 `server/ingest/ingest.test.ts`에 더한다)
+- [X] T035 [US2] `server/cli.ts`에 `account create|password|delete`를 더한다(비밀번호는 표준 입력, 운영 모드는 create·password 거절. 시험은 `server/cli.test.ts`)
+- [X] T036 [US2] quickstart 2를 curl로 돌려 확인한다(홈 줄은 홈이 생긴 뒤 T055에서 본다)
 - [ ] T037 [US2] 단계 마무리(PR '2단계 로그인과 첫 흐름'. security-review를 함께 돌린다)
 
 **Checkpoint**: 학생이 로그인해 첫 흐름을 마친다(홈은 아직 없다).

@@ -113,3 +113,6 @@ export function createServer(routes: Route[], write?: Write): Server {
     }
   });
 }
+
+/** 계약의 때 꼴: 한국 시간 +09:00이 붙은 ISO 글(contracts/api.md 공통) */
+export const kstIso = (d: Date) => `${new Date(d.getTime() + 9 * 3600_000).toISOString().slice(0, 23)}+09:00`;
