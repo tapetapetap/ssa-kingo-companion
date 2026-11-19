@@ -54,17 +54,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T017 [P] [US1] `server/ingest/check.test.ts`를 쓴다: 결과 파일 계약(`specs/20261107-193624-cse-notice-opportunities/contracts/cse-notices.schema.json`)의 규칙마다 맞는 예와 어긋난 예(필수 칸, id·url·날짜 꼴, 종류 11가지, 근거 꼴, 분야는 핵심 2개·관련 5개까지이고 겹치지 않음, 머리의 분야 목록 id). 어긋난 곳의 경로와 이유를 모두 돌려준다
-- [ ] T018 [US1] `server/ingest/ingest.test.ts`를 쓴다(가짜 결과 파일과 `etl/taxonomy/fixtures.ts`의 목록): spec US1의 시나리오 1~7과 Edge Cases(기준일 앞 공지는 그대로, 내려간 공지가 다시 나오면 되살림, 머리의 목록 id가 `--taxonomy`와 다르면 거절, 활성 목록과 다른 목록은 `--switch` 없이 거절, 분야 id가 목록에 없으면 아무것도 바뀌지 않음, 도중에 던지면 되돌림). 확인 필요 글 둘이 든 파일: `notices`에 `is_notice`가 거짓으로 들어가고 요약이 `확인 필요 2`이며 새·바뀜·그대로에 세지 않는다, 다음 파일에서 빠지면 내려감이다, 기회가 확인 필요로 바뀌면 `is_notice`가 거짓이 된다(research R11). 벡터: 길이가 1024가 아닌 보관 벡터는 그 벡터만 넣지 않고 '못 만듦'에 센다, 벡터가 빈 공지는 다음 넣기가 다시 만들고 '그대로'로 센다. 사라진 분야가 고른 분야에서 빠지는 것은 US2(T034)에서 더한다 같은 파일을 두 번 넣으면 둘째의 벡터 세 수가 모두 0이고, 확인 필요 글은 벡터를 만들지 않음.
+- [X] T017 [P] [US1] `server/ingest/check.test.ts`를 쓴다: 결과 파일 계약(`specs/20261107-193624-cse-notice-opportunities/contracts/cse-notices.schema.json`)의 규칙마다 맞는 예와 어긋난 예(필수 칸, id·url·날짜 꼴, 종류 11가지, 근거 꼴, 분야는 핵심 2개·관련 5개까지이고 겹치지 않음, 머리의 분야 목록 id). 어긋난 곳의 경로와 이유를 모두 돌려준다
+- [X] T018 [US1] `server/ingest/ingest.test.ts`를 쓴다(가짜 결과 파일과 `etl/taxonomy/fixtures.ts`의 목록): spec US1의 시나리오 1~7과 Edge Cases(기준일 앞 공지는 그대로, 내려간 공지가 다시 나오면 되살림, 머리의 목록 id가 `--taxonomy`와 다르면 거절, 활성 목록과 다른 목록은 `--switch` 없이 거절, 분야 id가 목록에 없으면 아무것도 바뀌지 않음, 도중에 던지면 되돌림). 확인 필요 글 둘이 든 파일: `notices`에 `is_notice`가 거짓으로 들어가고 요약이 `확인 필요 2`이며 새·바뀜·그대로에 세지 않는다, 다음 파일에서 빠지면 내려감이다, 기회가 확인 필요로 바뀌면 `is_notice`가 거짓이 된다(research R11). 벡터: 길이가 1024가 아닌 보관 벡터는 그 벡터만 넣지 않고 '못 만듦'에 센다, 벡터가 빈 공지는 다음 넣기가 다시 만들고 '그대로'로 센다. 사라진 분야가 고른 분야에서 빠지는 것은 US2(T034)에서 더한다 같은 파일을 두 번 넣으면 둘째의 벡터 세 수가 모두 0이고, 확인 필요 글은 벡터를 만들지 않음.
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] `server/db/migrations/002_notices.sql`을 쓴다(data-model 2·3의 `taxonomies`, `field_groups`, `fields`, `notices`, `notice_fields`, 5절의 `ingest_runs`). `notices.closes_on`은 계산 칸이다
-- [ ] T020 [P] [US1] `server/ingest/check.ts`를 쓴다(T017 통과). 분야 목록 검사는 `etl/taxonomy/taxonomy.ts`의 `checkTaxonomy`를 부른다
-- [ ] T021 [P] [US1] `server/ingest/vectors.ts`를 쓴다: 분류기 보관 벡터를 `etl/notices/embed.ts`의 `readFieldVectors`·`readNoticeVector`로 읽고, 없으면 `makeEmbed`와 1단계 글 규칙(`fieldText`, `noticeText`)으로 만든다. 본문은 `etl/notices/gold.ts`의 `cachedBody`로 보관본에서만 읽고(학교 서버를 부르지 않는다) 돌려주지 않는다. 길이가 1024가 아닌 벡터는 넣지 않는다(research R11). 넣기는 `embed` 함수를 인자로 받는다. 이 단계의 `ingest` 명령은 `createThrottle()` 문 하나를 `makeEmbed({ gate })`에 넣어 쓴다(부하 제한은 지난다. 모델 잠금은 T051 뒤에 더한다)
-- [ ] T022 [US1] `server/ingest/ingest.ts`를 쓴다(T018 통과): 한 트랜잭션에서 비교하고 쓴다(research R11, R22). 확인 필요 글도 여기서 `is_notice` 거짓으로 넣는다(확인할 것의 이유는 US7의 T072). 활성 목록 정하기와 `--switch` 갈아타기를 한다. 요약은 FR-007의 칸이다. 운영 모드는 `chosen`이 없는 목록을 거절한다
-- [ ] T023 [US1] `server/cli.ts`에 `ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run]`을 더한다(출력 문구는 contracts/cli.md, 시험은 `server/cli.test.ts`)
-- [ ] T024 [US1] quickstart 1을 실제 파일로 돌려 확인하고 요약 줄을 PR 본문에 적는다
+- [X] T019 [US1] `server/db/migrations/002_notices.sql`을 쓴다(data-model 2·3의 `taxonomies`, `field_groups`, `fields`, `notices`, `notice_fields`, 5절의 `ingest_runs`). `notices.closes_on`은 계산 칸이다
+- [X] T020 [P] [US1] `server/ingest/check.ts`를 쓴다(T017 통과). 분야 목록 검사는 `etl/taxonomy/taxonomy.ts`의 `checkTaxonomy`를 부른다
+- [X] T021 [P] [US1] `server/ingest/vectors.ts`를 쓴다: 분류기 보관 벡터를 `etl/notices/embed.ts`의 `readFieldVectors`·`readNoticeVector`로 읽고, 없으면 `makeEmbed`와 1단계 글 규칙(`fieldText`, `noticeText`)으로 만든다. 본문은 `etl/notices/gold.ts`의 `cachedBody`로 보관본에서만 읽고(학교 서버를 부르지 않는다) 돌려주지 않는다. 길이가 1024가 아닌 벡터는 넣지 않는다(research R11). 넣기는 `embed` 함수를 인자로 받는다. 이 단계의 `ingest` 명령은 `createThrottle()` 문 하나를 `makeEmbed({ gate })`에 넣어 쓴다(부하 제한은 지난다. 모델 잠금은 T051 뒤에 더한다)
+- [X] T022 [US1] `server/ingest/ingest.ts`를 쓴다(T018 통과): 한 트랜잭션에서 비교하고 쓴다(research R11, R22). 확인 필요 글도 여기서 `is_notice` 거짓으로 넣는다(확인할 것의 이유는 US7의 T072). 활성 목록 정하기와 `--switch` 갈아타기를 한다. 요약은 FR-007의 칸이다. 운영 모드는 `chosen`이 없는 목록을 거절한다
+- [X] T023 [US1] `server/cli.ts`에 `ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run]`을 더한다(출력 문구는 contracts/cli.md, 시험은 `server/cli.test.ts`)
+- [X] T024 [US1] quickstart 1을 실제 파일로 돌려 확인하고 요약 줄을 PR 본문에 적는다
 - [ ] T025 [US1] 단계 마무리(PR '2단계 넣기')
 
 **Checkpoint**: 서버에 실제 공지 126건과 분야 목록이 있다.

@@ -1,21 +1,40 @@
 // 운영 명령(contracts/cli.md). 끝 코드: 0 성공, 1 거절·실패, 2 쓰는 법이 틀림. --json이면 같은 내용을 JSON으로
-import { loadConfig } from './config.ts';
+import { readFileSync } from 'node:fs';
+import { makeEmbed } from '../etl/notices/embed.ts';
+import { createThrottle } from '../etl/notices/throttle.ts';
+import { loadConfig, type Mode } from './config.ts';
 import { migrate } from './db/migrate.ts';
 import { connect, type Sql } from './db/sql.ts';
+import { ingest, summaryLine, type IngestDeps } from './ingest/ingest.ts';
 
-const USAGE = '쓰는 법: node server/cli.ts migrate [--json]';
+const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] (모두 --json)';
+
+type Deps = { sql?: Sql; env?: Record<string, string | undefined>; ingest?: Partial<IngestDeps> };
+
+/** ingest 인자: 파일 하나와 --taxonomy <id>, 깃발 둘. 틀리면 null */
+function ingestArgs(rest: string[]): { path: string; taxonomy: string; switch: boolean; dryRun: boolean } | null {
+  const flags = new Set(['--switch', '--dry-run']);
+  const at = rest.indexOf('--taxonomy');
+  const taxonomy = at >= 0 ? rest[at + 1] : undefined;
+  const others = rest.filter((a, i) => i !== at && i !== at + 1 && !flags.has(a));
+  if (!taxonomy || taxonomy.startsWith('--') || others.length !== 1 || others[0].startsWith('--')) return null;
+  return { path: others[0], taxonomy, switch: rest.includes('--switch'), dryRun: rest.includes('--dry-run') };
+}
 
 /** 시험은 sql을 넣는다. 없으면 설정의 DB에 붙고 끝나면 닫는다 */
-export async function main(args: string[], deps: { sql?: Sql; env?: Record<string, string | undefined> } = {}): Promise<number> {
+export async function main(args: string[], deps: Deps = {}): Promise<number> {
   const json = args.includes('--json');
   const [cmd, ...rest] = args.filter(a => a !== '--json');
-  if (cmd !== 'migrate' || rest.length) {
+  const ing = cmd === 'ingest' ? ingestArgs(rest) : null;
+  if (!(cmd === 'migrate' && rest.length === 0) && !ing) {
     console.error(USAGE);
     return 2;
   }
   let sql = deps.sql;
   try {
+    const mode: Mode = deps.sql ? (deps.env?.KINGO_MODE === 'prod' ? 'prod' : 'dev') : loadConfig(deps.env).mode;
     sql ??= connect(loadConfig(deps.env).databaseUrl);
+    if (ing) return await runIngest(sql, ing, mode, json, deps.ingest);
     const done = await migrate(sql);
     console.log(json ? JSON.stringify({ applied: done }) : done.length ? `스키마 바꾸기 ${done.length}개를 적용했어요: ${done.join(', ')}` : '적용할 스키마 바꾸기가 없어요');
     return 0;
@@ -24,6 +43,31 @@ export async function main(args: string[], deps: { sql?: Sql; env?: Record<strin
     return 1;
   } finally {
     if (!deps.sql) await sql?.end({ timeout: 5 });
+  }
+}
+
+async function runIngest(sql: Sql, a: NonNullable<ReturnType<typeof ingestArgs>>, mode: Mode, json: boolean, extra: Partial<IngestDeps> = {}): Promise<number> {
+  let input: unknown;
+  try {
+    input = JSON.parse(readFileSync(a.path, 'utf8'));
+  } catch {
+    console.error(`넣지 않았어요: 결과 파일을 읽지 못했어요(${a.path})`);
+    return 1;
+  }
+  // 넣기의 임베딩도 부하 제한을 지난다. 모델 잠금은 server/model.ts가 생기면 그것으로 바꾼다(tasks T054b)
+  const t = extra.embed ? null : createThrottle();
+  try {
+    const embed = extra.embed ?? makeEmbed({ gate: t?.gate() });
+    const r = await ingest(input, a.taxonomy, { switch: a.switch, dryRun: a.dryRun }, { sql, mode, embed, ...extra });
+    if (!r.ok) {
+      console.error(json ? JSON.stringify({ rejected: r.reason }) : `넣지 않았어요: ${r.reason}`);
+      return 1;
+    }
+    console.log(json ? JSON.stringify({ dryRun: r.dryRun, ...r.summary }) : `${r.dryRun ? '(해 보기) ' : ''}${summaryLine(r.summary)}`);
+    if (t?.stop().line) console.log(t.stop().line);
+    return 0;
+  } finally {
+    t?.stop();
   }
 }
 
