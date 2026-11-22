@@ -85,6 +85,9 @@ export async function ingest(input: unknown, taxonomyId: string, o: { switch?: b
     await tx`delete from field_groups where taxonomy_id = ${t.id}`;
     for (const [i, g] of t.groups.entries()) await tx`insert into field_groups (taxonomy_id, id, name, parent_id, ord) values (${t.id}, ${g.id}, ${g.name}, ${g.parent}, ${i})`;
     await tx`delete from fields where taxonomy_id = ${t.id} and not (id = any(${t.fields.map(x => x.id)}))`;
+    // 고른 분야: 목록을 갈아타면 모두, 같은 목록의 새 판이면 사라진 분야만 뺀다(FR-008). 남은 분야가 3개 미만이면 다음 할 일이 분야 고르기가 된다
+    if (s.switched) await tx`delete from student_fields`;
+    else await tx`delete from student_fields where not (field_id = any(${t.fields.map(x => x.id)}))`;
     for (const [i, x] of t.fields.entries()) {
       const v = fv ? fv.vectors[fv.ids.indexOf(x.id)] : null;
       await tx`insert into fields (taxonomy_id, id, name, group_id, description, ord, vector) values (${t.id}, ${x.id}, ${x.name}, ${x.group}, ${x.desc}, ${i}, ${v ? vectorText(v) : null}::vector)

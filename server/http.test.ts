@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { health, HttpError, match, parseCookies, type Route } from './http.ts';
+import { health, HttpError, kstIso, match, parseCookies, type Route } from './http.ts';
 import { testApp } from './test/app.ts';
 
 describe('match · parseCookies', () => {
@@ -9,6 +9,9 @@ describe('match · parseCookies', () => {
     expect(match('/api/notices/:id', '/api/notices/')).toBeNull();
     expect(match('/api/notices/:id/action', '/api/notices/1/other')).toBeNull();
     expect(match('/api/notices/:id', '/api/notices/%E0%A4%A')).toBeNull();
+  });
+  it('때는 한국 시간 +09:00 꼴이다', () => {
+    expect(kstIso(new Date('2026-11-19T02:51:53.323Z'))).toBe('2026-11-19T11:51:53.323+09:00');
   });
   it('쿠키 머리를 이름과 값으로 나눈다', () => {
     expect(parseCookies('a=1; kingo_session=x=y')).toEqual({ a: '1', kingo_session: 'x=y' });
