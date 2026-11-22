@@ -41,9 +41,9 @@ describe('쉼과 온도 대기 (research R6)', () => {
     expect(f.slept).toEqual([250, 2]);
   });
 
-  it('온도 + 가장 큰 오름폭이 80 이상이면 5초마다 다시 읽고, 내려가면 보낸다. 오름폭은 줄지 않는다', async () => {
-    // 요청 1: 70 → 75(오름 5). 요청 2: 76+5 ≥ 80이라 기다림 → 74 → 보냄 → 60(내려감, 오름폭 그대로). 요청 3: 76 → 기다림 → 70
-    const f = fake([70, 75, 76, 74, 60, 76, 70]);
+  it('온도 + 가장 큰 오름폭 + 여유 2가 80 이상이면 5초마다 다시 읽고, 내려가면 보낸다. 오름폭은 줄지 않는다', async () => {
+    // 요청 1: 70 → 75(오름 5). 요청 2: 74+5+2 ≥ 80이라 기다림 → 72 → 보냄 → 60(내려감, 오름폭 그대로). 요청 3: 74 → 기다림 → 70
+    const f = fake([70, 75, 74, 72, 60, 74, 70]);
     const g = createThrottle(f.deps).gate();
     expect(await g.before()).toBe(true);
     await g.after(100);
@@ -53,22 +53,35 @@ describe('쉼과 온도 대기 (research R6)', () => {
     expect(f.slept).toEqual([25, 5000, 25, 5000]);
   });
 
-  it('오름폭은 0에서 시작한다: 첫 요청은 79°C면 보내고 80°C면 기다린다', async () => {
-    expect(await createThrottle(fake([79]).deps).gate().before()).toBe(true);
-    const f = fake([80, 79]);
+  it('오름폭은 0에서 시작한다: 첫 요청은 77°C면 보내고 78°C면 기다린다(여유 2)', async () => {
+    expect(await createThrottle(fake([77]).deps).gate().before()).toBe(true);
+    const f = fake([78, 77]);
     expect(await createThrottle(f.deps).gate().before()).toBe(true);
     expect(f.slept).toEqual([5000]);
   });
 });
 
+describe('요청 도중의 오름 (2026-11-23)', () => {
+  it('요청 도중 5초 표본이 더 높으면 그만큼을 오름폭으로 센다(요청 뒤 읽기는 내려갔어도)', async () => {
+    // 보내기 전 60 → 도중 표본 70(오름 10) → 요청 뒤 62. 다음 요청: 69+10+2 ≥ 80이라 기다림 → 67 → 보냄
+    const f = fake([60, 70, 62, 69, 67]);
+    const g = createThrottle(f.deps).gate();
+    expect(await g.before()).toBe(true);
+    await f.tick();
+    await g.after(100);
+    expect(await g.before()).toBe(true);
+    expect(f.slept).toEqual([25, 5000]);
+  });
+});
+
 describe('문 둘과 온도 못 읽음', () => {
   it('가장 큰 오름폭은 문들이 함께 쓴다', async () => {
-    const f = fake([70, 78, 73, 71]);
+    const f = fake([70, 78, 71, 69]);
     const t = createThrottle(f.deps);
     const [ask, field] = [t.gate(), t.gate()];
     await ask.before();
     await ask.after(40); // 오름 8
-    expect(await field.before()).toBe(true); // 73 + 8 ≥ 80 → 기다림 → 71
+    expect(await field.before()).toBe(true); // 71 + 8 + 2 ≥ 80 → 기다림 → 69
     expect(f.slept).toEqual([10, 5000]);
   });
 

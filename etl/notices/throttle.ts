@@ -1,5 +1,6 @@
 // 부하 제한(research R6). 실행 하나에 하나 만들어 실제 LLM·임베딩 요청 앞뒤에만 건다(보관 답·보관 벡터는 쉬지 않는다).
-// 요청을 기다린 시간의 1/4을 쉬어 GPU 평균을 80% 아래로, 온도 + 가장 큰 오름폭이 80°C 이상이면 식을 때까지 기다린다.
+// 요청을 기다린 시간의 1/4을 쉬어 GPU 평균을 80% 아래로, 온도 + 가장 큰 오름폭 + 여유 2°C가 80°C 이상이면 식을 때까지 기다린다.
+// 오름폭은 요청 뒤 읽기와 요청 도중의 5초 표본으로 잰다.
 // 온도를 한 번이라도 못 읽으면 그 실행의 새 요청을 멈춘다. 끄는 설정은 없다(사용자 고정 지시)
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,6 +17,8 @@ export type ThrottleDeps = {
 };
 
 const LIMIT_C = 80;
+// 요청 하나가 그때까지 본 가장 큰 오름폭보다 더 오를 수 있어 2°C를 남겨 둔다(2026-11-23 3회차 판정에서 82.5°C까지 오름)
+const MARGIN_C = 2;
 const STEP_MS = 5000; // 온도 대기와 표본 간격
 const PER_LINE = 12; // 5초 표본 12개 = 1분
 const LOAD_DIR = fileURLToPath(new URL('../.cache/load', import.meta.url));
@@ -31,6 +34,7 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
     readTemp: () => readTemp(), readGpu: () => readGpu(), logDir: LOAD_DIR, platform: process.platform, ...d
   };
   let rise = 0; // 이번 실행에서 요청 하나에 오른 가장 큰 폭. 0에서 시작해 max로만 갱신한다
+  let openFrom: number | null = null; // 지금 보내는 요청의 보내기 전 온도. 요청 도중의 5초 표본도 오름폭에 센다
   let broken = false;
   let requests = 0;
   let requestMs = 0;
@@ -76,7 +80,10 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
       gpuCount++;
     }
     if (typeof g?.temp === 'number') bucket.gpuTemp.push(g.temp);
-    if (t !== null) seen(t);
+    if (t !== null) {
+      seen(t);
+      if (openFrom !== null) rise = Math.max(rise, t - openFrom);
+    }
     if (++bucket.n >= PER_LINE) flush();
   };
   /** 첫 실제 요청 앞에서 시작한다: 보관 답만 쓴 실행은 기록 파일을 만들지 않는다. 폴더는 첫 줄을 쓸 때 만든다(flush) */
@@ -92,7 +99,7 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
       noTemp: 0, // 이 문에서 온도 때문에 보내지 않은 요청 수
       async before() {
         let t = await read();
-        while (t !== null && t + rise >= LIMIT_C) {
+        while (t !== null && t + rise + MARGIN_C >= LIMIT_C) {
           await deps.sleep(STEP_MS);
           t = await read();
         }
@@ -101,6 +108,7 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
           return false;
         }
         before = t;
+        openFrom = t;
         startLog();
         return true;
       },
@@ -110,6 +118,7 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
         const t = await read();
         if (t !== null && before !== null) rise = Math.max(rise, t - before);
         before = null;
+        openFrom = null;
         await deps.sleep(ms / 4);
       }
     };
