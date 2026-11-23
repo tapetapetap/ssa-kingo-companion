@@ -1,11 +1,10 @@
 // 운영 명령(contracts/cli.md). 끝 코드: 0 성공, 1 거절·실패, 2 쓰는 법이 틀림. --json이면 같은 내용을 JSON으로
 import { readFileSync } from 'node:fs';
-import { makeEmbed } from '../etl/notices/embed.ts';
-import { createThrottle } from '../etl/notices/throttle.ts';
 import { accountCommand } from './auth/accounts.ts';
 import { loadConfig, type Mode } from './config.ts';
 import { migrate } from './db/migrate.ts';
 import { connect, type Sql } from './db/sql.ts';
+import { openModel } from './model.ts';
 import { ingest, summaryLine, type IngestDeps } from './ingest/ingest.ts';
 
 const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] | account create <이메일> [--dept <학과>] | account password <이메일> | account delete <이메일> (모두 --json)';
@@ -71,20 +70,21 @@ async function runIngest(sql: Sql, a: NonNullable<ReturnType<typeof ingestArgs>>
     console.error(`넣지 않았어요: 결과 파일을 읽지 못했어요(${a.path})`);
     return 1;
   }
-  // 넣기의 임베딩도 부하 제한을 지난다. 모델 잠금은 server/model.ts가 생기면 그것으로 바꾼다(tasks T054b)
-  const t = extra.embed ? null : createThrottle();
+  // 넣기의 임베딩도 부하 제한 하나와 모델 잠금을 지난다(research R7, T054b)
+  const model = extra.embed ? null : openModel(sql, 'ingest');
   try {
-    const embed = extra.embed ?? makeEmbed({ gate: t?.gate() });
+    const embed = extra.embed ?? model!.embed;
     const r = await ingest(input, a.taxonomy, { switch: a.switch, dryRun: a.dryRun }, { sql, mode, embed, ...extra });
     if (!r.ok) {
       console.error(json ? JSON.stringify({ rejected: r.reason }) : `넣지 않았어요: ${r.reason}`);
       return 1;
     }
     console.log(json ? JSON.stringify({ dryRun: r.dryRun, ...r.summary }) : `${r.dryRun ? '(해 보기) ' : ''}${summaryLine(r.summary)}`);
-    if (t?.stop().line) console.log(t.stop().line);
+    const load = await model?.close();
+    if (load?.line) console.log(load.line);
     return 0;
   } finally {
-    t?.stop();
+    await model?.close();
   }
 }
 

@@ -4,6 +4,7 @@ import type { Ctx } from '../app.ts';
 import { requireStudent } from '../auth/login.ts';
 import { HttpError, kstIso, type Route } from '../http.ts';
 import { LIMITS } from '../limits.ts';
+import { enqueue } from '../pick/queue.ts';
 
 export type Consent = { version: string; text: string };
 
@@ -66,6 +67,7 @@ export function onboardingRoutes(ctx: Ctx): Route[] {
       if (!(GOALS as readonly unknown[]).includes(b.goal)) throw invalid('goal', '진로 목표는 job·grad·startup·unsure 중 하나예요');
       await sql`insert into answers (student_id, grade, term, goal) values (${s.id}, ${b.grade as number}, ${b.term}, ${b.goal as string})
         on conflict (student_id) do update set grade = excluded.grade, term = excluded.term, goal = excluded.goal, answered_at = now()`;
+      await enqueue(sql, s.id, 'answers');
       return { body: await answersOf(s.id), headers: s.headers };
     }],
     ['GET', '/api/fields', async req => {
@@ -93,6 +95,7 @@ export function onboardingRoutes(ctx: Ctx): Route[] {
         await tx`delete from student_fields where student_id = ${s.id}`;
         for (const f of ids as string[]) await tx`insert into student_fields (student_id, field_id) values (${s.id}, ${f})`;
       });
+      await enqueue(sql, s.id, 'fields');
       return { body: { ids: await pickedIds(s.id) }, headers: s.headers };
     }]
   ];

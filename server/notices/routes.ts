@@ -6,29 +6,36 @@ import { HttpError, kstIso, type Route } from '../http.ts';
 import { KINDS } from '../ingest/check.ts';
 import { LIMITS } from '../limits.ts';
 import { requireConsent } from '../me/onboarding.ts';
+import { enqueue } from '../pick/queue.ts';
 
-const TODAY = `(now() at time zone 'Asia/Seoul')::date`;
+/** 가장 추천 공지에 행동하면 다시 고른다(FR-037) */
+async function repickIfPick(sql: Sql, student: number, id: string) {
+  const [p] = await sql`select 1 from picks where student_id = ${student} and notice_id = ${id}`;
+  if (p) await enqueue(sql, student, 'action');
+}
+
+export const TODAY = `(now() at time zone 'Asia/Seoul')::date`;
 const REASONS = ['time', 'field', 'done', 'hard'];
 const invalid = (field: string, message: string) => new HttpError(422, 'invalid', message, { field });
 
-type Row = {
+export type Row = {
   id: string; title: string; host: string | null; kind: string | null; posted_on: string; deadline: string | null; closes_on: string;
   open: boolean; closed: boolean; gone: boolean; field_state: string; field_rule: string | null; url: string;
   a_kind: string | null; a_revisit: string | null; a_reason: string | null; a_at: Date | null;
 };
 
 /** 학생 하나가 보는 공지 칸. 점수·유사도는 넣지 않는다(FR-024) */
-const SELECT = (sql: Sql, student: number) => sql`
+export const SELECT = (sql: Sql, student: number) => sql`
   select n.id, n.title, n.host, n.kind, n.posted_on::text, n.deadline::text, n.closes_on::text, n.url, n.field_state, n.field_rule,
     (n.is_notice and not n.down and n.closes_on >= ${sql.unsafe(TODAY)}) as open, (n.down or not n.is_notice) as gone, (n.closes_on < ${sql.unsafe(TODAY)}) as closed,
     a.kind as a_kind, a.revisit_on::text as a_revisit, a.reason as a_reason, a.at as a_at
   from notices n left join actions a on a.notice_id = n.id and a.student_id = ${student}`;
 
 /** 이 학생에게 숨길 공지: 관심 없음, 다시 볼 날 전인 나중에 보기(마감이 당겨져 닫히는 날이 앞서면 숨기지 않는다, FR-026) */
-const HIDDEN = `(a.kind = 'dislike' or (a.kind = 'later' and a.revisit_on > ${TODAY} and a.revisit_on <= n.closes_on))`;
-const OPEN = `(n.is_notice and not n.down and n.closes_on >= ${TODAY})`;
+export const HIDDEN = `(a.kind = 'dislike' or (a.kind = 'later' and a.revisit_on > ${TODAY} and a.revisit_on <= n.closes_on))`;
+export const OPEN = `(n.is_notice and not n.down and n.closes_on >= ${TODAY})`;
 
-async function cards(sql: Sql, rows: Row[]) {
+export async function cards(sql: Sql, rows: Row[]) {
   const ids = rows.map(r => r.id);
   const fields = ids.length ? await sql<{ notice_id: string; id: string; name: string; level: string }[]>`
     select nf.notice_id, nf.field_id as id, f.name, nf.level from notice_fields nf
@@ -117,6 +124,7 @@ export function noticeRoutes(ctx: Ctx): Route[] {
       if (reason !== null && (b.kind !== 'dislike' || !REASONS.includes(String(reason)))) throw invalid('reason', '이유는 관심 없음에만, time·field·done·hard 중 하나예요');
       await sql`insert into actions (student_id, notice_id, kind, revisit_on, reason) values (${s.id}, ${r.id}, ${b.kind as string}, ${revisit}, ${reason as string | null})
         on conflict (student_id, notice_id) do update set kind = excluded.kind, revisit_on = excluded.revisit_on, reason = excluded.reason, at = now()`;
+      await repickIfPick(sql, s.id, r.id);
       const card = (await cards(sql, [await one(s.id, r.id)]))[0];
       const suggestActivity = reason === 'done'
         ? { name: r.title.slice(0, LIMITS.activityNameChars), term: termOf(new Date()), kind: r.kind, fieldIds: card.fields?.core.map(f => f.id) ?? [] }
@@ -126,6 +134,7 @@ export function noticeRoutes(ctx: Ctx): Route[] {
     ['DELETE', '/api/notices/:id/action', async req => {
       const s = await requireStudent(ctx, req);
       await sql`delete from actions where student_id = ${s.id} and notice_id = ${req.params.id}`;
+      await repickIfPick(sql, s.id, req.params.id);
       return { status: 204, headers: s.headers };
     }],
     ['GET', '/api/me/list', async req => {
