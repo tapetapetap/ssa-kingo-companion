@@ -1,5 +1,5 @@
 // 판정 검토 화면(ops-screen.md): 머리 | 확인할 것 목록 | 오른쪽 칸(파일 값·고치는 칸·고친 기록). 틀은 astryx incident-console
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AlertDialog } from '@astryxdesign/core/AlertDialog';
 import { Button } from '@astryxdesign/core/Button';
 import type { ISODateString } from '@astryxdesign/core/Calendar';
@@ -70,6 +70,7 @@ function Inspector({ notice, log, fields, onDone, onDirty }: { notice: OpsNotice
   if (!same(draft.core, now.core) || !same(draft.related, now.related)) changes.fields = { core: draft.core, related: draft.related };
   const dirty = Object.keys(changes).length > 0;
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
+  useEffect(() => () => onDirty(false), [onDirty]);
   const statusOf = (field: string) => (error?.field === field ? { type: 'error' as const, message: error.message } : undefined);
   const f = notice.file;
   /** 칸 아래 설명: 결과 파일 값과, 운영자가 고쳤으면 누가 */
@@ -83,13 +84,15 @@ function Inspector({ notice, log, fields, onDone, onDirty }: { notice: OpsNotice
     setError(null);
     try {
       await call();
-      showToast({ body: what, uniqueID: 'ops-action' });
-      await onDone();
     } catch (e) {
       const err = e instanceof ApiError ? e : new ApiError('server_error', '잠시 뒤에 다시 해 주세요');
       setError(err);
       if (!err.field || !FIELD_LABEL[err.field]) showToast({ body: err.message, type: 'error', uniqueID: 'ops-action' });
+      return;
     }
+    showToast({ body: what, uniqueID: 'ops-action' });
+    // 처리는 됐다. 새로 받기가 실패해도 처리 실패로 알리지 않는다(다시 누르면 기록이 겹친다)
+    await onDone().catch(() => showToast({ body: '처리는 됐는데 목록을 새로 받지 못했어요', type: 'error', uniqueID: 'ops-refresh' }));
   };
 
   return (
@@ -166,15 +169,18 @@ export function Console({ onLogout }: { onLogout: () => void }) {
   /** 저장하지 않은 값이 있으면 묻고 고른다 */
   const select = (id: string) => (dirty && id !== selectedId ? setPending(id) : setSelectedId(id));
 
+  const latest = useRef(0); // 늦게 온 앞 요청의 답이 새 답을 덮지 않게
   const load = useCallback(async () => {
     setFailed(null);
+    const n = ++latest.current;
     try {
       const q = new URLSearchParams({ ...(reason === 'all' ? {} : { reason }), ...(showChecked ? {} : { checked: 'false' }) });
       const next = (await api<{ items: ReviewItem[] }>('GET', `/api/ops/review?${q}`)).items;
+      if (n !== latest.current) return null;
       setItems(next);
       return next;
     } catch (e) {
-      setFailed(e instanceof Error ? e.message : String(e));
+      if (n === latest.current) setFailed(e instanceof Error ? e.message : String(e));
       return null;
     }
   }, [reason, showChecked]);
@@ -194,15 +200,18 @@ export function Console({ onLogout }: { onLogout: () => void }) {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { api<FieldList>('GET', '/api/fields').then(setFields, () => {}); }, []);
   useEffect(() => {
-    if (selectedId) loadDetail(selectedId).catch(e => setFailed(e instanceof Error ? e.message : String(e)));
-    else setDetail(null);
-  }, [selectedId, loadDetail]);
+    if (!selectedId) { setDetail(null); return; }
+    let stale = false;
+    api<{ notice: OpsNotice; log: LogItem[] }>('GET', `/api/ops/notices/${encodeURIComponent(selectedId)}`)
+      .then(d => { if (!stale) setDetail(d); }, () => { if (!stale) setDetail(null); });
+    return () => { stale = true; };
+  }, [selectedId]);
 
   const open = items?.filter(x => !x.checkedAt).length ?? 0;
-  const rows = items === null ? (
-    <Spinner label="불러오는 중이에요" />
-  ) : failed ? (
+  const rows = failed ? (
     <EmptyState title="불러오지 못했어요" description={failed} actions={<Button label="다시 불러오기" onClick={() => void load()} />} />
+  ) : items === null ? (
+    <Spinner label="불러오는 중이에요" />
   ) : items.length === 0 ? (
     <EmptyState title="확인할 것이 없어요" description={showChecked ? '이 이유로 모인 공지가 없어요.' : '확인한 것도 보려면 위에서 켜세요.'} />
   ) : (

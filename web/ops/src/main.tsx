@@ -65,6 +65,11 @@ function App() {
     }
   }, []);
   useEffect(() => { void check(); }, [check]);
+  useEffect(() => {
+    const on = (e: Event) => setState((e as CustomEvent<string>).detail === 'forbidden' ? 'forbidden' : 'login');
+    window.addEventListener('ops-auth', on);
+    return () => window.removeEventListener('ops-auth', on);
+  }, []);
   const logout = async () => {
     await api('POST', '/api/logout').catch(() => {});
     setState('login');

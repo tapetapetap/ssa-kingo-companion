@@ -119,7 +119,7 @@ export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR): 
         route = '/ops/';
         const f = await opsFile(url.pathname, opsDir);
         if (!f) throw new HttpError(404, 'not_found', '찾을 수 없어요');
-        res.writeHead(200, { 'content-type': f.type }).end(f.body);
+        res.writeHead(200, { 'content-type': f.type, 'x-content-type-options': 'nosniff' }).end(f.body);
         logRequest({ method, route, status: 200, ms: performance.now() - t0 }, write);
         return;
       }
