@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkPick, pickMaterial, PICK_VERSION, type Material } from './llm.ts';
+import { checkPick, pickMaterial, pickSchema, PICK_VERSION, type Material } from './llm.ts';
 
 const ans = (o: Record<string, unknown>) => JSON.stringify({ pick: 1, reason: '고른 분야와 맞아요', cited: [], ...o });
 
@@ -48,5 +48,9 @@ describe('재료 글', () => {
   });
   it('지시문 판은 8자 해시다', () => {
     expect(PICK_VERSION).toMatch(/^[0-9a-f]{8}$/);
+  });
+  it('스키마가 참고한 줄을 댈 수 있는 키로 막는다(T089)', () => {
+    expect(pickSchema(3, ['ans', 'act:1']).properties.cited).toEqual({ type: 'array', items: { type: 'string', enum: ['ans', 'act:1'] }, maxItems: 3 });
+    expect(pickSchema(3, []).properties.cited).toEqual({ type: 'array', items: { type: 'string' }, maxItems: 0 });
   });
 });

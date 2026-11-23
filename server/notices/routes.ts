@@ -43,8 +43,11 @@ export async function cards(sql: Sql, rows: Row[]) {
     select nf.notice_id, nf.field_id as id, f.name, nf.level from notice_fields nf
     join fields f on f.id = nf.field_id join taxonomies t on t.id = f.taxonomy_id and t.active
     where nf.notice_id = any(${ids}) order by nf.ord` : [];
+  // 공지마다 전체를 훑으면 3,000건에 수백 ms였다(T089)
+  const byNotice = new Map<string, typeof fields[number][]>();
+  for (const f of fields) byNotice.set(f.notice_id, [...(byNotice.get(f.notice_id) ?? []), f]);
   return rows.map(r => {
-    const mine = fields.filter(f => f.notice_id === r.id).map(f => ({ id: f.id, name: f.name, level: f.level }));
+    const mine = (byNotice.get(r.id) ?? []).map(f => ({ id: f.id, name: f.name, level: f.level }));
     const judged = r.field_state === 'judged' || r.field_state === 'human';
     return {
       id: r.id, title: r.title, host: r.host, kind: r.kind, postedOn: r.posted_on, deadline: r.deadline, closesOn: r.closes_on, open: r.open, down: r.gone,

@@ -13,13 +13,14 @@ export const PICK_SYSTEM = `너는 대학생 한 명에게 지금 가장 권할 
 - 참고한 줄은 이유를 쓸 때 실제로 본 줄의 키를 ${LIMITS.citedMax}개까지 적는다. 나에 대한 프롬프트를 봤으면 prompt라고 적는다. 본 것이 없으면 비운다.
 - JSON 하나로만 답한다: { "pick": 번호, "reason": 이유, "cited": [키] }`;
 
-export const pickSchema = (n: number) => ({
+/** cited는 댈 수 있는 키만 고르게 막는다. 지시문과 재료의 키 목록만으로는 gemma4:12b가 없는 prompt를 넣어 답 전체가 버려졌다(T089) */
+export const pickSchema = (n: number, keys: string[]) => ({
   type: 'object',
-  properties: { pick: { type: 'integer', minimum: 1, maximum: n }, reason: { type: 'string' }, cited: { type: 'array', items: { type: 'string' }, maxItems: LIMITS.citedMax } },
+  properties: { pick: { type: 'integer', minimum: 1, maximum: n }, reason: { type: 'string' }, cited: keys.length ? { type: 'array', items: { type: 'string', enum: keys }, maxItems: LIMITS.citedMax } : { type: 'array', items: { type: 'string' }, maxItems: 0 } },
   required: ['pick', 'reason', 'cited']
 });
-/** 지시문의 판. 스키마는 maximum 10인 틀로 센다 */
-export const PICK_VERSION = versionOf({ system: PICK_SYSTEM, schema: pickSchema(LIMITS.candidates), options: MODEL_OPTIONS, think: false });
+/** 지시문의 판. 스키마는 maximum 10, 키 ['<키>']인 틀로 센다 */
+export const PICK_VERSION = versionOf({ system: PICK_SYSTEM, schema: pickSchema(LIMITS.candidates, ['<키>']), options: MODEL_OPTIONS, think: false });
 
 const GOAL_NAME: Record<Goal, string> = { job: '취업', grad: '대학원', startup: '창업', unsure: '아직 모름' };
 export type PickCand = { title: string; host: string | null; kind: string | null; deadline: string | null; coreNames: string[] };

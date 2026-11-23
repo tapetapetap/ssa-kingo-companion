@@ -12,7 +12,7 @@ export const FLOW_SYSTEM = `너는 대학생 한 명의 기록 줄을 읽고, �
 - JSON 하나로만 답한다: { "lines": [{ "text": 문장, "refs": [키] }] }`;
 export const FLOW_SCHEMA = {
   type: 'object',
-  properties: { lines: { type: 'array', maxItems: LIMITS.flowLines[1], items: { type: 'object', properties: { text: { type: 'string' }, refs: { type: 'array', items: { type: 'string' } } }, required: ['text', 'refs'] } } },
+  properties: { lines: { type: 'array', maxItems: LIMITS.flowLines[1], items: { type: 'object', properties: { text: { type: 'string' }, refs: { type: 'array', minItems: 2, items: { type: 'string' } } }, required: ['text', 'refs'] } } },
   required: ['lines']
 };
 

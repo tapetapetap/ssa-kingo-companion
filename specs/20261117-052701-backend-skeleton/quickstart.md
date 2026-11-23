@@ -33,7 +33,7 @@ npm run cli -- account create dev1@example.com   # 비밀번호는 표준 입력
 npm run server   # 개발 모드, http://localhost:8080
 ```
 
-curl로 `login → consent → answers → fields → home`을 차례로 부른다(쿠키는 `-c`·`-b` 파일).
+curl로 `login → consent → answers → fields → home`을 차례로 부른다(쿠키는 `-c`·`-b` 파일. 상태를 바꾸는 요청은 `content-type: application/json`과 서버 주소와 같은 `origin` 머리가 있어야 한다).
 
 - 로그인 직후 `next`는 `consent`, 동의 전 `PUT /api/me/answers`는 `consent_required`다.
 - 분야 2개는 `too_few_fields`, 3개는 저장되고 `next`가 `home`이다.

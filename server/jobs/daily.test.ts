@@ -81,11 +81,12 @@ describe('매일 작업 (US6, research R14)', () => {
     await seedTaxonomy(db.sql);
     await notice(db.sql, { no: 1 });
     const [a, b] = [await createDevStudent(db.sql, 'a@x.co'), await createDevStudent(db.sql, 'b@x.co')];
-    // api 일꾼 대신: 조금 뒤 두 학생을 고르고 줄을 비운다
-    setTimeout(() => void (async () => {
+    // api 일꾼 대신: 매일 작업이 두 학생을 줄에 넣으면 고르고 줄을 비운다(정한 시간에 하면 다시 고르기가 시작하기 전에 끼어들어 가끔 실패했다)
+    void (async () => {
+      while ((await db.sql`select 1 from repick_queue where cause = 'daily'`).length < 2) await new Promise(r => setTimeout(r, 10));
       await db.sql`insert into picks (student_id, notice_id, reason, method) values (${a}, 'cse:1', 'r', 'llm:m'), (${b}, 'cse:1', 'r', 'rule')`;
       await db.sql`delete from repick_queue`;
-    })(), 50);
+    })();
     await db.sql`insert into model_bursts (who, started_at, ended_at, requests, request_ms, gpu_avg, temp_max) values
       ('api', now() + interval '1 second', now(), 3, 1000, 40, 70), ('daily', now() + interval '1 second', now(), 1, 3000, 80, 75)`;
     const r = await runDaily(deps({ now: () => new Date('2026-11-24T03:00:00+09:00') }));
