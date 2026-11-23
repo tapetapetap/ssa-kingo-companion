@@ -6,11 +6,12 @@ import { migrate } from './db/migrate.ts';
 import { connect, type Sql } from './db/sql.ts';
 import { openModel } from './model.ts';
 import { ingest, summaryLine, type IngestDeps } from './ingest/ingest.ts';
+import { exportGold } from './ops/export.ts';
 
-const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] | account create <이메일> [--dept <학과>] | account password <이메일> | account delete <이메일> (모두 --json)';
+const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] | account create <이메일> [--dept <학과>] | account password <이메일> | account delete <이메일> | export-gold <폴더> (모두 --json)';
 
 /** stdin은 비밀번호를 받는 곳이다(시험은 글로 넣는다). 명령 기록에 남지 않게 인자로 받지 않는다 */
-type Deps = { sql?: Sql; env?: Record<string, string | undefined>; ingest?: Partial<IngestDeps>; stdin?: () => Promise<string> };
+type Deps = { sql?: Sql; env?: Record<string, string | undefined>; ingest?: Partial<IngestDeps>; stdin?: () => Promise<string>; repoRoot?: string };
 const readStdin = async () => { let s = ''; for await (const c of process.stdin) s += String(c); return s; };
 
 function accountArgs(rest: string[]): { action: string; email: string; dept?: string } | null {
@@ -36,7 +37,8 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
   const [cmd, ...rest] = args.filter(a => a !== '--json');
   const ing = cmd === 'ingest' ? ingestArgs(rest) : null;
   const acc = cmd === 'account' ? accountArgs(rest) : null;
-  if (!(cmd === 'migrate' && rest.length === 0) && !ing && !acc) {
+  const gold = cmd === 'export-gold' && rest.length === 1 && !rest[0].startsWith('--') ? rest[0] : null;
+  if (!(cmd === 'migrate' && rest.length === 0) && !ing && !acc && !gold) {
     console.error(USAGE);
     return 2;
   }
@@ -45,6 +47,11 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
     const mode: Mode = deps.sql ? (deps.env?.KINGO_MODE === 'prod' ? 'prod' : 'dev') : loadConfig(deps.env).mode;
     sql ??= connect(loadConfig(deps.env).databaseUrl);
     if (ing) return await runIngest(sql, ing, mode, json, deps.ingest);
+    if (gold) {
+      const r = await exportGold(sql, gold, deps.repoRoot);
+      console.log(json ? JSON.stringify(r) : `정답셋 후보 ${r.rows}개를 썼어요: ${r.path}`);
+      return 0;
+    }
     if (acc) {
       const password = acc.action === 'delete' ? undefined : (await (deps.stdin ?? readStdin)()).replace(/\r?\n$/, '');
       const msg = await accountCommand(sql, mode, acc.action, acc.email, { password, dept: acc.dept });

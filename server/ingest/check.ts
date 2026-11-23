@@ -21,7 +21,7 @@ export type ResultFile = { source: string; collectedAt: string; since: string; t
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isStr = (v: unknown): v is string => typeof v === 'string';
-const isDate = (v: unknown) => isStr(v) && DATE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
+export const isDate = (v: unknown) => isStr(v) && DATE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
 
 export function checkResultFile(o: unknown, t: Taxonomy | null): string[] {
   const bad: string[] = [];
