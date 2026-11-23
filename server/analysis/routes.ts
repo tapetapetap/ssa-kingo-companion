@@ -19,6 +19,8 @@ const activity = (a: ActRow) => ({ id: Number(a.id), name: a.name, term: a.term,
 export function analysisRoutes(ctx: Ctx): Route[] {
   const sql = ctx.sql;
   const isOff = async (id: number) => (await sql<{ o: boolean }[]>`select analysis_off as o from students where id = ${id}`)[0].o;
+  /** 지금 분석. 아직 없으면 만든다(켜져 있을 때만 부른다) */
+  const current = async (id: number) => (await stored(sql, id)) ?? (await rebuild(sql, id))!;
   const promptOf = async (id: number) => {
     const [p] = await sql<{ body: string; updated_at: Date }[]>`select body, updated_at from prompts where student_id = ${id}`;
     return { body: p?.body ?? '', updatedAt: p ? kstIso(p.updated_at) : null };
@@ -77,7 +79,7 @@ export function analysisRoutes(ctx: Ctx): Route[] {
     ['GET', '/api/me/analysis', async req => {
       const s = await requireStudent(ctx, req);
       if (await isOff(s.id)) return { body: { off: true }, headers: s.headers };
-      const a = (await stored(sql, s.id)) ?? (await rebuild(sql, s.id))!;
+      const a = await current(s.id);
       const excluded = await excludedOf(sql, s.id);
       return {
         body: { off: false, version: a.version, madeAt: kstIso(a.made_at), md: a.md, lines: visible(a.lines, a.flow, excluded), excluded: [...excluded].map(key => ({ key })) },
@@ -87,7 +89,7 @@ export function analysisRoutes(ctx: Ctx): Route[] {
     ['GET', '/api/me/analysis.md', async req => {
       const s = await requireStudent(ctx, req);
       if (await isOff(s.id)) throw off();
-      const a = (await stored(sql, s.id)) ?? (await rebuild(sql, s.id))!;
+      const a = await current(s.id);
       return { body: a.md, headers: { ...s.headers, 'content-type': 'text/markdown; charset=utf-8', 'content-disposition': 'attachment; filename="analysis.md"' } };
     }],
     ['PUT', '/api/me/analysis/excluded/:key', async req => {
@@ -96,7 +98,7 @@ export function analysisRoutes(ctx: Ctx): Route[] {
       if (await isOff(s.id)) throw off();
       const key = req.params.key;
       if (notExcludable(key)) throw invalid('key', '직접 넣은 활동·처음 답·고른 분야 줄은 빼지 않아요');
-      const a = (await stored(sql, s.id)) ?? (await rebuild(sql, s.id))!;
+      const a = await current(s.id);
       if (!visible(a.lines, a.flow, new Set()).some(l => l.key === key)) throw new HttpError(404, 'not_found', '지금 분석에 없는 줄이에요');
       await sql`insert into excluded_lines (student_id, line_key) values (${s.id}, ${key}) on conflict do nothing`;
       await rebuild(sql, s.id);
