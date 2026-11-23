@@ -204,7 +204,7 @@
 - [X] T076 [US7] 운영자 화면을 설계한다: `@astryxdesign/core`(0.7 판)와 개발용 `@astryxdesign/cli`를 `package.json`에 더하고, astryx로 PC 화면 하나(왼쪽 확인할 것 목록과 이유 거르기, 오른쪽 원문 링크·파일 값·고치는 칸·맞아요·다시 판정·고친 기록, 로그인 칸)를 잡는다. `npx astryx build`로 틀을 고르고 화면 구성을 `specs/20261117-052701-backend-skeleton/ops-screen.md`에 적는다(목차: 영역, 영역마다 쓰는 astryx 컴포넌트, 상태별 화면 — 불러오는 중·빈 목록·오류·로그인·권한 없음)(Figma는 쓰지 않고 강조색은 기본 테마다, 사용자 결정 2026-11-18, research R17)
 - [X] T077 [US7] `web/ops/`에 Vite + React + astryx 페이지를 만든다(`web/ops/index.html`, `web/ops/src/main.tsx`, `web/ops/vite.config.ts`: `base: '/ops/'`, 결과는 `web/ops/dist`). `package.json`에 `"build:ops": "vite build --config web/ops/vite.config.ts"`를 더하고 `tsconfig.json`의 `include`에 `web`을, CI의 build 단계에 `npm run build:ops`를 더한다. 자료는 `/api/ops`만 쓴다. 빈 상태·불러오는 중·오류 상태와, `login_required`면 로그인 칸·`forbidden`이면 '운영자 계정이 아니에요'를 둔다. `server/http.ts`가 `/ops/`에서 `web/ops/dist`의 파일을 로그인 없이 준다(폴더가 없으면 404). `server/http.test.ts`에 정적 파일 시험(폴더 없으면 404, `/ops/`는 index, `..`로 폴더 밖을 가리키면 404)을 더한다
 - [X] T078 [US7] 화면을 띄워 quickstart 5를 손으로 끝까지 해 보고 스크린샷(1280×640, 1440×900)을 찍어 본다. impeccable critique(리뷰어 둘) → polish로 다듬는다 — 결과(2026-11-23): quickstart 5를 화면으로 끝까지 함(고친 값이 학생 자세히에 '운영자'로, 다시 넣어도 '사람 판정 유지'). 점검·다듬기 기록은 ops-screen.md
-- [ ] T079 [US7] 단계 마무리(PR '2단계 운영자 판정 검토 화면')
+- [X] T079 [US7] 단계 마무리(PR '2단계 운영자 판정 검토 화면')
 
 **Checkpoint**: 판정을 사람이 고칠 수 있다.
 
