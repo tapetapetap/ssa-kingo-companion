@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { CACHE_DIR } from '../../etl/notices/cse.ts';
 import { fieldFolder } from '../../etl/notices/fields.ts';
 import { LLM_CACHE_DIR, modelDir, PROMPT_VERSION } from '../../etl/notices/llm.ts';
-import { loadTaxonomy } from '../../etl/taxonomy/taxonomy.ts';
+import { loadTaxonomy, TAXONOMY_IDS } from '../../etl/taxonomy/taxonomy.ts';
 import { writeFlow } from '../analysis/flow.ts';
 import { rebuild } from '../analysis/store.ts';
 import type { Mode } from '../config.ts';
@@ -29,7 +29,7 @@ export type DailyDeps = {
   backup?: () => Promise<string>;
   model?: () => Model;
   /** 다시 판정할 글 번호의 분류기 보관 셋(research R11) */
-  cachePaths?: (no: number, taxonomyId: string, model: string) => string[];
+  cachePaths?: (no: number, model: string) => string[];
   pollMs?: number;
 };
 
@@ -40,7 +40,8 @@ const OUT_FILE = join(ROOT, 'etl/out/cse-notices.json');
 /** 분류기를 자식 프로세스로 돌린다. 표준 오류는 그대로 흘려 보낸다 */
 function runClassifier(): Promise<{ code: number; stdout: string }> {
   return new Promise(ok => {
-    const p = spawn(process.execPath, ['etl/notices/run.ts'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'] });
+    // 멈춘 분류기가 모델 잠금을 붙들지 않게 4시간이 지나면 끝낸다
+    const p = spawn(process.execPath, ['etl/notices/run.ts'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'], timeout: 4 * 3600_000 });
     let out = '';
     p.stdout.on('data', d => { out += String(d); });
     p.on('close', code => ok({ code: code ?? 1, stdout: out }));
@@ -48,11 +49,18 @@ function runClassifier(): Promise<{ code: number; stdout: string }> {
   });
 }
 
-/** 본문 보관본, 기회 판정 보관 답, 분야 판정 보관 답(research R11) */
-export const rejudgePaths = (no: number, taxonomyId: string, model: string) => [
+/** 본문 보관본, 기회 판정 보관 답, 분야 판정 보관 답(research R11). 분야 답은 분류기가 고른 목록(파일의 chosen)이 DB의 활성 목록과
+ *  다를 수 있어 읽히는 목록마다 지운다 */
+export const rejudgePaths = (no: number, model: string) => [
   join(CACHE_DIR, `${no}.html`),
   join(LLM_CACHE_DIR, modelDir(model), PROMPT_VERSION, `${no}.json`),
-  join(fieldFolder(loadTaxonomy(taxonomyId as never), model), `${no}.json`)
+  ...TAXONOMY_IDS.flatMap(id => {
+    try {
+      return [join(fieldFolder(loadTaxonomy(id), model), `${no}.json`)];
+    } catch {
+      return [];
+    }
+  })
 ];
 
 /** 그날(한국) 07:00. 기다리기를 멈추는 때 */
@@ -76,14 +84,13 @@ export async function runDaily(d: DailyDeps): Promise<DailyRun> {
   const model = (d.model ?? (() => openModel(sql, 'daily')))();
   const active = async () => (await sql<{ id: string }[]>`select id from taxonomies where active`)[0]?.id ?? null;
   let classifierLine: string | null = null;
-  const marks = (await sql<{ notice_id: string }[]>`select notice_id from rejudge_marks`).map(r => r.notice_id);
+  let marks: string[] = [];
 
   try {
     await step('rejudge', async () => {
+      marks = (await sql<{ notice_id: string }[]>`select notice_id from rejudge_marks`).map(r => r.notice_id);
       if (!marks.length) return 'skipped';
-      const t = await active();
-      if (!t) throw new Error('활성 분야 목록이 없어요');
-      for (const id of marks) for (const p of (d.cachePaths ?? rejudgePaths)(Number(id.split(':')[1]), t, model.name)) rmSync(p, { force: true });
+      for (const id of marks) for (const p of (d.cachePaths ?? rejudgePaths)(Number(id.split(':')[1]), model.name)) rmSync(p, { force: true });
       return { notices: marks.length };
     });
     await step('classifier', async () => {
@@ -99,7 +106,8 @@ export async function runDaily(d: DailyDeps): Promise<DailyRun> {
       if (!t) throw new Error('활성 분야 목록이 없어요');
       const r = await (d.ingestFile ?? ((id, m) => ingest(JSON.parse(readFileSync(OUT_FILE, 'utf8')), id, {}, { sql, mode: d.mode, embed: m.embed })))(t, model);
       if (!r.ok) throw new Error(r.reason);
-      if (marks.length) await sql`delete from rejudge_marks where notice_id = any(${marks})`;
+      // 보관 셋을 지우고 분류기가 실제로 다시 판정했을 때만 표시를 지운다(건너뛴 날은 다음 날 다시 한다)
+      if (marks.length && steps.rejudge.ok && steps.classifier.ok) await sql`delete from rejudge_marks where notice_id = any(${marks})`;
       return { ...r.summary };
     });
     await step('backup', async () => {

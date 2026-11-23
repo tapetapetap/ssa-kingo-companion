@@ -61,16 +61,20 @@ describe('매일 작업 (US6, research R14)', () => {
     const seen: unknown[] = [];
     const order: string[] = [];
     const r = await runDaily(deps({
-      cachePaths: (no, t, m) => { seen.push([no, t, m]); order.push('rejudge'); return []; },
+      cachePaths: (no, m) => { seen.push([no, m]); order.push('rejudge'); return []; },
       classifier: async () => { order.push('classifier'); return { code: 0, stdout: '' }; }
     }));
-    expect(seen).toEqual([[7, 'custom', 'm']]);
+    expect(seen).toEqual([[7, 'm']]);
     expect(order).toEqual(['rejudge', 'classifier']);
     expect(r.steps.rejudge).toMatchObject({ ok: true, notices: 1 });
     expect(await db.sql`select * from rejudge_marks`).toEqual([]);
-    const p = rejudgePaths(123, 'custom', 'gemma4:12b');
+    const p = rejudgePaths(123, 'gemma4:12b');
     expect(p.slice(0, 2)).toEqual([join(CACHE_DIR, '123.html'), join(LLM_CACHE_DIR, 'gemma4_12b', PROMPT_VERSION, '123.json')]);
-    expect(p[2].startsWith(join(FIELD_CACHE_DIR, 'gemma4_12b', 'custom-')) && p[2].endsWith('/123.json')).toBe(true);
+    expect(p.slice(2).map(x => x.slice(join(FIELD_CACHE_DIR, 'gemma4_12b').length + 1).replace(/-[^/]+\//, '/'))).toEqual(['custom/123.json', 'ncs/123.json', 'csrankings/123.json']);
+    // 분류기를 건너뛴 날은 다시 판정되지 않았으니 표시를 둔다
+    await db.sql`insert into rejudge_marks (notice_id, by_operator) values ('cse:7', 'ops@example.com')`;
+    await runDaily(deps({ skipClassifier: true, cachePaths: () => [] }));
+    expect((await db.sql`select notice_id from rejudge_marks`).map(x => x.notice_id)).toEqual(['cse:7']);
   });
 
   it('줄이 비면 기다리기를 멈추고, 다시 고른 수는 picks에서, 부하는 model_bursts에서 센다', async () => {
