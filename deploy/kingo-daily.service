@@ -1,0 +1,10 @@
+# 매일 작업 한 번(research R14). /etc/systemd/system/에 두고 kingo-daily.timer가 부른다
+[Unit]
+Description=킹고 매일 작업(분류기 → 넣기 → 백업 → 흐름 → 다시 고르기)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/kingo
+ExecStart=/usr/bin/docker compose -f deploy/compose.yaml run --rm jobs node server/cli.ts daily

@@ -1,0 +1,11 @@
+node_modules
+.git
+etl/.cache
+etl/gold
+etl/out
+.env
+.env.*
+deploy/kingo.env
+web/ops/dist
+dist
+.qa

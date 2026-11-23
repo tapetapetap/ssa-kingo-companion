@@ -7,11 +7,14 @@ import { connect, type Sql } from './db/sql.ts';
 import { openModel } from './model.ts';
 import { ingest, summaryLine, type IngestDeps } from './ingest/ingest.ts';
 import { exportGold } from './ops/export.ts';
+import { backup, restore } from './jobs/backup.ts';
+import { dailyLine, runDaily, type DailyDeps } from './jobs/daily.ts';
+import { status, type StatusDeps } from './jobs/status.ts';
 
-const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] | account create <이메일> [--dept <학과>] | account password <이메일> | account delete <이메일> | export-gold <폴더> (모두 --json)';
+const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] | account create <이메일> [--dept <학과>] | account password <이메일> | account delete <이메일> | export-gold <폴더> | daily [--skip-classifier] | backup | restore <백업 파일> | status (모두 --json)';
 
 /** stdin은 비밀번호를 받는 곳이다(시험은 글로 넣는다). 명령 기록에 남지 않게 인자로 받지 않는다 */
-type Deps = { sql?: Sql; env?: Record<string, string | undefined>; ingest?: Partial<IngestDeps>; stdin?: () => Promise<string>; repoRoot?: string };
+type Deps = { sql?: Sql; env?: Record<string, string | undefined>; ingest?: Partial<IngestDeps>; stdin?: () => Promise<string>; repoRoot?: string; daily?: Partial<DailyDeps>; status?: Partial<StatusDeps>; run?: (cmd: string, args: string[]) => Promise<unknown> };
 const readStdin = async () => { let s = ''; for await (const c of process.stdin) s += String(c); return s; };
 
 function accountArgs(rest: string[]): { action: string; email: string; dept?: string } | null {
@@ -38,7 +41,9 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
   const ing = cmd === 'ingest' ? ingestArgs(rest) : null;
   const acc = cmd === 'account' ? accountArgs(rest) : null;
   const gold = cmd === 'export-gold' && rest.length === 1 && !rest[0].startsWith('--') ? rest[0] : null;
-  if (!(cmd === 'migrate' && rest.length === 0) && !ing && !acc && !gold) {
+  const ops = (cmd === 'daily' && (rest.length === 0 || (rest.length === 1 && rest[0] === '--skip-classifier')))
+    || ((cmd === 'backup' || cmd === 'status') && rest.length === 0) || (cmd === 'restore' && rest.length === 1 && !rest[0].startsWith('--'));
+  if (!(cmd === 'migrate' && rest.length === 0) && !ing && !acc && !gold && !ops) {
     console.error(USAGE);
     return 2;
   }
@@ -47,6 +52,28 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
     const mode: Mode = deps.sql ? (deps.env?.KINGO_MODE === 'prod' ? 'prod' : 'dev') : loadConfig(deps.env).mode;
     sql ??= connect(loadConfig(deps.env).databaseUrl);
     if (ing) return await runIngest(sql, ing, mode, json, deps.ingest);
+    if (ops) {
+      const c = deps.sql ? { databaseUrl: '', backupDir: null, ollamaHost: '', apiUrl: '' } : loadConfig(deps.env);
+      if (cmd === 'status') {
+        const r = await status({ sql, ollamaHost: c.ollamaHost, apiUrl: c.apiUrl, ...deps.status });
+        console.log(json ? JSON.stringify(r) : r.lines.join('\n'));
+        return r.ok ? 0 : 1;
+      }
+      if (cmd === 'daily') {
+        const r = await runDaily({ sql, mode, databaseUrl: c.databaseUrl, backupDir: c.backupDir, skipClassifier: rest.includes('--skip-classifier'), ...deps.daily });
+        console.log(json ? JSON.stringify(r) : dailyLine(r));
+        return Object.values(r.steps).some(x => !x.ok && !x.skipped) ? 1 : 0;
+      }
+      if (cmd === 'backup') {
+        if (!c.backupDir) throw new Error('KINGO_BACKUP_DIR가 없어요');
+        const file = await backup(c.backupDir, c.databaseUrl, new Date(), deps.run);
+        console.log(json ? JSON.stringify({ file }) : `백업했어요: ${file}`);
+        return 0;
+      }
+      await restore(sql, rest[0], c.databaseUrl, deps.run);
+      console.log(json ? JSON.stringify({ restored: rest[0] }) : `되살렸어요: ${rest[0]}`);
+      return 0;
+    }
     if (gold) {
       const r = await exportGold(sql, gold, deps.repoRoot);
       console.log(json ? JSON.stringify(r) : `정답셋 후보 ${r.rows}개를 썼어요: ${r.path}`);

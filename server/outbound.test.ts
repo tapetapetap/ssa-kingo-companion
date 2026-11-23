@@ -1,0 +1,30 @@
+// SC-009의 정적 확인: 서버 코드가 바깥으로 여는 곳은 모델 서버(model.ts)와 api 상태 확인(jobs/status.ts)뿐이다
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const ROOT = resolve(import.meta.dirname, '..');
+const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+  const p = join(dir, e.name);
+  return e.isDirectory() ? (e.name === 'test' ? [] : files(p)) : e.name.endsWith('.ts') && !e.name.endsWith('.test.ts') ? [p] : [];
+});
+const src = files(join(ROOT, 'server')).map(p => ({ path: relative(ROOT, p), text: readFileSync(p, 'utf8') }));
+
+describe('바깥으로 나가는 곳 (SC-009, FR-042)', () => {
+  it('fetch·http.request·net.connect는 model.ts와 jobs/status.ts에만 있다', () => {
+    const open = src.filter(f => /\bfetch\(|http\.request\(|net\.connect\(/.test(f.text)).map(f => f.path);
+    expect(open.every(p => ['server/model.ts', 'server/jobs/status.ts'].includes(p))).toBe(true);
+  });
+
+  it('server/가 가져오는 etl/ 파일은 정한 목록뿐이다', () => {
+    const allowed = ['etl/taxonomy/taxonomy.ts', 'etl/notices/embed.ts', 'etl/notices/throttle.ts', 'etl/notices/sensors.ts', 'etl/notices/llm.ts',
+      'etl/notices/fields.ts', 'etl/notices/cse.ts', 'etl/notices/gold.ts', 'etl/notices/classify.ts'];
+    const used = new Set(src.flatMap(f => [...f.text.matchAll(/from '((?:\.\.\/)+etl\/[^']+)'/g)].map(m => relative(ROOT, resolve(ROOT, f.path, '..', m[1])))));
+    expect([...used].filter(p => !allowed.includes(p))).toEqual([]);
+  });
+
+  it('postOnce·makeEmbed·fetchPost는 model.ts와 ingest/vectors.ts만 부른다', () => {
+    const callers = src.filter(f => /\b(postOnce|makeEmbed|fetchPost)\(|\?\? fetchPost\b/.test(f.text)).map(f => f.path);
+    expect(callers.every(p => ['server/model.ts', 'server/ingest/vectors.ts'].includes(p))).toBe(true);
+  });
+});

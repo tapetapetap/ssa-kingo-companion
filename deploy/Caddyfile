@@ -1,0 +1,4 @@
+# 문지기(research R16): 호스트의 8080을 열고 inner의 api로 넘긴다. 3단계에서 HTTPS도 여기서 맡는다
+:8080 {
+	reverse_proxy api:8080
+}
