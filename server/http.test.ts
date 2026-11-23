@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { health, HttpError, kstIso, match, parseCookies, type Route } from './http.ts';
 import { testApp } from './test/app.ts';
 
@@ -64,5 +67,26 @@ describe('HTTP 틀 (contracts/api.md 공통)', () => {
     expect(logged.find(l => l.kind === 'error')).toMatchObject({ route: '/api/boom' });
     expect(logged.find(l => l.kind === 'request' && l.route === '/api/echo/:id')).toMatchObject({ method: 'GET', status: 200 });
     expect(app.lines.join('\n')).not.toContain('"a":1');
+  });
+});
+
+describe('운영자 화면 파일 (contracts/api.md 정적 파일)', () => {
+  it('/ops/는 index, 파일은 종류와 함께 로그인 없이 준다. 폴더 밖(..)이나 없는 파일·폴더는 404', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'ops-'));
+    const dir = join(root, 'dist');
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    writeFileSync(join(dir, 'index.html'), '<!doctype html>판정 검토');
+    writeFileSync(join(dir, 'assets', 'a.js'), 'x=1');
+    writeFileSync(join(root, 'secret.txt'), '비밀');
+    const ops = await testApp([], dir);
+    expect(await ops.request('GET', '/ops/')).toMatchObject({ status: 200, body: '<!doctype html>판정 검토' });
+    const js = await ops.request('GET', '/ops/assets/a.js');
+    expect([js.status, js.headers.get('content-type')]).toEqual([200, 'text/javascript; charset=utf-8']);
+    expect((await ops.request('GET', '/ops/..%2fsecret.txt')).status).toBe(404);
+    expect((await ops.request('GET', '/ops/none.js')).status).toBe(404);
+    await ops.close();
+    const none = await testApp([], join(root, 'nope'));
+    expect((await none.request('GET', '/ops/')).status).toBe(404);
+    await none.close();
   });
 });

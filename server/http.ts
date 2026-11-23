@@ -1,5 +1,8 @@
 // HTTP 틀(research R2, contracts/api.md '공통'): 작은 경로 표, JSON 본문(64KB까지), 쿠키, 같은 출처 확인, 오류 꼴, 요청 기록
+import { readFile } from 'node:fs/promises';
 import { createServer as createHttp, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { extname, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { LIMITS } from './limits.ts';
 import { logError, logRequest, type Write } from './log.ts';
 
@@ -83,9 +86,28 @@ function send(res: ServerResponse, status: number, body: unknown, headers: Recor
   else res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }).end(JSON.stringify(body));
 }
 
+/** 운영자 화면 빌드 파일(research R17). 자료가 없어 로그인 없이 준다. 폴더가 없거나 밖을 가리키면 null(404) */
+export const OPS_DIR = fileURLToPath(new URL('../web/ops/dist', import.meta.url));
+const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
+async function opsFile(path: string, dir: string): Promise<{ type: string; body: Buffer } | null> {
+  let rel: string;
+  try {
+    rel = decodeURIComponent(path.replace(/^\/ops\/?/, '')) || 'index.html';
+  } catch {
+    return null;
+  }
+  const file = resolve(dir, rel);
+  if (!file.startsWith(resolve(dir) + sep)) return null;
+  try {
+    return { type: TYPES[extname(file)] ?? 'application/octet-stream', body: await readFile(file) };
+  } catch {
+    return null;
+  }
+}
+
 export const health: Route = ['GET', '/api/health', () => ({ body: { ok: true } })];
 
-export function createServer(routes: Route[], write?: Write): Server {
+export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR): Server {
   return createHttp(async (req, res) => {
     const t0 = performance.now();
     const method = req.method ?? 'GET';
@@ -93,6 +115,14 @@ export function createServer(routes: Route[], write?: Write): Server {
     let route = '(없음)';
     let r: Req | null = null;
     try {
+      if (method === 'GET' && (url.pathname === '/ops' || url.pathname.startsWith('/ops/'))) {
+        route = '/ops/';
+        const f = await opsFile(url.pathname, opsDir);
+        if (!f) throw new HttpError(404, 'not_found', '찾을 수 없어요');
+        res.writeHead(200, { 'content-type': f.type, 'x-content-type-options': 'nosniff' }).end(f.body);
+        logRequest({ method, route, status: 200, ms: performance.now() - t0 }, write);
+        return;
+      }
       const found = routes.map(x => [x, match(x[1], url.pathname)] as const).find(([x, p]) => x[0] === method && p);
       if (!found) throw new HttpError(404, 'not_found', '찾을 수 없어요');
       const [[, pattern, handler], params] = found;

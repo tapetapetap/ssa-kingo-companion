@@ -17,14 +17,17 @@
     "audit:layout": "node scripts/audit-layout/run.mjs",
     "audit:copy": "node scripts/audit-copy/run.mjs",
     "server": "node --env-file-if-exists=.env server/main.ts",
-    "cli": "node --env-file-if-exists=.env server/cli.ts"
+    "cli": "node --env-file-if-exists=.env server/cli.ts",
+    "build:ops": "vite build --config web/ops/vite.config.ts"
   },
   "dependencies": {
+    "@astryxdesign/core": "^0.7.17",
     "postgres": "^3.4.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@astryxdesign/cli": "^0.7.17",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
