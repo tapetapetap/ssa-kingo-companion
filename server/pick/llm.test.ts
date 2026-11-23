@@ -24,10 +24,12 @@ describe('가장 추천 답 검사 (contracts/llm.md 표)', () => {
     ['오늘', ans({ reason: '오늘 꼭 보세요' })],
     ['없는 줄 키', ans({ cited: ['act:9'] })],
     ['프롬프트를 안 넣었는데 prompt', ans({ cited: ['prompt'] })],
-    ['같은 키 두 번', ans({ cited: ['act:1', 'act:1'] })],
     ['4개', ans({ cited: ['act:1', 'act:2', 'act:3', 'act:4'] })]
   ])('거절: %s', (_name, text) => {
     expect(checkPick(text, 3, ['act:1', 'act:2', 'act:3', 'act:4'], false)).toBeNull();
+  });
+  it('같은 키를 두 번 대면 하나로 센다', () => {
+    expect(checkPick(ans({ cited: ['act:1', 'act:1'] }), 3, ['act:1'], false)?.cited).toEqual(['act:1']);
   });
 });
 

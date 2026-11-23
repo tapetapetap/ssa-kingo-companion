@@ -6,7 +6,7 @@ import type { Post } from '../../etl/notices/llm.ts';
 import { openModel } from '../model.ts';
 import { testDb } from '../test/db.ts';
 import { seedTaxonomy } from '../test/student.ts';
-import { checkFlow, FLOW_SCHEMA, writeFlow } from './flow.ts';
+import { checkFlow, flowSchema, writeFlow } from './flow.ts';
 import { rebuild, stored } from './store.ts';
 
 let db: Awaited<ReturnType<typeof testDb>>;
@@ -37,8 +37,8 @@ describe('흐름 답 검사 (contracts/llm.md 표)', () => {
     expect(out!.map(f => f.key)).toEqual(['flow:act:1+act:2', 'flow:act:1+ans', 'flow:act:1+picked', 'flow:act:2+picked']);
     expect(checkFlow('흐름이에요', KEYS, new Set())).toBeNull();
   });
-  it('스키마가 근거를 둘 이상 요구한다(지시문만으로는 gemma4:12b가 하나씩 달았다, T089)', () => {
-    expect(FLOW_SCHEMA.properties.lines.items.properties.refs.minItems).toBe(2);
+  it('스키마가 근거를 사실 줄 키로 둘 이상 요구한다(지시문만으로는 gemma4:12b가 하나씩 달았다, T089)', () => {
+    expect(flowSchema(['ans', 'act:1']).properties.lines.items.properties.refs).toEqual({ type: 'array', minItems: 2, items: { type: 'string', enum: ['ans', 'act:1'] } });
   });
 });
 

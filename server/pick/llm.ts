@@ -51,8 +51,8 @@ export function checkPick(text: string, n: number, lineKeys: string[], hasPrompt
   if ((pick as number) < 1 || (pick as number) > n) return null;
   const r = reason.trim();
   if (!r || r.length > LIMITS.reasonChars || DATE_RE.test(r)) return null;
-  const keys = cited as string[];
-  if (keys.length > LIMITS.citedMax || new Set(keys).size !== keys.length) return null;
+  const keys = [...new Set(cited as string[])]; // 같은 키를 두 번 대면 하나로 센다(스키마가 겹침을 막지 못한다)
+  if (keys.length > LIMITS.citedMax) return null;
   if (!keys.every(k => (k === 'prompt' ? hasPrompt : lineKeys.includes(k)))) return null;
   return { index: (pick as number) - 1, reason: r, cited: keys };
 }

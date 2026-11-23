@@ -10,7 +10,7 @@ const NO = `cast(split_part(n.id, ':', 2) as bigint)`;
  *  (벡터를 받아 JS에서 세면 공지 3,000건에 한 번 고르기가 0.5초를 넘어 그동안 서버가 멈췄다, T089) */
 export async function loadCands(sql: Sql, student: number, vector: number[] | null): Promise<Cand[]> {
   const rows = await sql<{ id: string; no: string; kind: string | null; field_state: string; sim: number | null; deadline: string | null; closes_on: string; posted_on: string }[]>`
-    select n.id, ${sql.unsafe(NO)}::text as no, n.kind, n.field_state, (1 - (n.vector <=> ${vector ? JSON.stringify(vector) : null}::vector))::float8 as sim,
+    select n.id, ${sql.unsafe(NO)}::text as no, n.kind, n.field_state, nullif((1 - (n.vector <=> ${vector ? JSON.stringify(vector) : null}::vector))::float8, 'NaN') as sim,
       n.deadline::text, n.closes_on::text, n.posted_on::text
     from notices n left join actions a on a.notice_id = n.id and a.student_id = ${student}
     where ${sql.unsafe(OPEN)} and not coalesce(${sql.unsafe(HIDDEN)} or a.kind = 'like', false)`;

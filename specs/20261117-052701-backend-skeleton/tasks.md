@@ -229,7 +229,7 @@
 - [X] T085 [US6] `deploy/Dockerfile`과 `.dockerignore`(research R16 '이미지': node:22-slim, PGDG의 postgresql-client-17, lm-sensors, 저장소 복사, `npm ci`, `npm run build:ops`), `deploy/compose.yaml`(`db`, `ollama`, `api`, `proxy`, `jobs`, 일회용 `ollama-pull`, `inner`는 `internal: true`, `outer`, R16의 볼륨 표, `env_file`), `deploy/Caddyfile`, `deploy/kingo-daily.service`(`WorkingDirectory=/opt/kingo`, `docker compose -f deploy/compose.yaml run --rm jobs node server/cli.ts daily`)·`kingo-daily.timer`를 쓴다(research R14~R16)
 - [X] T086 [US6] 이 맥에서 compose 전체를 띄워 확인한다: proxy의 8080으로 `GET /api/health`가 답함, api 컨테이너에서 바깥 주소에 닿지 못함, jobs 컨테이너에서 `daily --skip-classifier`와 `status`가 돌고 요약이 남음, 컨테이너를 지우고 다시 돌려도 `etl/.cache`와 `etl/out`이 볼륨에 남음, 백업 파일로 빈 DB에 되살려 행 수가 같음 — 결과(2026-11-23, Docker 29.6.1): proxy(호스트 8092, 이 맥은 8080을 다른 앱이 씀)로 health·/ops/ 답함, api에서 example.com은 EAI_AGAIN, jobs에서 daily --skip-classifier와 status 다섯 줄, 컨테이너를 지워도 etl-out의 결과 파일이 남음, 되살린 DB의 공지 126·학생 1·로그인 수단 1이 원본과 같음(daily_runs는 백업이 작업 도중이라 0), 두 번째 되살리기는 거절. 이미지가 결과 파일을 품어 새 볼륨도 그 파일로 시작함
 - [ ] T087 [US6] 학교 데스크톱에 올려 확인한다(사용자와 함께: 장비 접근이 필요하다): CPU 패키지 온도가 읽히는지, 매일 작업이 3일 잇달아 도는지(SC-012), gemma4:12b의 CPU 속도를 재서 research R7의 측정 줄을 채운다
-- [x] T088 [US6] 단계 마무리(PR '2단계 운영 묶음')
+- [X] T088 [US6] 단계 마무리(PR '2단계 운영 묶음')
 
 **Checkpoint**: 2단계가 끝났다. 운영 모드는 통합 로그인과 학교 전산 승인 뒤에 켠다.
 
@@ -237,8 +237,8 @@
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [x] T089 quickstart.md의 1~7을 처음부터 끝까지 돌려 확인한다. SC-007을 잰다: 개발 DB에 시험용 학생 1,000명과 공지 3,000건을 만들어(일회용 스크립트, 저장소 밖) 홈·공지 목록·내 목록·나의 분석을 100번씩 부르고 95번째 값이 1초 안인지 PR 본문에 적는다
-- [x] T090 [P] `README.md`에 서버를 띄우는 법(개발 맥, 학교 데스크톱)과 명령 표를 더한다
+- [X] T089 quickstart.md의 1~7을 처음부터 끝까지 돌려 확인한다. SC-007을 잰다: 개발 DB에 시험용 학생 1,000명과 공지 3,000건을 만들어(일회용 스크립트, 저장소 밖) 홈·공지 목록·내 목록·나의 분석을 100번씩 부르고 95번째 값이 1초 안인지 PR 본문에 적는다
+- [X] T090 [P] `README.md`에 서버를 띄우는 법(개발 맥, 학교 데스크톱)과 명령 표를 더한다
 - [ ] T091 [P] 저장소 밖 문서를 구현대로 고친다: 기획 문서(Claude Docs '킹고 컴패니언 새 기획')의 2단계 절, 전체 시스템 구조도 아티팩트(문지기 proxy), 교수님 기획안(Claude Docs)의 서버 그림
 - [ ] T092 3단계 명세를 시작하기 전에 남은 것을 기획 문서의 '아직 정하지 않은 것' 목록에 적는다: 통합 로그인 방식, 동의 문구, `.nvmrc`와 이미지의 Node 올리기, GPU가 온 뒤 SC-005·SC-006 재기
 

@@ -20,8 +20,8 @@ export function homeRoutes(ctx: Ctx): Route[] {
     // 비슷한 공지의 유사도(관심 있어요 공지들과의 코사인 최댓값)는 DB가 센다. 벡터를 받아 JS에서 세면 공지 3,000건에 홈이 1초를 넘었다(SC-007, T089)
     const rows = await sql<(Row & { sim: number | null; no: string })[]>`
       select x.*, split_part(x.id, ':', 2) as no,
-        (select max(1 - (v.vector <=> ln.vector)) from actions la join notices ln on ln.id = la.notice_id
-         where la.student_id = ${s.id} and la.kind = 'like' and ln.vector is not null)::float8 as sim
+        nullif((select max(1 - (v.vector <=> ln.vector)) from actions la join notices ln on ln.id = la.notice_id
+         where la.student_id = ${s.id} and la.kind = 'like' and ln.vector is not null)::float8, 'NaN') as sim
       from (${SELECT(sql, s.id)} where ${sql.unsafe(OPEN)} and not coalesce(${sql.unsafe(HIDDEN)}, false)) x join notices v on v.id = x.id`;
     const all = await cards(sql, rows);
     const [{ today }] = await sql<{ today: string }[]>`select ${sql.unsafe(TODAY)}::text as today`;
