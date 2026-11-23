@@ -107,15 +107,15 @@
 
 ### Tests for User Story 4
 
-- [ ] T038 [P] [US4] `server/notices/list.test.ts`를 쓴다(계약 시험: notices, notices/:id): spec US4의 시나리오 1·2, 종류·분야 여럿, 찾는 말 띄어쓰기·대소문자와 50자를 넘으면 `too_long`, 모르는 종류·정렬은 `invalid`, 열린 공지가 없으면 `empty`가 `no_open_notices`이고 거르기에 맞는 것이 없으면 `no_match`, 두 정렬(마감 없는 공지는 맨 뒤), 20개씩 나눔, 관심 없음과 다시 볼 날 전 공지는 빠짐, 닫힌 공지와 내려간 공지·공지가 아니게 된 글도 자세히에서는 표시와 함께 옴(목록에는 없음), 답에 점수·유사도 칸이 없음(FR-024) 정렬 동점은 글 번호 큰 순, `cursor`로 다음 20개, 공지가 아닌 글은 행동이 없으면 자세히가 `not_found`.
-- [ ] T039 [P] [US4] `server/notices/actions.test.ts`를 쓴다(계약 시험: PUT·DELETE action, me/list): spec US4의 시나리오 3~7, 새 행동이 앞 행동을 바꿈, 마감이 오늘이면 나중에 보기 거절, 마감이 당겨지면 바로 다시 나옴, 이유는 관심 없음에만, `done`일 때 `suggestActivity`의 네 칸(api.md), 내 목록의 세 표시와 순서(행동한 때 최근 순) 열린 공지가 아니면 새 행동은 `invalid`이고 지우기는 됨, 1월에 받은 `suggestActivity.term`은 앞 해의 2학기.
+- [X] T038 [P] [US4] `server/notices/list.test.ts`를 쓴다(계약 시험: notices, notices/:id): spec US4의 시나리오 1·2, 종류·분야 여럿, 찾는 말 띄어쓰기·대소문자와 50자를 넘으면 `too_long`, 모르는 종류·정렬은 `invalid`, 열린 공지가 없으면 `empty`가 `no_open_notices`이고 거르기에 맞는 것이 없으면 `no_match`, 두 정렬(마감 없는 공지는 맨 뒤), 20개씩 나눔, 관심 없음과 다시 볼 날 전 공지는 빠짐, 닫힌 공지와 내려간 공지·공지가 아니게 된 글도 자세히에서는 표시와 함께 옴(목록에는 없음), 답에 점수·유사도 칸이 없음(FR-024) 정렬 동점은 글 번호 큰 순, `cursor`로 다음 20개, 공지가 아닌 글은 행동이 없으면 자세히가 `not_found`.
+- [X] T039 [P] [US4] `server/notices/actions.test.ts`를 쓴다(계약 시험: PUT·DELETE action, me/list): spec US4의 시나리오 3~7, 새 행동이 앞 행동을 바꿈, 마감이 오늘이면 나중에 보기 거절, 마감이 당겨지면 바로 다시 나옴, 이유는 관심 없음에만, `done`일 때 `suggestActivity`의 네 칸(api.md), 내 목록의 세 표시와 순서(행동한 때 최근 순) 열린 공지가 아니면 새 행동은 `invalid`이고 지우기는 됨, 1월에 받은 `suggestActivity.term`은 앞 해의 2학기.
 
 ### Implementation for User Story 4
 
-- [ ] T040 [US4] `server/db/migrations/004_actions.sql`을 쓴다(data-model 4의 `actions`)
-- [ ] T041 [US4] `server/notices/open.ts`(열린 공지와 '이 학생에게 숨길 공지' SQL 조각, 오늘은 한국 날짜)와 `server/notices/card.ts`(NoticeCard 꼴)를 쓴다
-- [ ] T042 [US4] `server/notices/list.ts`와 경로를 쓴다(T038 통과)
-- [ ] T043 [US4] `server/notices/actions.ts`, `server/notices/mylist.ts`와 경로를 쓴다(T039 통과)
+- [X] T040 [US4] `server/db/migrations/004_actions.sql`을 쓴다(data-model 4의 `actions`)
+- [X] T041 [US4] `server/notices/open.ts`(열린 공지와 '이 학생에게 숨길 공지' SQL 조각, 오늘은 한국 날짜)와 `server/notices/card.ts`(NoticeCard 꼴)를 쓴다
+- [X] T042 [US4] `server/notices/list.ts`와 경로를 쓴다(T038 통과)
+- [X] T043 [US4] `server/notices/actions.ts`, `server/notices/mylist.ts`와 경로를 쓴다(T039 통과)
 - [ ] T044 [US4] 단계 마무리(PR '2단계 공지와 카드 행동')
 
 **Checkpoint**: 공지 메뉴와 내 목록이 서버만으로 돈다.
