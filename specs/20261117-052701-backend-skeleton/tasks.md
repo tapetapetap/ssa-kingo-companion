@@ -130,22 +130,24 @@
 
 ### Tests for User Story 3
 
-- [ ] T045 [P] [US3] `server/pick/score.test.ts`를 쓴다: research R8 표의 줄마다 점수, 같은 자료면 같은 순서, 동점은 마감 → 게시 → id 순, 분야가 붙지 않은 공지(`off`·`missing`)는 분야 점수 0이고 `off`인 공지들 사이에 운영자가 분야를 넣은(`human`) 공지 하나는 분야 점수를 받음, 학생 벡터(세 묶음의 평균, 묶음이 없으면 벡터 점수 0), 규칙 문장(research R8 표의 조각과 조건이 없을 때의 문장, 날짜·날 수 없음), 채용은 3학년 이상에게만 종류 점수 동점 예(닫히는 날 같음 → 게시일 → 글 번호), 규칙 문장의 같은 점수 조건 순서와 남은 날 14일은 마감 조각 없음.
-- [ ] T046 [P] [US3] `server/pick/llm.test.ts`를 쓴다(가짜 모델): contracts/llm.md의 가장 추천 답 검사 표의 줄마다(꼴, 후보, 이유, 날짜 정규식의 예 여섯, 참고한 줄) 규칙 1위로 돌아감, 재료 글의 꼴(후보 줄, 칸이 없을 때 빠짐), 모델이 `down`·`fail`이면 규칙, 규칙 문장에 날짜가 없음, 고른 방식 글자
-- [ ] T047 [US3] `server/pick/repick.test.ts`를 쓴다: 같은 학생의 다시 고르기는 한 줄로 합쳐짐, 계산 중에 다시 걸리면 끝난 뒤 행이 남아 한 번 더 고름, 계산이 던지면 행이 남음, 일꾼이 가장 오래된 줄부터 처리, 모델 잠금이 잡혀 있으면 기다림(두 요청이 겹치지 않음), 줄이 비면 부하 제한을 닫고 `model_bursts`에 한 줄이 남음, 온도를 읽지 못하면 그 다시 고르기만 규칙이고 다음 일은 새 부하 제한으로 다시 물어봄(research R7), 프롬프트 벡터가 비어 있으면 그 학생 차례에 만들어 채우고 임베딩이 실패하면 비운 채 고름(research R9)
-- [ ] T048 [US3] `server/pick/home.test.ts`를 쓴다(계약 시험: home): spec US3의 시나리오 1·3~10, `pickEmpty`와 선반의 `empty` 까닭 네 가지(`no_field_verdicts`는 열린 공지 가운데 분야가 붙은 것이 없을 때, research R8), 비슷한 공지 선반의 순서(관심 있어요 공지와의 유사도 가운데 가장 큰 값), FR-038의 바로 바꾸기(다시 볼 날이 된 나중에 보기 공지는 그대로 둠), 한 홈에 같은 공지는 한 번, 관심 있어요 공지는 가장 추천이 아니고 마감 임박에는 나옴, 다시 고르는 때(고른 분야·처음 답이 바뀜, 가장 추천 공지에 행동) 선반 자르기 순서와 겹침 빼기, 모두 걸러졌을 때 `pickEmpty`가 `no_match`.
+- [x] T045 [P] [US3] `server/pick/score.test.ts`를 쓴다: research R8 표의 줄마다 점수, 같은 자료면 같은 순서, 동점은 마감 → 게시 → id 순, 분야가 붙지 않은 공지(`off`·`missing`)는 분야 점수 0이고 `off`인 공지들 사이에 운영자가 분야를 넣은(`human`) 공지 하나는 분야 점수를 받음, 학생 벡터(세 묶음의 평균, 묶음이 없으면 벡터 점수 0), 규칙 문장(research R8 표의 조각과 조건이 없을 때의 문장, 날짜·날 수 없음), 채용은 3학년 이상에게만 종류 점수 동점 예(닫히는 날 같음 → 게시일 → 글 번호), 규칙 문장의 같은 점수 조건 순서와 남은 날 14일은 마감 조각 없음.
+- [x] T046 [P] [US3] `server/pick/llm.test.ts`를 쓴다(가짜 모델): contracts/llm.md의 가장 추천 답 검사 표의 줄마다(꼴, 후보, 이유, 날짜 정규식의 예 여섯, 참고한 줄) 규칙 1위로 돌아감, 재료 글의 꼴(후보 줄, 칸이 없을 때 빠짐), 모델이 `down`·`fail`이면 규칙, 규칙 문장에 날짜가 없음, 고른 방식 글자
+- [x] T047 [US3] `server/pick/repick.test.ts`를 쓴다: 같은 학생의 다시 고르기는 한 줄로 합쳐짐, 계산 중에 다시 걸리면 끝난 뒤 행이 남아 한 번 더 고름, 계산이 던지면 행이 남음, 일꾼이 가장 오래된 줄부터 처리, 모델 잠금이 잡혀 있으면 기다림(두 요청이 겹치지 않음), 줄이 비면 부하 제한을 닫고 `model_bursts`에 한 줄이 남음, 온도를 읽지 못하면 그 다시 고르기만 규칙이고 다음 일은 새 부하 제한으로 다시 물어봄(research R7), 프롬프트 벡터가 비어 있으면 그 학생 차례에 만들어 채우고 임베딩이 실패하면 비운 채 고름(research R9)
+- [x] T048 [US3] `server/pick/home.test.ts`를 쓴다(계약 시험: home): spec US3의 시나리오 1·3~10, `pickEmpty`와 선반의 `empty` 까닭 네 가지(`no_field_verdicts`는 열린 공지 가운데 분야가 붙은 것이 없을 때, research R8), 비슷한 공지 선반의 순서(관심 있어요 공지와의 유사도 가운데 가장 큰 값), FR-038의 바로 바꾸기(다시 볼 날이 된 나중에 보기 공지는 그대로 둠), 한 홈에 같은 공지는 한 번, 관심 있어요 공지는 가장 추천이 아니고 마감 임박에는 나옴, 다시 고르는 때(고른 분야·처음 답이 바뀜, 가장 추천 공지에 행동) 선반 자르기 순서와 겹침 빼기, 모두 걸러졌을 때 `pickEmpty`가 `no_match`.
 
 ### Implementation for User Story 3
 
-- [ ] T049 [US3] `server/db/migrations/005_picks.sql`을 쓴다(data-model 4의 `prompts`, `picks`, `repick_queue`, 5절의 `model_bursts`)
-- [ ] T050 [P] [US3] `server/pick/score.ts`(순수 함수)와 `server/pick/reason.ts`(규칙 문장)를 쓴다(T045 통과)
-- [ ] T051 [US3] `server/model.test.ts`(가짜 `post`, contracts/llm.md '시험')와 `server/model.ts`를 쓴다: `openModel()`이 부하 제한 하나와 `chat`·`embed`를 묶어 주고 `close()`가 `model_bursts`에 요약을 남긴다. 요청은 1단계 `postOnce`로 보내고 `server/db/sql.ts`의 `withModelLock`(`sql.reserve()`로 잡은 연결의 advisory lock, 키는 스키마 이름으로)으로 감싼다(research R7)
-- [ ] T052 [US3] `server/pick/candidates.ts`(거르기와 후보 10개, 학생 벡터는 research R8의 식)와 `server/pick/llm.ts`(contracts/llm.md의 지시문, 재료, 스키마, 답 검사)를 쓴다(T046 통과)
-- [ ] T053 [US3] `server/pick/repick.ts`를 쓴다: 줄에 넣기, 일꾼(2초마다 하나. 부하 제한을 여닫는 때와 프롬프트 벡터 채우기는 research R7·R9), `server/main.ts`가 일꾼을 시작한다(T047 통과). `server/me/answers.ts`·`server/me/fields.ts`·`server/notices/actions.ts`가 다시 고르기를 건다
-- [ ] T054 [US3] `server/pick/shelves.ts`와 `server/pick/home.ts`(경로 `GET /api/home`, FR-038의 바로 바꾸기)를 쓴다(T048 통과)
-- [ ] T054b [US3] `ingest` 명령과 매일 작업의 넣기 단계가 `openModel()`의 `embed`를 쓰게 바꾼다(모델 잠금 안). 모델 잠금이 잡혀 있으면 넣기의 임베딩이 기다리는 시험을 `server/ingest/ingest.test.ts`에 더한다
-- [ ] T055 [US3] 실제 Ollama로 개발 계정 셋의 홈을 받아 가장 추천·이유·고른 방식을 눈으로 확인하고, Ollama를 끄고 다시 확인한다
+- [x] T049 [US3] `server/db/migrations/005_picks.sql`을 쓴다(data-model 4의 `prompts`, `picks`, `repick_queue`, 5절의 `model_bursts`)
+- [x] T050 [P] [US3] `server/pick/score.ts`(순수 함수)와 `server/pick/reason.ts`(규칙 문장)를 쓴다(T045 통과)
+- [x] T051 [US3] `server/model.test.ts`(가짜 `post`, contracts/llm.md '시험')와 `server/model.ts`를 쓴다: `openModel()`이 부하 제한 하나와 `chat`·`embed`를 묶어 주고 `close()`가 `model_bursts`에 요약을 남긴다. 요청은 1단계 `postOnce`로 보내고 `server/db/sql.ts`의 `withModelLock`(`sql.reserve()`로 잡은 연결의 advisory lock, 키는 스키마 이름으로)으로 감싼다(research R7)
+- [x] T052 [US3] `server/pick/candidates.ts`(거르기와 후보 10개, 학생 벡터는 research R8의 식)와 `server/pick/llm.ts`(contracts/llm.md의 지시문, 재료, 스키마, 답 검사)를 쓴다(T046 통과)
+- [x] T053 [US3] `server/pick/repick.ts`를 쓴다: 줄에 넣기, 일꾼(2초마다 하나. 부하 제한을 여닫는 때와 프롬프트 벡터 채우기는 research R7·R9), `server/main.ts`가 일꾼을 시작한다(T047 통과). `server/me/answers.ts`·`server/me/fields.ts`·`server/notices/actions.ts`가 다시 고르기를 건다
+- [x] T054 [US3] `server/pick/shelves.ts`와 `server/pick/home.ts`(경로 `GET /api/home`, FR-038의 바로 바꾸기)를 쓴다(T048 통과)
+- [x] T054b [US3] `ingest` 명령과 매일 작업의 넣기 단계가 `openModel()`의 `embed`를 쓰게 바꾼다(모델 잠금 안). 모델 잠금이 잡혀 있으면 넣기의 임베딩이 기다리는 시험을 `server/ingest/ingest.test.ts`에 더한다
+- [x] T055 [US3] 실제 Ollama로 개발 계정 셋의 홈을 받아 가장 추천·이유·고른 방식을 눈으로 확인하고, Ollama를 끄고 다시 확인한다
 - [ ] T056 [US3] 단계 마무리(PR '2단계 홈')
+
+**US3 결과(2026-11-23)**: 시험은 `pick/score.test.ts`·`pick/llm.test.ts`·`pick/home.test.ts`(다시 고르기 일꾼 시험 포함, `repick.test.ts`는 따로 두지 않음)·`model.test.ts`. 줄의 `queued_at`은 글자로 비교한다(postgres.js가 시각 값을 밀리초로 잘라 보내 같은 행을 못 지웠음). 넣기 임베딩의 잠금 기다림은 `model.test.ts`의 잠금 시험으로 갈음했다. T055(gemma4:12b, 열린 공지 8개, 학생 셋): 처음에는 셋 중 둘이 없는 키(`취업`)나 프롬프트 없는 `prompt`를 참고한 줄로 대 규칙 1위로 떨어졌다 → 재료 끝에 '참고한 줄로 댈 수 있는 키'를 적자 셋 중 둘이 LLM 답으로 통과. 남은 문제: 이유가 해요체가 아니라 '~습니다'로 나오기도 한다(답 검사 밖, 6단계에서 지시문 예시로 다룰 것). 모델을 끄면 셋 모두 규칙 1위와 규칙 문장(SC-004).
 
 **Checkpoint**: 홈이 서버만으로 돈다(나의 분석 없이).
 

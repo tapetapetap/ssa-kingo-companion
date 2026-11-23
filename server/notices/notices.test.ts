@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { Sql } from '../db/sql.ts';
 import { testDb } from '../test/db.ts';
+import { day, notice } from '../test/notice.ts';
 import { createDevStudent, PASSWORD, seedTaxonomy, studentApp } from '../test/student.ts';
 
 let db: Awaited<ReturnType<typeof testDb>>;
@@ -9,19 +9,6 @@ beforeAll(async () => { db = await testDb(); });
 afterAll(async () => { await db.close(); });
 afterEach(async () => { await app.close(); });
 
-/** 오늘(한국)에서 d일 뒤의 날짜 */
-const day = (d: number) => new Date(Date.now() + 9 * 3600_000 + d * 86400_000).toISOString().slice(0, 10);
-type N = { no: number; title?: string; host?: string | null; kind?: string; posted?: number; deadline?: number | null; isNotice?: boolean; down?: boolean; core?: string[]; related?: string[]; judged?: boolean };
-async function notice(sql: Sql, n: N) {
-  const title = n.title ?? `공지 ${n.no}`;
-  const host = n.host === undefined ? '가나다' : n.host;
-  await sql`insert into notices (id, source, title, url, posted_on, host, is_notice, kind, deadline, field_state, field_rule, search_text, down, file, file_hash)
-    values (${`cse:${n.no}`}, 'src', ${title}, ${`https://x/${n.no}`}, ${day(n.posted ?? -1)}, ${host}, ${n.isNotice ?? true}, ${n.kind ?? 'job'},
-      ${n.deadline === null ? null : day(n.deadline ?? 10)}, ${n.judged === false ? 'off' : 'judged'}, 'LLM: m', ${`${title}${host ?? ''}`.toLowerCase().replace(/\s+/g, '')}, ${n.down ?? false}, '{}', 'h')`;
-  for (const [level, ids] of [['core', n.core ?? []], ['related', n.related ?? []]] as const) {
-    for (const [i, id] of ids.entries()) await sql`insert into notice_fields (notice_id, field_id, level, ord) values (${`cse:${n.no}`}, ${id}, ${level}, ${i})`;
-  }
-}
 const ids = (r: { body: unknown }) => (r.body as { items: { id: string }[] }).items.map(x => x.id);
 
 beforeEach(async () => {
