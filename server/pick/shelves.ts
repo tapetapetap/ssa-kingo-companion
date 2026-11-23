@@ -3,15 +3,15 @@
 import { LIMITS } from '../limits.ts';
 import { cosine, days } from './score.ts';
 
-export type ShelfItem<C> = { card: C; no: number; core: string[] | null; related: string[]; deadline: string | null; postedOn: string; liked: boolean; vector: number[] | null };
+export type ShelfItem<C> = { card: C; id: string; no: number; core: string[] | null; related: string[]; deadline: string | null; postedOn: string; liked: boolean; vector: number[] | null };
 export type Empty = 'no_open_notices' | 'no_field_verdicts' | 'no_likes' | 'no_match';
 export type Shelf<C> = { items: C[]; empty: Empty | null };
 
-export function buildShelves<C>(all: ShelfItem<C>[], o: { picked: Set<string>; today: string; seen: Set<number>; anyJudged: boolean; likedVectors: number[][] }) {
+export function buildShelves<C>(all: ShelfItem<C>[], o: { picked: Set<string>; today: string; seen: Set<string>; anyJudged: boolean; likedVectors: number[][] }) {
   const seen = new Set(o.seen);
   const take = (list: ShelfItem<C>[], empty: Empty | null = null): Shelf<C> => {
-    const items = list.filter(x => !seen.has(x.no)).slice(0, LIMITS.shelfSize);
-    for (const x of items) seen.add(x.no);
+    const items = list.filter(x => !seen.has(x.id)).slice(0, LIMITS.shelfSize);
+    for (const x of items) seen.add(x.id);
     return { items: items.map(x => x.card), empty: items.length ? null : empty ?? (all.length ? 'no_match' : 'no_open_notices') };
   };
   const coreHit = (x: ShelfItem<C>) => !!x.core?.some(f => o.picked.has(f));

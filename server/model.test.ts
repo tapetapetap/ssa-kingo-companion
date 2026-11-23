@@ -54,7 +54,7 @@ describe('openModel (research R7, contracts/llm.md)', () => {
     await m.close();
   });
 
-  it('close()는 요청이 있을 때만 model_bursts에 한 줄 남긴다', async () => {
+  it('close()는 요청이 있을 때만, 두 번 불러도 model_bursts에 한 줄 남긴다', async () => {
     await db.sql`delete from model_bursts`;
     const idle = openModel(db.sql, 'daily', { post: okPost(), throttle: throttle() });
     await idle.close();
@@ -62,7 +62,8 @@ describe('openModel (research R7, contracts/llm.md)', () => {
     const m = openModel(db.sql, 'daily', { post: okPost(), throttle: throttle() });
     await m.chat('s', 'u', {});
     await m.close();
-    expect((await db.sql`select who, requests from model_bursts`)[0]).toEqual({ who: 'daily', requests: 1 });
+    await m.close();
+    expect([...(await db.sql`select who, requests from model_bursts`)]).toEqual([{ who: 'daily', requests: 1 }]);
   });
 
   it('모델 잠금은 한 번에 하나만 들어간다(두 요청이 겹치지 않는다)', async () => {

@@ -34,6 +34,7 @@ export function openModel(sql: Sql, who: Who, d: ModelDeps = {}): Model {
   const throttle = createThrottle(d.throttle);
   const gate = throttle.gate();
   const started = new Date();
+  let closed: Promise<LoadSummary> | null = null; // 두 번 닫아도 기록은 한 줄
   const rawEmbed = makeEmbed({ host: d.host, post, gate });
   const chat: Chat = (system, user, schema) => withModelLock(sql, async () => {
     const body = JSON.stringify({
@@ -56,12 +57,12 @@ export function openModel(sql: Sql, who: Who, d: ModelDeps = {}): Model {
   return {
     name, chat, embed,
     get noTemp() { return gate.noTemp; },
-    close: async () => {
+    close: () => (closed ??= (async () => {
       const s = throttle.stop();
       if (!s.requests) return s;
       await sql`insert into model_bursts (who, started_at, ended_at, requests, request_ms, gpu_avg, temp_max)
         values (${who}, ${started}, ${new Date()}, ${s.requests}, ${s.requestMs}, ${s.gpuAvg}, ${s.tempMax})`;
       return s;
-    }
+    })())
   };
 }

@@ -157,4 +157,25 @@ describe('홈 (US3)', () => {
     expect((await db.sql`select vector is not null as v from prompts`)[0].v).toBe(true);
     expect((await db.sql`select cited from picks`)[0].cited).toEqual([{ key: 'prompt' }]);
   });
+  it('계속 실패하는 학생은 줄 맨 뒤로 가 다른 학생을 막지 않는다', async () => {
+    await notice(db.sql, { no: 1, core: ['backend'] });
+    await pickFields();
+    const other = await createDevStudent(db.sql, 'dev2@example.com');
+    await enqueue(db.sql, other, 'daily');
+    const w = makeWorker(db.sql, { noModel: true, analysisOf: async (_sql, id) => { if (id === me) throw new Error('boom'); return null; } });
+    expect([await w.step(), await w.step()]).toEqual([me, other]);
+  });
+
+  it('일꾼이 행을 집은 뒤 홈이 바로 바꾼 가장 추천은 덮지 않는다', async () => {
+    await notice(db.sql, { no: 1, core: ['backend'] });
+    await notice(db.sql, { no: 2, core: ['qa'], posted: -3 });
+    await pickFields();
+    const w = makeWorker(db.sql, { noModel: true, analysisOf: async () => {
+      await db.sql`update picks set notice_id = 'cse:2', reason = '홈이 바꿈', computed_at = clock_timestamp() where student_id = ${me}`;
+      return null;
+    } });
+    await home(); // 규칙 1위를 picks에 둔다
+    await w.step();
+    expect((await db.sql`select reason from picks`)[0].reason).toBe('홈이 바꿈');
+  });
 });

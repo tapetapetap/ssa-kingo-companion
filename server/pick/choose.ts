@@ -14,7 +14,8 @@ export type Analysis = { version: number; lines: Line[] } | null;
 export type AnalysisOf = (sql: Sql, student: number) => Promise<Analysis>;
 const noAnalysis: AnalysisOf = async () => null;
 
-export async function choosePick(sql: Sql, student: number, model: Model | null, analysisOf: AnalysisOf = noAnalysis): Promise<PickResult> {
+/** takenAt: 일꾼이 줄에서 행을 집은 때의 queued_at. 그 뒤에 홈이 바로 바꾼 가장 추천은 덮지 않는다 */
+export async function choosePick(sql: Sql, student: number, model: Model | null, analysisOf: AnalysisOf = noAnalysis, takenAt?: string): Promise<PickResult> {
   const st = await loadStudent(sql, student);
   if (!st) return null;
   const top = rank(await loadCands(sql, student), st.profile).slice(0, LIMITS.candidates);
@@ -53,6 +54,7 @@ export async function choosePick(sql: Sql, student: number, model: Model | null,
   await sql`insert into picks (student_id, notice_id, reason, cited, analysis_version, method, prompt_version)
     values (${student}, ${chosen.cand.id}, ${reason}, ${sql.json(cited)}, ${analysis?.version ?? null}, ${method}, ${promptVersion})
     on conflict (student_id) do update set notice_id = excluded.notice_id, reason = excluded.reason, cited = excluded.cited,
-      analysis_version = excluded.analysis_version, method = excluded.method, prompt_version = excluded.prompt_version, computed_at = now()`;
+      analysis_version = excluded.analysis_version, method = excluded.method, prompt_version = excluded.prompt_version, computed_at = now()
+    where picks.computed_at <= coalesce((${takenAt ?? null}::text)::timestamptz, 'infinity')`;
   return { noticeId: chosen.cand.id, method };
 }

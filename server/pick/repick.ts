@@ -27,10 +27,12 @@ export function makeWorker(sql: Sql, d: WorkerDeps = {}) {
     if (!d.noModel) model ??= openModel(sql, 'api', d.model);
     try {
       if (model) await fillPromptVector(sql, student, model);
-      await choosePick(sql, student, model, d.analysisOf);
+      await choosePick(sql, student, model, d.analysisOf, row.queued_at);
       await sql`delete from repick_queue where student_id = ${student} and queued_at::text = ${row.queued_at}`;
     } catch (e) {
       logError('repick', e);
+      // 줄 맨 뒤로 보낸다. 계속 실패하는 학생 하나가 다른 학생을 막지 않게
+      await sql`update repick_queue set queued_at = clock_timestamp() where student_id = ${student} and queued_at::text = ${row.queued_at}`;
     }
     // 온도를 읽지 못해 문이 닫혔으면 그 다시 고르기만 규칙이었다. 다음 일은 새 부하 제한으로 다시 물어본다(research R7)
     if (model && model.noTemp > 0) await close();

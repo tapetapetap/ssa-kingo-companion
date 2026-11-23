@@ -49,10 +49,10 @@ export function homeRoutes(ctx: Ctx): Route[] {
       select n.vector::text from actions a join notices n on n.id = a.notice_id where a.student_id = ${s.id} and a.kind = 'like' and n.vector is not null`;
     const anyLikes = (await sql`select 1 from actions where student_id = ${s.id} and kind = 'like' limit 1`).length > 0;
     const items = rows.map((r, i) => ({
-      card: all[i], no: Number(r.no), core: all[i].fields ? all[i].fields!.core.map(f => f.id) : null, related: all[i].fields?.related.map(f => f.id) ?? [],
+      card: all[i], id: r.id, no: Number(r.no), core: all[i].fields ? all[i].fields!.core.map(f => f.id) : null, related: all[i].fields?.related.map(f => f.id) ?? [],
       deadline: r.deadline, postedOn: r.posted_on, liked: r.a_kind === 'like', vector: vec(r.vector)
     }));
-    const seen = new Set(pick ? [Number(pick.notice.id.split(':')[1])] : []);
+    const seen = new Set(pick ? [pick.notice.id] : []);
     const shelves = buildShelves(items, { picked, today, seen, anyJudged: judged, likedVectors: liked.map(l => vec(l.vector)!) });
     if (!anyLikes) shelves.similar = { items: [], empty: 'no_likes' };
     else if (!liked.length) shelves.similar = { items: [], empty: 'no_match' }; // 관심 있어요 공지에 벡터가 없음
