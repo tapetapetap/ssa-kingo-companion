@@ -114,7 +114,16 @@ describe('나의 분석 (US5)', () => {
     expect(await analysis()).toMatchObject({ off: false, version: 1, md: expect.stringContaining('처음 답: 3학년 2학기, 취업') });
   });
 
-  it('같은 재료면 같은 글이고 판이 오르지 않는다 (SC-013)', async () => {
+  it('관심 있어요가 30일 밖으로 밀리면 읽을 때 몰린 분야 줄이 빠진다', async () => {
+    for (const no of [1, 2]) await notice(db.sql, { no, core: ['csr-nlp'] });
+    await act(1, { kind: 'like' });
+    await act(2, { kind: 'like' });
+    expect((await analysis()).lines.map(l => l.key)).toContain('liked:csr-nlp');
+    await db.sql`update actions set at = now() - interval '40 days'`;
+    expect((await analysis()).lines.map(l => l.key)).not.toContain('liked:csr-nlp');
+  });
+
+  it('같은 재료면 같은 판이 오르지 않는다 (SC-013)', async () => {
     const a = await analysis();
     await app.request('PUT', '/api/me/answers', { grade: 3, term: 2, goal: 'job' });
     expect(await analysis()).toMatchObject({ version: a.version, md: a.md });

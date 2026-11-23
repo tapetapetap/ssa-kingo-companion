@@ -42,9 +42,10 @@ export function homeRoutes(ctx: Ctx): Route[] {
         const [q] = await sql`select 1 from repick_queue where student_id = ${s.id}`;
         const card = all[rows.findIndex(r => r.id === p.notice_id)];
         // 참고한 줄은 지금 보이는 줄만 준다. 학생이 뺀 줄은 다시 고르기 전에도 바로 빠진다(US5 시나리오 6)
-        const keys = new Set((await readAnalysis(sql, s.id))?.lines.map(l => l.key));
+        const now = new Map((await readAnalysis(sql, s.id))?.lines.map(l => [l.key, l.text]));
         const hasPrompt = (await sql`select 1 from prompts where student_id = ${s.id}`).length > 0;
-        const cited = p.cited.filter(c => (c.key === 'prompt' ? hasPrompt : keys.has(c.key)));
+        // 글은 지금 줄의 글로 준다(활동 이름을 고쳤을 수 있다)
+        const cited = p.cited.flatMap(c => (c.key === 'prompt' ? (hasPrompt ? [c] : []) : now.has(c.key) ? [{ ...c, text: now.get(c.key) }] : []));
         pick = { notice: card, reason: p.reason, cited, method: methodText(p.method), computedAt: kstIso(p.computed_at), repicking: !!q };
       } else pickEmpty = rows.length ? 'no_match' : 'no_open_notices';
     }

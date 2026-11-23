@@ -4,7 +4,8 @@ import { TODAY } from '../notices/routes.ts';
 import { enqueue } from '../pick/queue.ts';
 import { factLines, toMd, visible, type Act, type Activity, type Flow, type Line } from './lines.ts';
 
-// ponytail: 재료 쓰기와 다시 쓰기가 한 트랜잭션은 아니다. 같은 학생의 요청이 겹치면 판이 한 번 덜 오를 수 있고 다음 다시 쓰기가 맞춘다
+// ponytail: 재료 쓰기와 다시 쓰기가 한 트랜잭션은 아니다. 같은 학생의 요청이 겹치거나 다시 쓰기가 실패하면 분석이 늦을 수 있고,
+// 다음 다시 쓰기(읽을 때마다 한다)가 맞춘다. 몰린 분야가 날짜로 바뀌어서 읽을 때 다시 쓰고, 매일 작업도 모두 다시 쓴다(R10)
 
 type Stored = { version: number; lines: Line[]; flow: Flow[]; flow_version: number | null; md: string; made_at: Date };
 
@@ -54,9 +55,9 @@ export async function rebuild(sql: Sql, student: number, flow?: Flow[]): Promise
   return a;
 }
 
-/** 가장 추천이 읽는 분석: 보이는 줄(흐름 포함)과 판. 꺼져 있거나 없으면 null */
+/** 가장 추천이 읽는 분석: 보이는 줄(흐름 포함)과 판. 꺼져 있으면 null. 몰린 분야는 날짜로 바뀌므로 읽을 때 다시 쓴다 */
 export async function readAnalysis(sql: Sql, student: number) {
-  const a = await stored(sql, student);
+  const a = await rebuild(sql, student);
   if (!a) return null;
   return { version: a.version, lines: visible(a.lines, a.flow, await excludedOf(sql, student)) };
 }

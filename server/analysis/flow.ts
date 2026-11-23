@@ -25,7 +25,7 @@ export function checkFlow(text: string, keys: Set<string>, excluded: Set<string>
     if (typeof l?.text !== 'string' || !Array.isArray(l.refs) || !l.refs.every(r => typeof r === 'string')) continue;
     const t = l.text.trim();
     const refs = [...new Set(l.refs as string[])];
-    if (!t || t.length > LIMITS.flowChars || !refs.length || !refs.every(r => keys.has(r))) continue;
+    if (!t || t.length > LIMITS.flowChars || refs.length < 2 || !refs.every(r => keys.has(r))) continue; // 흐름은 줄 둘 이상을 잇는다
     const key = flowKey(refs);
     if (excluded.has(key) || out.some(f => f.key === key)) continue;
     out.push({ key, text: t, refs });
@@ -47,6 +47,7 @@ export async function writeFlow(sql: Sql, student: number, model: Model): Promis
   const lines = checkFlow(out.text, new Set(facts.map(l => l.key)), excluded);
   if (!lines?.length) return 'kept';
   const r = await rebuild(sql, student, lines);
-  if (r) await sql`update analyses set flow_version = ${r.version} where student_id = ${student}`;
+  if (!r) return 'skipped'; // 그사이 분석을 껐다
+  await sql`update analyses set flow_version = ${r.version} where student_id = ${student}`;
   return 'written';
 }

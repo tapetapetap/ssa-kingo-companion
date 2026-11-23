@@ -30,7 +30,7 @@ const l = (text: string, refs: string[]) => ({ text, refs });
 describe('흐름 답 검사 (contracts/llm.md 표)', () => {
   it('걸린 문장만 버리고 4줄까지 쓴다', () => {
     const out = checkFlow(JSON.stringify({ lines: [
-      l('근거 없음', []), l('없는 줄', ['act:9', 'ans']), l('', ['ans', 'act:1']), l('가'.repeat(81), ['ans', 'act:1']),
+      l('근거 없음', []), l('근거 하나', ['act:1']), l('없는 줄', ['act:9', 'ans']), l('', ['ans', 'act:1']), l('가'.repeat(81), ['ans', 'act:1']),
       l('뺀 흐름', ['act:2', 'ans']), l('해커톤을 이어 했어요', ['act:1', 'act:2']), l('같은 근거', ['act:2', 'act:1']),
       l('하나', ['ans', 'act:1']), l('둘', ['picked', 'act:1']), l('셋', ['picked', 'act:2']), l('넷', ['ans', 'picked'])
     ] }), KEYS, new Set(['flow:act:2+ans']));

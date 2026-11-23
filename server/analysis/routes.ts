@@ -7,7 +7,7 @@ import { LIMITS } from '../limits.ts';
 import { requireConsent } from '../me/onboarding.ts';
 import { enqueue } from '../pick/queue.ts';
 import { notExcludable, visible } from './lines.ts';
-import { excludedOf, rebuild, stored } from './store.ts';
+import { excludedOf, rebuild } from './store.ts';
 
 const invalid = (field: string, message: string) => new HttpError(422, 'invalid', message, { field });
 const tooLong = (field: string, max: number) => new HttpError(422, 'too_long', `${max}자까지예요`, { field, max });
@@ -20,7 +20,7 @@ export function analysisRoutes(ctx: Ctx): Route[] {
   const sql = ctx.sql;
   const isOff = async (id: number) => (await sql<{ o: boolean }[]>`select analysis_off as o from students where id = ${id}`)[0].o;
   /** 지금 분석. 아직 없으면 만든다(켜져 있을 때만 부른다) */
-  const current = async (id: number) => (await stored(sql, id)) ?? (await rebuild(sql, id))!;
+  const current = async (id: number) => (await rebuild(sql, id))!;
   const promptOf = async (id: number) => {
     const [p] = await sql<{ body: string; updated_at: Date }[]>`select body, updated_at from prompts where student_id = ${id}`;
     return { body: p?.body ?? '', updatedAt: p ? kstIso(p.updated_at) : null };
@@ -31,7 +31,7 @@ export function analysisRoutes(ctx: Ctx): Route[] {
     const has = (k: string) => !partial || b[k] !== undefined;
     if (has('name')) {
       if (typeof b.name !== 'string' || !b.name.trim()) throw invalid('name', '이름을 적어 주세요');
-      if (b.name.length > LIMITS.activityNameChars) throw tooLong('name', LIMITS.activityNameChars);
+      if (b.name.trim().length > LIMITS.activityNameChars) throw tooLong('name', LIMITS.activityNameChars);
     }
     if (has('term') && (typeof b.term !== 'string' || !/^\d{4}-[12]$/.test(b.term))) throw invalid('term', '학기는 2025-2 꼴이에요');
     if (has('kind') && !(KINDS as readonly unknown[]).includes(b.kind)) throw invalid('kind', '모르는 종류예요');
@@ -134,10 +134,11 @@ export function analysisRoutes(ctx: Ctx): Route[] {
       await requireConsent(ctx, s.id);
       const b = req.body as Record<string, unknown>;
       await checkActivity(b, false);
-      const [{ n }] = await sql<{ n: number }[]>`select count(*)::int n from activities where student_id = ${s.id}`;
-      if (n >= LIMITS.activityCount) throw new HttpError(422, 'limit_reached', `활동은 ${LIMITS.activityCount}개까지예요`, { max: LIMITS.activityCount });
+      // 세기와 넣기를 한 문장으로 해서 동시에 와도 100개를 넘지 않게 한다
       const [a] = await sql<ActRow[]>`insert into activities (student_id, name, term, kind, field_ids, proof_url)
-        values (${s.id}, ${(b.name as string).trim()}, ${b.term as string}, ${b.kind as string}, ${b.fieldIds as string[]}, ${(b.proofUrl as string | undefined) ?? null}) returning *`;
+        select ${s.id}, ${(b.name as string).trim()}, ${b.term as string}, ${b.kind as string}, ${b.fieldIds as string[]}, ${(b.proofUrl as string | undefined) ?? null}
+        where (select count(*) from activities where student_id = ${s.id}) < ${LIMITS.activityCount} returning *`;
+      if (!a) throw new HttpError(422, 'limit_reached', `활동은 ${LIMITS.activityCount}개까지예요`, { max: LIMITS.activityCount });
       await rebuild(sql, s.id);
       return { status: 201, body: activity(a), headers: s.headers };
     }],
