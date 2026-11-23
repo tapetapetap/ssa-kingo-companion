@@ -190,17 +190,17 @@
 
 ### Tests for User Story 7
 
-- [ ] T068 [P] [US7] `server/ops/review.test.ts`를 쓴다: 넣기가 이유를 붙임(data-model의 이유 표, `off`일 때 `no_fields` 없음), 이유가 같으면 확인 상태가 남고 달라지면 풀림, 이유가 없어지면 줄이 사라짐, 확인 필요 글은 학생의 공지 목록에 없음, `reason=review` 거르기가 `review:`로 시작하는 이유를 모두 맞춤
-- [ ] T069 [US7] `server/ops/verdict.test.ts`를 쓴다(계약 시험: ops의 경로 전부): spec US7의 시나리오 1·3~9, 보낸 칸만 사람 판정이 됨, 고친 공지는 확인한 것으로 남음, `OpsNotice`가 api.md의 예와 같은 꼴, 고친 기록의 `by`가 운영자 목록의 `subject` 글, 마감을 고치면 열린 공지인지가 함께 바뀜, 분야 검사(핵심 2·관련 5·겹침·목록 밖), 답에 학생 자료가 없음(FR-055), 운영자 목록에 없는 계정은 모든 ops 경로에서 `forbidden`(SC-014) 확인 필요 글에 `isNotice: true`만 보내면 `invalid`(종류 없음), 넣기가 사람 판정 분야를 뺄 때 고친 기록이 `by` `ingest`.
+- [X] T068 [P] [US7] `server/ops/review.test.ts`를 쓴다: 넣기가 이유를 붙임(data-model의 이유 표, `off`일 때 `no_fields` 없음), 이유가 같으면 확인 상태가 남고 달라지면 풀림, 이유가 없어지면 줄이 사라짐, 확인 필요 글은 학생의 공지 목록에 없음, `reason=review` 거르기가 `review:`로 시작하는 이유를 모두 맞춤
+- [X] T069 [US7] `server/ops/verdict.test.ts`를 쓴다(계약 시험: ops의 경로 전부): spec US7의 시나리오 1·3~9, 보낸 칸만 사람 판정이 됨, 고친 공지는 확인한 것으로 남음, `OpsNotice`가 api.md의 예와 같은 꼴, 고친 기록의 `by`가 운영자 목록의 `subject` 글, 마감을 고치면 열린 공지인지가 함께 바뀜, 분야 검사(핵심 2·관련 5·겹침·목록 밖), 답에 학생 자료가 없음(FR-055), 운영자 목록에 없는 계정은 모든 ops 경로에서 `forbidden`(SC-014) 확인 필요 글에 `isNotice: true`만 보내면 `invalid`(종류 없음), 넣기가 사람 판정 분야를 뺄 때 고친 기록이 `by` `ingest`.
 
 ### Implementation for User Story 7
 
-- [ ] T070 [US7] `server/db/migrations/007_ops.sql`을 쓴다(data-model 3의 `review_items`, `human_verdicts`, `verdict_log`, `rejudge_marks`)
-- [ ] T071 [US7] `server/ops/guard.ts`(운영자 목록 파일을 시작할 때 한 번 읽기와 운영자 확인. 파일이 없으면 운영자 없음)와 `deploy/operators.example.json`(research R17의 꼴)을 쓴다
-- [ ] T072 [US7] `server/ops/review.ts`를 쓰고 `server/ingest/ingest.ts`가 부르게 한다(T068 통과). 넣기는 사람 판정이 있는 칸을 덮지 않고 요약에 '사람 판정 유지'를 센다(FR-052). 목록에서 사라진 분야는 사람 판정의 분야에서도 빼고 고친 기록에 남긴다(research R11)
-- [ ] T073 [US7] `server/ops/verdict.ts`(고치기, 맞아요, 다시 판정, 고친 기록)와 `server/ops/routes.ts`를 쓴다(T069 통과)
-- [ ] T074 [P] [US7] `server/ops/export.ts`와 `server/cli.ts`의 `export-gold <폴더>`를 쓴다: 파일 이름과 칸은 contracts/cli.md '정답셋 후보 내보내기'. 저장소 안 경로는 `etl/notices/gold.ts`의 `insideRepo`(내보내기만 더한다)로 거절한다. 시험은 `server/cli.test.ts`
-- [ ] T075 [US7] 단계 마무리(PR '2단계 운영자 판정 검토 API'. security-review를 함께 돌린다)
+- [X] T070 [US7] `server/db/migrations/007_ops.sql`을 쓴다(data-model 3의 `review_items`, `human_verdicts`, `verdict_log`, `rejudge_marks`)
+- [X] T071 [US7] `server/ops/guard.ts`(운영자 목록 파일을 시작할 때 한 번 읽기와 운영자 확인. 파일이 없으면 운영자 없음)와 `deploy/operators.example.json`(research R17의 꼴)을 쓴다
+- [X] T072 [US7] `server/ops/review.ts`를 쓰고 `server/ingest/ingest.ts`가 부르게 한다(T068 통과). 넣기는 사람 판정이 있는 칸을 덮지 않고 요약에 '사람 판정 유지'를 센다(FR-052). 목록에서 사라진 분야는 사람 판정의 분야에서도 빼고 고친 기록에 남긴다(research R11)
+- [X] T073 [US7] `server/ops/verdict.ts`(고치기, 맞아요, 다시 판정, 고친 기록)와 `server/ops/routes.ts`를 쓴다(T069 통과)
+- [X] T074 [P] [US7] `server/ops/export.ts`와 `server/cli.ts`의 `export-gold <폴더>`를 쓴다: 파일 이름과 칸은 contracts/cli.md '정답셋 후보 내보내기'. 저장소 안 경로는 `etl/notices/gold.ts`의 `insideRepo`(내보내기만 더한다)로 거절한다. 시험은 `server/cli.test.ts`
+- [X] T075 [US7] 단계 마무리(PR '2단계 운영자 판정 검토 API'. security-review를 함께 돌린다) — 결과(2026-11-23): 시험 1561개 통과. ponytail-review 2건, code-review 9건(전환 때 사람 판정 분야 지움·파일 밖 옛 공지의 사라진 분야·고친 뒤 분석 다시 쓰기 등) 고침, security-review 지적 없음. 구현 메모: 경로와 OpsNotice는 verdict.ts 한 파일(routes.ts 따로 두지 않음)
 - [ ] T076 [US7] 운영자 화면을 설계한다: `@astryxdesign/core`(0.7 판)와 개발용 `@astryxdesign/cli`를 `package.json`에 더하고, astryx로 PC 화면 하나(왼쪽 확인할 것 목록과 이유 거르기, 오른쪽 원문 링크·파일 값·고치는 칸·맞아요·다시 판정·고친 기록, 로그인 칸)를 잡는다. `npx astryx build`로 틀을 고르고 화면 구성을 `specs/20261117-052701-backend-skeleton/ops-screen.md`에 적는다(목차: 영역, 영역마다 쓰는 astryx 컴포넌트, 상태별 화면 — 불러오는 중·빈 목록·오류·로그인·권한 없음)(Figma는 쓰지 않고 강조색은 기본 테마다, 사용자 결정 2026-11-18, research R17)
 - [ ] T077 [US7] `web/ops/`에 Vite + React + astryx 페이지를 만든다(`web/ops/index.html`, `web/ops/src/main.tsx`, `web/ops/vite.config.ts`: `base: '/ops/'`, 결과는 `web/ops/dist`). `package.json`에 `"build:ops": "vite build --config web/ops/vite.config.ts"`를 더하고 `tsconfig.json`의 `include`에 `web`을, CI의 build 단계에 `npm run build:ops`를 더한다. 자료는 `/api/ops`만 쓴다. 빈 상태·불러오는 중·오류 상태와, `login_required`면 로그인 칸·`forbidden`이면 '운영자 계정이 아니에요'를 둔다. `server/http.ts`가 `/ops/`에서 `web/ops/dist`의 파일을 로그인 없이 준다(폴더가 없으면 404). `server/http.test.ts`에 정적 파일 시험(폴더 없으면 404, `/ops/`는 index, `..`로 폴더 밖을 가리키면 404)을 더한다
 - [ ] T078 [US7] 화면을 띄워 quickstart 5를 손으로 끝까지 해 보고 스크린샷(1280×640, 1440×900)을 찍어 본다. impeccable critique(리뷰어 둘) → polish로 다듬는다

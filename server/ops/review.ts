@@ -26,8 +26,8 @@ export async function refreshReview(sql: Db, ids: string[], onlyExisting = false
   const rows = await sql<{ id: string; reasons: string[] }[]>`
     select n.id, array_remove(array[
       case when n.file ? 'why' then 'review:' || (n.file ->> 'why') end,
-      case when not n.file ? 'why' and n.deadline is null and not exists (select 1 from human_verdicts h where h.notice_id = n.id and h.field = 'deadline') then 'no_deadline' end,
-      case when n.field_state = 'missing' or (n.field_state = 'judged' and not exists (select 1 from notice_fields nf where nf.notice_id = n.id)) then 'no_fields' end
+      case when n.is_notice and not n.file ? 'why' and n.deadline is null and not exists (select 1 from human_verdicts h where h.notice_id = n.id and h.field = 'deadline') then 'no_deadline' end,
+      case when n.is_notice and (n.field_state = 'missing' or (n.field_state = 'judged' and not exists (select 1 from notice_fields nf where nf.notice_id = n.id))) then 'no_fields' end
     ], null) as reasons
     from notices n where n.id = any(${ids})`;
   const has = rows.filter(r => r.reasons.length);
@@ -41,13 +41,21 @@ export async function refreshReview(sql: Db, ids: string[], onlyExisting = false
   }
 }
 
-/** 목록에서 사라진 분야를 사람 판정의 분야에서 빼고 고친 기록에 남긴다(research R11). keep이 비면 모두 뺀다(목록 갈아타기) */
-export async function stripHumanFields(sql: Db, keep: string[]) {
+/** 목록에서 사라진 분야를 사람 판정의 분야에서 빼고 고친 기록에 남긴다(research R11). 다 빠지면(목록 갈아타기 포함) 판정을 지워
+ *  결과 파일 값으로 돌아가게 하고, 파일에 없는 공지는 분야가 빈 판정(judged)으로 둔다. 바뀐 공지 id를 돌려준다 */
+export async function stripHumanFields(sql: Db, keep: string[]): Promise<string[]> {
   const rows = await sql<{ notice_id: string; value: { core: string[]; related: string[] } }[]>`select notice_id, value from human_verdicts where field = 'fields'`;
+  const changed: string[] = [];
   for (const r of rows) {
     const next = { core: r.value.core.filter(id => keep.includes(id)), related: r.value.related.filter(id => keep.includes(id)) };
     if (next.core.length === r.value.core.length && next.related.length === r.value.related.length) continue;
-    await sql`update human_verdicts set value = ${sql.json(next)} where notice_id = ${r.notice_id} and field = 'fields'`;
-    await sql`insert into verdict_log (notice_id, field, action, old, new, by_operator) values (${r.notice_id}, 'fields', 'edit', ${sql.json(r.value)}, ${sql.json(next)}, 'ingest')`;
+    changed.push(r.notice_id);
+    const empty = !next.core.length && !next.related.length;
+    if (empty) {
+      await sql`delete from human_verdicts where notice_id = ${r.notice_id} and field = 'fields'`;
+      await sql`update notices set field_state = 'judged', field_rule = null where id = ${r.notice_id}`;
+    } else await sql`update human_verdicts set value = ${sql.json(next)} where notice_id = ${r.notice_id} and field = 'fields'`;
+    await sql`insert into verdict_log (notice_id, field, action, old, new, by_operator) values (${r.notice_id}, 'fields', 'edit', ${sql.json(r.value)}, ${empty ? null : sql.json(next)}, 'ingest')`;
   }
+  return changed;
 }

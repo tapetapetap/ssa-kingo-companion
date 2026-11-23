@@ -95,7 +95,8 @@ export async function ingest(input: unknown, taxonomyId: string, o: { switch?: b
     const keep = s.switched ? [] : t.fields.map(x => x.id);
     await tx`update activities set field_ids = array(select f from unnest(field_ids) f where f = any(${keep}::text[])) where not (field_ids <@ ${keep}::text[])`;
     await tx`delete from excluded_lines where (line_key like 'liked:%' or line_key like 'disliked:%') and not (split_part(line_key, ':', 2) = any(${keep}::text[]))`;
-    await stripHumanFields(tx, keep);
+    const stripped = await stripHumanFields(tx, keep);
+    await tx`delete from notice_fields where not (field_id = any(${keep}::text[]))`; // 파일에 없는 옛 공지에 남은 사라진 분야
     for (const [i, x] of t.fields.entries()) {
       const v = fv ? fv.vectors[fv.ids.indexOf(x.id)] : null;
       await tx`insert into fields (taxonomy_id, id, name, group_id, description, ord, vector) values (${t.id}, ${x.id}, ${x.name}, ${x.group}, ${x.desc}, ${i}, ${v ? vectorText(v) : null}::vector)
@@ -124,8 +125,9 @@ export async function ingest(input: unknown, taxonomyId: string, o: { switch?: b
     }
     if (goneIds.length) await tx`update notices set down = true, updated_at = now() where id = any(${goneIds})`;
     // 사람 판정이 있는 칸은 결과 파일 값 위에 다시 덮는다(FR-052). 내려간 공지는 확인할 것에서 뺀다
-    await applyHuman(tx, [...inFile]);
-    await refreshReview(tx, [...inFile]);
+    const touched = [...new Set([...inFile, ...stripped])];
+    await applyHuman(tx, touched);
+    await refreshReview(tx, touched);
     await tx`delete from review_items where notice_id = any(${goneIds})`;
     await tx`insert into ingest_runs (source, collected_at, since, taxonomy_id, taxonomy_edition, summary) values (${file.source}, ${file.collectedAt}, ${file.since}, ${t.id}, ${t.edition}, ${tx.json(s)})`;
   });

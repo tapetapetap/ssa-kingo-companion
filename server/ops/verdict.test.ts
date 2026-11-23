@@ -137,4 +137,26 @@ describe('운영자 판정 검토 (US7, contracts/api.md)', () => {
     expect(log[0]).toMatchObject({ field: 'fields', action: 'edit', old: { core: ['frontend'], related: ['qa', 'backend'] }, new: { core: ['frontend'], related: ['backend'] }, by: 'ingest' });
     expect((await stu.request('GET', '/api/notices/cse:2')).body).toMatchObject({ fields: { core: [{ id: 'frontend' }], related: [{ id: 'backend' }], by: '운영자' } });
   });
+  it('분야가 다 사라지면 사람 판정을 지워 결과 파일 값으로 돌아가고, 파일에 없는 옛 공지에서도 사라진 분야가 빠진다', async () => {
+    await ops.request('PUT', '/api/ops/notices/cse:2/verdict', { fields: { core: ['qa'], related: [] } });
+    await ops.request('PUT', '/api/ops/notices/cse:1/verdict', { fields: { core: ['qa'], related: [] } });
+    await ingester(db.sql, t => { t.fields = t.fields.map(f => (f.id === 'qa' ? { ...f, id: 'qa-new' } : f)); })(file({ ...head, opportunities: [opp(2, { ...later, fields: { core: ['frontend'], related: [] }, fieldRule: 'LLM: m' })], review: [] }));
+    expect(await db.sql`select notice_id from human_verdicts`).toEqual([]);
+    expect((await stu.request('GET', '/api/notices/cse:2')).body).toMatchObject({ fields: { core: [{ id: 'frontend' }], by: 'LLM: m' } });
+    expect((await db.sql`select field_state from notices where id = 'cse:1'`)[0].field_state).toBe('judged'); // cse:1은 이번 파일에 없다(내려감)
+    expect((await db.sql`select count(*)::int n from notice_fields where field_id = 'qa'`)[0].n).toBe(0);
+  });
+
+  it('공지가 아니라고 고친 글에는 마감·분야 이유가 붙지 않는다. 확인할 것에 없는 공지의 맞아요는 기록을 남기지 않는다', async () => {
+    await ops.request('PUT', '/api/ops/notices/cse:1/verdict', { isNotice: false });
+    await ingester(db.sql)(theFile());
+    expect((await db.sql`select count(*)::int n from review_items where notice_id = 'cse:1'`)[0].n).toBe(0);
+    expect((await ops.request('POST', '/api/ops/notices/cse:2/confirm', {})).status).toBe(204);
+    expect((await db.sql`select count(*)::int n from verdict_log where action = 'confirm'`)[0].n).toBe(0);
+  });
+
+  it('본문이 null이면 invalid, checked가 비면 거르지 않는다', async () => {
+    expect((await ops.request('PUT', '/api/ops/notices/cse:2/verdict', 'null')).body).toMatchObject({ error: { code: 'invalid', field: 'verdict' } });
+    expect(await reviewIds('?reason=&checked=')).toEqual(['cse:3', 'cse:1']);
+  });
 });

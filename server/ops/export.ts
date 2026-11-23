@@ -9,7 +9,8 @@ import { kstIso } from '../http.ts';
 
 const REPO = fileURLToPath(new URL('../..', import.meta.url));
 const HEAD = ['링크', '제목', '게시일', '주최', '기회', '종류', '마감', '핵심 분야', '관련 분야', '고친 칸', '고친 때'];
-const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+// 표 프로그램이 수식으로 읽지 않게 = + - @로 시작하는 칸 앞에 '를 붙인다(제목은 밖에서 온 글)
+const cell = (v: string) => `"${(/^([=+@]|-.)/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"`; // '-' 한 글자는 '분야 없음'
 
 /** 쓴 파일 경로와 줄 수. 저장소 안 폴더면 던진다 */
 export async function exportGold(sql: Sql, dir: string, repoRoot = REPO): Promise<{ path: string; rows: number }> {
