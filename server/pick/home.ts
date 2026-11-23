@@ -17,8 +17,8 @@ export function homeRoutes(ctx: Ctx): Route[] {
     const s = await requireStudent(ctx, req);
     const done = (await nextStep(ctx, s.id)) === 'home';
     // 거르기를 지난 열린 공지(관심 있어요는 선반에는 나오지만 가장 추천은 아니다)
-    const rows = await sql<(Row & { vector: string | null; no: string; today: string })[]>`
-      select x.*, v.vector::text, split_part(x.id, ':', 2) as no, ${sql.unsafe(TODAY)}::text as today
+    const rows = await sql<(Row & { vector: string | null; no: string })[]>`
+      select x.*, v.vector::text, split_part(x.id, ':', 2) as no
       from (${SELECT(sql, s.id)} where ${sql.unsafe(OPEN)} and not coalesce(${sql.unsafe(HIDDEN)}, false)) x join notices v on v.id = x.id`;
     const all = await cards(sql, rows);
     const [{ today }] = await sql<{ today: string }[]>`select ${sql.unsafe(TODAY)}::text as today`;

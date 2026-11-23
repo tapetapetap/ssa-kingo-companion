@@ -5,7 +5,6 @@ import { logError } from '../log.ts';
 import { openModel, type Model, type ModelDeps } from '../model.ts';
 import { choosePick, type AnalysisOf } from './choose.ts';
 
-export { enqueue, type Cause } from './queue.ts';
 
 export type WorkerDeps = { model?: ModelDeps; analysisOf?: AnalysisOf; noModel?: boolean };
 
