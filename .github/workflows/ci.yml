@@ -35,7 +35,7 @@ jobs:
       - run: npm ci
       - run: npm run check
       - id: build
-        run: npm run build
+        run: npm run build && npm run build:ops
       - uses: actions/upload-artifact@v4
         with:
           name: dist
