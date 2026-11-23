@@ -5,7 +5,10 @@ import { join } from 'node:path';
 import { validList } from '../etl/taxonomy/fixtures.ts';
 import { saveTaxonomy, TAXONOMY_IDS } from '../etl/taxonomy/taxonomy.ts';
 import { main } from './cli.ts';
-import { file } from './test/result.ts';
+import { readFileSync } from 'node:fs';
+import { applyHuman } from './ops/review.ts';
+import { ingester } from './test/ingest.ts';
+import { file, opp } from './test/result.ts';
 import { testDb } from './test/db.ts';
 
 let db: Awaited<ReturnType<typeof testDb>>;
@@ -15,7 +18,7 @@ afterEach(() => { vi.restoreAllMocks(); });
 const quiet = () => ({ err: vi.spyOn(console, 'error').mockImplementation(() => {}), log: vi.spyOn(console, 'log').mockImplementation(() => {}) });
 
 describe('cli (contracts/cli.md)', () => {
-  it.each([[[]], [['nope']], [['migrate', 'x']], [['ingest']], [['ingest', 'a.json']], [['ingest', 'a.json', '--taxonomy']], [['ingest', 'a.json', 'b.json', '--taxonomy', 'custom']], [['account']], [['account', 'make', 'a@b.co']], [['account', 'delete', 'a@b.co', '--dept', 'x']]])('%j는 쓰는 법과 2', async args => {
+  it.each([[[]], [['nope']], [['migrate', 'x']], [['ingest']], [['ingest', 'a.json']], [['ingest', 'a.json', '--taxonomy']], [['ingest', 'a.json', 'b.json', '--taxonomy', 'custom']], [['account']], [['account', 'make', 'a@b.co']], [['account', 'delete', 'a@b.co', '--dept', 'x']], [['export-gold']], [['export-gold', 'a', 'b']]])('%j는 쓰는 법과 2', async args => {
     const { err } = quiet();
     expect(await main(args, { sql: db.sql })).toBe(2);
     expect(String(err.mock.calls[0][0])).toMatch(/^쓰는 법: /);
@@ -68,5 +71,22 @@ describe('cli (contracts/cli.md)', () => {
     expect(await main(['account', 'delete', 'dev1@example.com'], { sql: db.sql, env: { KINGO_MODE: 'prod' } })).toBe(0);
     expect(Number((await db.sql`select count(*) n from students`)[0].n)).toBe(0);
     expect(await main(['account', 'delete', 'dev1@example.com'], { sql: db.sql })).toBe(1);
+  });
+
+  it('export-gold: 사람 판정이 있는 공지만 보이는 값으로 CSV에 쓰고, 저장소 안 폴더는 거절한다(FR-053)', async () => {
+    const { err, log } = quiet();
+    await db.sql`truncate notices, taxonomies cascade`;
+    await ingester(db.sql)(file({ taxonomy: { id: 'custom', prompt: '1a2b3c4d' }, opportunities: [opp(1, { title: '[가나다] "인턴" 모집', fields: { core: ['backend'], related: [] }, fieldRule: 'LLM: m' }), opp(2)] }));
+    await db.sql`insert into human_verdicts (notice_id, field, value, by_operator) values ('cse:1', 'kind', '"edu"', 'ops@example.com'), ('cse:1', 'fields', '{"core":["frontend"],"related":[]}', 'ops@example.com')`;
+    await applyHuman(db.sql, ['cse:1']);
+    const dir = join(mkdtempSync(join(tmpdir(), 'gold-')), 'out');
+    expect(await main(['export-gold', dir], { sql: db.sql })).toBe(0);
+    const path = String(log.mock.calls[0][0]).replace(/^정답셋 후보 1개를 썼어요: /, '');
+    const [head, row, end] = readFileSync(path, 'utf8').split('\n');
+    expect(head).toBe('"링크","제목","게시일","주최","기회","종류","마감","핵심 분야","관련 분야","고친 칸","고친 때"');
+    expect(row).toMatch(/^"https:\/\/cse\.skku\.edu\/cse\/notice\.do\?mode=view&articleNo=1","\[가나다\] ""인턴"" 모집","2026-11-01","가나다","O","교육·캠프","2026-11-20","frontend","-","fields\|kind","[^"]+\+09:00"$/);
+    expect(end).toBe('');
+    expect(await main(['export-gold', join(process.cwd(), 'gold-out')], { sql: db.sql })).toBe(1);
+    expect(String(err.mock.calls[0][0])).toContain('저장소 안 폴더에는 쓰지 않아요');
   });
 });

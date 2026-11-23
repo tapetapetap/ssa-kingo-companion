@@ -7,3 +7,6 @@ export function connect(url: string, schema = 'public'): Sql {
   if (!/^[a-z_][a-z0-9_]*$/.test(schema)) throw new Error(`스키마 이름 꼴이 아니에요: ${schema}`);
   return postgres(url, { max: 10, onnotice: () => {}, connection: { search_path: schema === 'public' ? 'public' : `${schema}, public` } });
 }
+
+/** 연결이나 트랜잭션 안(넣기와 운영자 고치기가 같은 함수를 부른다) */
+export type Db = Sql | postgres.TransactionSql;

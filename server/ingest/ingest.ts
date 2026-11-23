@@ -4,6 +4,7 @@ import { checkTaxonomy, isTaxonomyId, loadTaxonomy, TAXONOMY_DIR, type Taxonomy 
 import type { Mode } from '../config.ts';
 import type { Sql } from '../db/sql.ts';
 import { rebuild } from '../analysis/store.ts';
+import { applyHuman, refreshReview, stripHumanFields } from '../ops/review.ts';
 import { checkResultFile, type ResultFile } from './check.ts';
 import { fieldVectorsFor, noticeVectorFor, vectorText, type VectorDeps } from './vectors.ts';
 
@@ -76,6 +77,7 @@ export async function ingest(input: unknown, taxonomyId: string, o: { switch?: b
   const sinceRows = await sql<{ id: string }[]>`select id from notices where source = ${file.source} and not down and posted_on >= ${file.since}`;
   const goneIds = sinceRows.map(r => r.id).filter(id => !inFile.has(id));
   s.down = goneIds.length;
+  s.humanKept = Number((await sql<{ n: number }[]>`select count(distinct notice_id)::int as n from human_verdicts where notice_id = any(${[...inFile]})`)[0].n);
   if (dryRun) return { ok: true, summary: s, dryRun };
   const fv = await fieldVectorsFor(t, d);
 
@@ -93,6 +95,7 @@ export async function ingest(input: unknown, taxonomyId: string, o: { switch?: b
     const keep = s.switched ? [] : t.fields.map(x => x.id);
     await tx`update activities set field_ids = array(select f from unnest(field_ids) f where f = any(${keep}::text[])) where not (field_ids <@ ${keep}::text[])`;
     await tx`delete from excluded_lines where (line_key like 'liked:%' or line_key like 'disliked:%') and not (split_part(line_key, ':', 2) = any(${keep}::text[]))`;
+    await stripHumanFields(tx, keep);
     for (const [i, x] of t.fields.entries()) {
       const v = fv ? fv.vectors[fv.ids.indexOf(x.id)] : null;
       await tx`insert into fields (taxonomy_id, id, name, group_id, description, ord, vector) values (${t.id}, ${x.id}, ${x.name}, ${x.group}, ${x.desc}, ${i}, ${v ? vectorText(v) : null}::vector)
@@ -120,6 +123,10 @@ export async function ingest(input: unknown, taxonomyId: string, o: { switch?: b
       await tx`delete from notice_fields where notice_id = ${x.id}`;
     }
     if (goneIds.length) await tx`update notices set down = true, updated_at = now() where id = any(${goneIds})`;
+    // 사람 판정이 있는 칸은 결과 파일 값 위에 다시 덮는다(FR-052). 내려간 공지는 확인할 것에서 뺀다
+    await applyHuman(tx, [...inFile]);
+    await refreshReview(tx, [...inFile]);
+    await tx`delete from review_items where notice_id = any(${goneIds})`;
     await tx`insert into ingest_runs (source, collected_at, since, taxonomy_id, taxonomy_edition, summary) values (${file.source}, ${file.collectedAt}, ${file.since}, ${t.id}, ${t.edition}, ${tx.json(s)})`;
   });
   // 분야 이름·목록과 공지 분야가 바뀌었을 수 있어 분석을 모두 다시 쓴다(판은 글이 바뀐 학생만 오른다)
