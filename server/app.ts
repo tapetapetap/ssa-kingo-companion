@@ -6,6 +6,7 @@ import { health, type Route } from './http.ts';
 import { nextStep, onboardingRoutes, type Consent } from './me/onboarding.ts';
 import { noticeRoutes } from './notices/routes.ts';
 import { homeRoutes } from './pick/home.ts';
+import { analysisRoutes } from './analysis/routes.ts';
 
 export type Ctx = { sql: Sql; mode: Mode; consent: Consent; methods: Record<string, LoginMethod> };
 
@@ -19,5 +20,5 @@ export function checkStartup(ctx: Ctx) {
 }
 
 export function routes(ctx: Ctx): Route[] {
-  return [health, ...authRoutes(ctx, id => nextStep(ctx, id)), ...onboardingRoutes(ctx), ...noticeRoutes(ctx), ...homeRoutes(ctx)];
+  return [health, ...authRoutes(ctx, id => nextStep(ctx, id)), ...onboardingRoutes(ctx), ...noticeRoutes(ctx), ...homeRoutes(ctx), ...analysisRoutes(ctx)];
 }

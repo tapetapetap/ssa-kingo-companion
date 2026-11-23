@@ -22,7 +22,7 @@ export async function testApp(routes: Route[]) {
       else jar.set(k, v);
     }
     const text = await res.text();
-    return { status: res.status, headers: res.headers, body: text ? JSON.parse(text) as unknown : undefined };
+    return { status: res.status, headers: res.headers, body: !text ? undefined : res.headers.get('content-type')?.startsWith('application/json') ? JSON.parse(text) as unknown : text };
   };
   return { base, request, lines, jar, close: () => new Promise<void>(ok => { server.close(() => ok()); }) };
 }

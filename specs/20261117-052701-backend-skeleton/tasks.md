@@ -161,20 +161,22 @@
 
 ### Tests for User Story 5
 
-- [ ] T057 [P] [US5] `server/analysis/lines.test.ts`를 쓴다: 사실 줄과 줄 키(research R10), 몰린 분야 규칙(관심 있어요 30일 안 2번, 관심 없음은 이유 둘만·이번 학기 안 2번, 건수는 글에 없음), 분야가 붙지 않은 공지의 행동은 몰린 분야에 세지 않음, 뺀 줄은 빠짐, 줄마다 글의 틀·출처·증빙(research R10 표), md 전체가 R10의 예와 글자까지 같음(빈 칸은 '아직 없어요') 1월의 '이번 학기' 창은 앞 해 9월 1일부터.
-- [ ] T058 [P] [US5] `server/analysis/flow.test.ts`를 쓴다(가짜 모델): contracts/llm.md의 흐름 답 검사 표의 줄마다(근거, 길이, 뺀 흐름, 근거 키가 같은 둘째 문장) 버림, 4줄까지, 실패하면 앞 흐름(가리키던 줄이 없어졌으면 빔), 사실 줄이 처음 답·고른 분야뿐이면 쓰지 않음 흐름을 쓴 뒤 `flow_version`이 오른 뒤의 `version`과 같음.
-- [ ] T059 [US5] `server/analysis/store.test.ts`를 쓴다(계약 시험: prompt, analysis, analysis.md, excluded, off, activities): spec US5의 시나리오 1~6·9·10, 판 번호는 글이 바뀔 때만 오름(SC-013), 같은 재료면 같은 글, 활동 100개와 이름 100자, 증빙 주소 검사, 남의 활동 번호는 `not_found`, 분석이 꺼졌을 때 `analysis.md`와 줄 빼기는 `analysis_off`, 넣기가 목록에서 사라진 분야를 활동의 분야에서 뺌(활동은 남음), 처음 답과 고른 분야 줄은 빼지 못함, 끄면 분석과 뺀 줄이 지워지고 켜면 다시 만듦 활동을 지우면 그 줄을 가리키던 흐름 문장이 빠짐.
+- [x] T057 [P] [US5] `server/analysis/lines.test.ts`를 쓴다: 사실 줄과 줄 키(research R10), 몰린 분야 규칙(관심 있어요 30일 안 2번, 관심 없음은 이유 둘만·이번 학기 안 2번, 건수는 글에 없음), 분야가 붙지 않은 공지의 행동은 몰린 분야에 세지 않음, 뺀 줄은 빠짐, 줄마다 글의 틀·출처·증빙(research R10 표), md 전체가 R10의 예와 글자까지 같음(빈 칸은 '아직 없어요') 1월의 '이번 학기' 창은 앞 해 9월 1일부터.
+- [x] T058 [P] [US5] `server/analysis/flow.test.ts`를 쓴다(가짜 모델): contracts/llm.md의 흐름 답 검사 표의 줄마다(근거, 길이, 뺀 흐름, 근거 키가 같은 둘째 문장) 버림, 4줄까지, 실패하면 앞 흐름(가리키던 줄이 없어졌으면 빔), 사실 줄이 처음 답·고른 분야뿐이면 쓰지 않음 흐름을 쓴 뒤 `flow_version`이 오른 뒤의 `version`과 같음.
+- [x] T059 [US5] `server/analysis/store.test.ts`를 쓴다(계약 시험: prompt, analysis, analysis.md, excluded, off, activities): spec US5의 시나리오 1~6·9·10, 판 번호는 글이 바뀔 때만 오름(SC-013), 같은 재료면 같은 글, 활동 100개와 이름 100자, 증빙 주소 검사, 남의 활동 번호는 `not_found`, 분석이 꺼졌을 때 `analysis.md`와 줄 빼기는 `analysis_off`, 넣기가 목록에서 사라진 분야를 활동의 분야에서 뺌(활동은 남음), 처음 답과 고른 분야 줄은 빼지 못함, 끄면 분석과 뺀 줄이 지워지고 켜면 다시 만듦 활동을 지우면 그 줄을 가리키던 흐름 문장이 빠짐.
 
 ### Implementation for User Story 5
 
-- [ ] T060 [US5] `server/db/migrations/006_analysis.sql`을 쓴다(data-model 4의 `activities`, `excluded_lines`, `analyses`)
-- [ ] T061 [P] [US5] `server/analysis/lines.ts`(순수: 재료 → 줄)와 `server/analysis/md.ts`(줄 → md)를 쓴다(T057 통과)
-- [ ] T062 [US5] `server/analysis/store.ts`를 쓴다: 재료를 바꾸는 요청과 같은 트랜잭션에서 다시 쓰고, 글이 바뀌면 판을 올리고 다시 고르기를 건다. 카드 행동·처음 답·고른 분야를 바꾸는 곳이 이것을 부른다
-- [ ] T063 [US5] `server/me/prompt.ts`(요청에서는 모델을 부르지 않는다: 글을 쓰고 벡터를 비우고 다시 고르기를 건다, research R9), `server/me/activities.ts`, `server/analysis/routes.ts`를 쓴다(T059 통과). `server/ingest/ingest.ts`가 사라진 분야를 `activities.field_ids`와 `liked:`·`disliked:` 뺀 줄에서도 빼게 한다
-- [ ] T064 [US5] `server/analysis/flow.ts`를 쓴다(contracts/llm.md의 흐름 쓰기. T058 통과). 매일 작업이 부를 함수다(US6에서 잇는다)
-- [ ] T065 [US5] `server/pick/candidates.ts`와 `server/pick/llm.ts`가 나의 분석을 읽게 한다: 몰린 분야 점수(R8), LLM에 넣는 글(FR-034), 참고한 줄 검사와 뺀 줄 빼기(spec US3 시나리오 2, US5 시나리오 6. 시험은 `server/pick/home.test.ts`에 더한다)
-- [ ] T066 [US5] quickstart 4를 확인한다(흐름은 `flow.ts`를 직접 불러 본다)
+- [x] T060 [US5] `server/db/migrations/006_analysis.sql`을 쓴다(data-model 4의 `activities`, `excluded_lines`, `analyses`)
+- [x] T061 [P] [US5] `server/analysis/lines.ts`(순수: 재료 → 줄)와 `server/analysis/md.ts`(줄 → md)를 쓴다(T057 통과)
+- [x] T062 [US5] `server/analysis/store.ts`를 쓴다: 재료를 바꾸는 요청과 같은 트랜잭션에서 다시 쓰고, 글이 바뀌면 판을 올리고 다시 고르기를 건다. 카드 행동·처음 답·고른 분야를 바꾸는 곳이 이것을 부른다
+- [x] T063 [US5] `server/me/prompt.ts`(요청에서는 모델을 부르지 않는다: 글을 쓰고 벡터를 비우고 다시 고르기를 건다, research R9), `server/me/activities.ts`, `server/analysis/routes.ts`를 쓴다(T059 통과). `server/ingest/ingest.ts`가 사라진 분야를 `activities.field_ids`와 `liked:`·`disliked:` 뺀 줄에서도 빼게 한다
+- [x] T064 [US5] `server/analysis/flow.ts`를 쓴다(contracts/llm.md의 흐름 쓰기. T058 통과). 매일 작업이 부를 함수다(US6에서 잇는다)
+- [x] T065 [US5] `server/pick/candidates.ts`와 `server/pick/llm.ts`가 나의 분석을 읽게 한다: 몰린 분야 점수(R8), LLM에 넣는 글(FR-034), 참고한 줄 검사와 뺀 줄 빼기(spec US3 시나리오 2, US5 시나리오 6. 시험은 `server/pick/home.test.ts`에 더한다)
+- [x] T066 [US5] quickstart 4를 확인한다(흐름은 `flow.ts`를 직접 불러 본다)
 - [ ] T067 [US5] 단계 마무리(PR '2단계 나의 분석')
+
+**US5 결과(2026-11-23)**: 줄과 md는 `analysis/lines.ts` 한 파일(md.ts를 따로 두지 않음), 프롬프트·활동·분석 경로는 `analysis/routes.ts` 한 파일. 재료 쓰기와 분석 다시 쓰기는 한 트랜잭션이 아니다(겹치면 판이 한 번 덜 오를 수 있고 다음 다시 쓰기가 맞춤, 코드에 ponytail 주석). T066(gemma4:12b, 활동 셋): 흐름 4줄이 써지고 `flow_version`이 판과 같음. 이때 앞의 두 줄이 처음 답·고른 분야를 되풀이할 뿐이라, 리뷰 뒤 근거 키가 둘보다 적은 문장을 버리게 했다(contracts/llm.md 표 고침). 몰린 분야는 날짜로 바뀌어 분석은 읽을 때마다 다시 쓰고, 넣기 뒤에도 모두 다시 쓴다.
 
 **Checkpoint**: 학생 기능이 모두 서버만으로 돈다(SC-003).
 

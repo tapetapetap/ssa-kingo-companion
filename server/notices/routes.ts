@@ -6,12 +6,14 @@ import { HttpError, kstIso, type Route } from '../http.ts';
 import { KINDS } from '../ingest/check.ts';
 import { LIMITS } from '../limits.ts';
 import { requireConsent } from '../me/onboarding.ts';
+import { rebuild } from '../analysis/store.ts';
 import { enqueue } from '../pick/queue.ts';
 
-/** 가장 추천 공지에 행동하면 다시 고른다(FR-037) */
+/** 가장 추천 공지에 행동하면 다시 고른다(FR-037). 몰린 분야가 바뀌면 분석 다시 쓰기가 다시 고르기를 건다 */
 async function repickIfPick(sql: Sql, student: number, id: string) {
   const [p] = await sql`select 1 from picks where student_id = ${student} and notice_id = ${id}`;
   if (p) await enqueue(sql, student, 'action');
+  await rebuild(sql, student);
 }
 
 export const TODAY = `(now() at time zone 'Asia/Seoul')::date`;

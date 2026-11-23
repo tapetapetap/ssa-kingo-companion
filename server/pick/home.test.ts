@@ -178,4 +178,34 @@ describe('홈 (US3)', () => {
     await w.step();
     expect((await db.sql`select reason from picks`)[0].reason).toBe('홈이 바꿈');
   });
+  it('관심 없음이 몰린 분야가 핵심인 공지는 고른 분야여도 뒤에 서고, 그 줄을 빼면 다시 앞에 선다 (FR-033, T065)', async () => {
+    await notice(db.sql, { no: 1, core: ['backend'] });
+    await notice(db.sql, { no: 2, kind: 'hackathon', posted: -5 });
+    for (const no of [3, 4]) await notice(db.sql, { no, core: ['backend'], deadline: 30 });
+    await pickFields();
+    await app.request('PUT', '/api/notices/cse:3/action', { kind: 'dislike', reason: 'field' });
+    await app.request('PUT', '/api/notices/cse:4/action', { kind: 'dislike', reason: 'hard' });
+    await makeWorker(db.sql, { noModel: true }).step();
+    expect((await home()).pick!.notice.id).toBe('cse:2');
+    await app.request('PUT', '/api/me/analysis/excluded/disliked:backend', {});
+    await makeWorker(db.sql, { noModel: true }).step();
+    expect((await home()).pick!.notice.id).toBe('cse:1');
+  });
+
+  it('LLM에는 나의 분석 줄을 넣고, 참고한 줄을 빼면 홈의 참고한 줄에서 바로 빠진다 (US5 시나리오 6)', async () => {
+    for (const no of [1, 2, 3]) await notice(db.sql, { no, core: ['csr-nlp'] });
+    await pickFields();
+    await app.request('PUT', '/api/notices/cse:2/action', { kind: 'like' });
+    await app.request('PUT', '/api/notices/cse:3/action', { kind: 'like' });
+    let seen = '';
+    const post = (async (_u: string, body: string) => {
+      seen = JSON.parse(body).messages[1].content;
+      return { status: 200, text: async () => JSON.stringify({ message: { content: JSON.stringify({ pick: 1, reason: 'LLM을 꾸준히 봐요', cited: ['liked:csr-nlp'] }) } }) };
+    }) as Post;
+    await makeWorker(db.sql, { model: { post, throttle } }).step();
+    expect(seen).toContain('[liked:csr-nlp] 관심 있어요가 몰린 분야: 연구 자연어 처리');
+    expect((await home()).pick).toMatchObject({ notice: { id: 'cse:1' }, cited: [{ key: 'liked:csr-nlp' }] });
+    await app.request('PUT', '/api/me/analysis/excluded/liked:csr-nlp', {});
+    expect((await home()).pick).toMatchObject({ cited: [], repicking: true });
+  });
 });
