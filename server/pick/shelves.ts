@@ -1,13 +1,13 @@
 // 선반 셋(FR-039·040, contracts/api.md 홈): 홈을 열 때 계산한다. 마감 임박 → 관심 분야 새 공지 → 비슷한 공지 순서로 채우고,
 // 앞에 나온 공지(가장 추천 포함)는 뺀 뒤 10개로 자른다. 동점은 글 번호 큰 순이다
 import { LIMITS } from '../limits.ts';
-import { cosine, days } from './score.ts';
+import { days } from './score.ts';
 
-export type ShelfItem<C> = { card: C; id: string; no: number; core: string[] | null; related: string[]; deadline: string | null; postedOn: string; liked: boolean; vector: number[] | null };
+export type ShelfItem<C> = { card: C; id: string; no: number; core: string[] | null; related: string[]; deadline: string | null; postedOn: string; liked: boolean; sim: number | null };
 export type Empty = 'no_open_notices' | 'no_field_verdicts' | 'no_likes' | 'no_match';
 export type Shelf<C> = { items: C[]; empty: Empty | null };
 
-export function buildShelves<C>(all: ShelfItem<C>[], o: { picked: Set<string>; today: string; seen: Set<string>; anyJudged: boolean; likedVectors: number[][] }) {
+export function buildShelves<C>(all: ShelfItem<C>[], o: { picked: Set<string>; today: string; seen: Set<string>; anyJudged: boolean }) {
   const seen = new Set(o.seen);
   const take = (list: ShelfItem<C>[], empty: Empty | null = null): Shelf<C> => {
     const items = list.filter(x => !seen.has(x.id)).slice(0, LIMITS.shelfSize);
@@ -21,9 +21,7 @@ export function buildShelves<C>(all: ShelfItem<C>[], o: { picked: Set<string>; t
     ? take(all.filter(x => !x.liked && days(x.postedOn, o.today) <= LIMITS.newDays && [...(x.core ?? []), ...x.related].some(f => o.picked.has(f)))
       .sort((a, b) => b.postedOn.localeCompare(a.postedOn) || b.no - a.no))
     : { items: [], empty: 'no_field_verdicts' as const };
-  const similar = o.likedVectors.length
-    ? take(all.filter(x => !x.liked && x.vector).map(x => ({ x, s: Math.max(...o.likedVectors.map(v => cosine(x.vector!, v))) }))
-      .sort((a, b) => b.s - a.s || b.x.no - a.x.no).map(({ x }) => x))
-    : { items: [], empty: 'no_likes' as const };
+  // sim은 관심 있어요 공지들과의 코사인 최댓값이다. 벡터가 있는 관심 있어요가 없으면 모두 null이다(홈이 no_likes·no_match로 채운다)
+  const similar = take(all.filter(x => !x.liked && x.sim !== null).sort((a, b) => b.sim! - a.sim! || b.no - a.no));
   return { soon, field, similar };
 }

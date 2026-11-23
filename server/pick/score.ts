@@ -1,7 +1,7 @@
 // 가장 추천의 규칙 점수(research R8, FR-033b). 순수 함수: 같은 자료면 늘 같은 점수와 순서다
 export type Cand = {
   id: string; no: number; kind: string | null; core: string[] | null; related: string[]; // core가 null이면 분야가 붙지 않은 공지
-  vector: number[] | null; deadline: string | null; closesOn: string; postedOn: string;
+  sim: number | null; deadline: string | null; closesOn: string; postedOn: string; // sim: 학생 벡터와의 코사인(DB가 센다, 없으면 null)
 };
 export type Goal = 'job' | 'grad' | 'startup' | 'unsure';
 export type Profile = {
@@ -20,10 +20,6 @@ const GOAL_KINDS: Record<Goal, string[]> = {
 
 export const days = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 const unit = (v: number[]) => { const n = Math.hypot(...v); return n ? v.map(x => x / n) : null; };
-export const cosine = (a: number[], b: number[]) => {
-  const [ua, ub] = [unit(a), unit(b)];
-  return ua && ub ? ua.reduce((s, x, i) => s + x * (ub[i] ?? 0), 0) : 0;
-};
 
 /** 학생 벡터: 있는 묶음(프롬프트, 관심 있어요 공지 평균, 고른 분야 평균)을 저마다 길이 1로 맞춰 평균한다. 없으면 null */
 export function studentVector(groups: number[][][]): number[] | null {
@@ -42,8 +38,8 @@ export function scoreOne(c: Cand, p: Profile): Scored {
     if (c.core.some(f => p.disliked.has(f))) score -= 60;
   }
   if (c.kind && GOAL_KINDS[p.goal].includes(c.kind) && (c.kind !== 'job' || p.grade >= 3)) met.push({ cond: 'goal', points: 20 });
-  if (c.vector && p.vector) {
-    const pts = Math.round((20 * Math.max(0, cosine(c.vector, p.vector) - 0.3)) / 0.7);
+  if (c.sim !== null) {
+    const pts = Math.round((20 * Math.max(0, c.sim - 0.3)) / 0.7);
     if (pts > 0) met.push({ cond: 'vector', points: pts });
   }
   if (c.deadline) {

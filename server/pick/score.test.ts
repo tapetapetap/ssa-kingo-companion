@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ruleReason, NO_MATCH_REASON } from './reason.ts';
-import { cosine, rank, scoreOne, studentVector, type Cand, type Profile } from './score.ts';
+import { rank, scoreOne, studentVector, type Cand, type Profile } from './score.ts';
 
 const cand = (o: Partial<Cand> = {}): Cand => ({
-  id: 'cse:1', no: 1, kind: null, core: [], related: [], vector: null, deadline: null, closesOn: '2026-12-31', postedOn: '2026-11-01', ...o
+  id: 'cse:1', no: 1, kind: null, core: [], related: [], sim: null, deadline: null, closesOn: '2026-12-31', postedOn: '2026-11-01', ...o
 });
 const prof = (o: Partial<Profile> = {}): Profile => ({
   grade: 3, goal: 'unsure', picked: new Set(['backend']), liked: new Set(), disliked: new Set(), vector: null, today: '2026-11-20', ...o
@@ -19,8 +19,8 @@ describe('규칙 점수 (research R8)', () => {
     ['진로 목표 종류', { kind: 'hackathon' }, { goal: 'job' }, 20],
     ['채용은 3학년 이상만', { kind: 'job' }, { goal: 'job', grade: 2 }, 0],
     ['아직 모름은 종류 점수 없음', { kind: 'hackathon' }, { goal: 'unsure' }, 0],
-    ['벡터 유사도 1', { vector: [1, 0] }, { vector: [1, 0] }, 20],
-    ['벡터 유사도 0.3 이하는 0', { vector: [1, 0] }, { vector: [0, 1] }, 0],
+    ['벡터 유사도 1', { sim: 1 }, {}, 20],
+    ['벡터 유사도 0.3 이하는 0', { sim: 0.3 }, {}, 0],
     ['마감 오늘', { deadline: '2026-11-20' }, {}, 10],
     ['마감 7일 남음', { deadline: '2026-11-27' }, {}, 5],
     ['마감 14일 남음은 0', { deadline: '2026-12-04' }, {}, 0],
@@ -45,7 +45,6 @@ describe('규칙 점수 (research R8)', () => {
     expect(studentVector([[], [], []])).toBeNull();
     expect(studentVector([[[2, 0]], [], []])).toEqual([1, 0]);
     expect(studentVector([[[3, 0]], [[0, 1], [0, 3]], []])).toEqual([0.5, 0.5]);
-    expect(cosine([1, 1], [2, 2])).toBeCloseTo(1);
   });
 });
 
@@ -54,7 +53,7 @@ describe('규칙 문장 (research R8 표)', () => {
     ['둘을 잇는다', { core: ['backend'], deadline: '2026-11-22' }, {}, '고른 분야와 맞고 마감이 가까워요'],
     ['하나면 끝 꼴', { core: ['backend'] }, {}, '고른 분야와 맞아요'],
     ['같은 점수는 표 순서(진로 목표 20 > 관련 20보다 뒤)', { core: ['qa'], related: ['backend'], kind: 'hackathon' }, { goal: 'job' }, '고른 분야와 관련이 있고 진로 목표에 맞는 종류예요'],
-    ['벡터 10 미만은 문장에 넣지 않는다', { vector: [1, 0] }, { vector: [0.6, 0.8] }, NO_MATCH_REASON],
+    ['벡터 10 미만은 문장에 넣지 않는다', { sim: 0.6 }, {}, NO_MATCH_REASON],
     ['맞은 조건이 없음', {}, {}, NO_MATCH_REASON],
     ['14일 남음은 마감 조각 없음', { deadline: '2026-12-04' }, {}, NO_MATCH_REASON]
   ])('%s', (_name, c, p, text) => {

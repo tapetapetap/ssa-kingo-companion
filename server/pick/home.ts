@@ -9,7 +9,6 @@ import { choosePick } from './choose.ts';
 import { enqueue } from './queue.ts';
 import { buildShelves } from './shelves.ts';
 
-const vec = (t: string | null) => (t ? (JSON.parse(t) as number[]) : null);
 const methodText = (m: string) => (m === 'rule' ? '규칙' : `LLM: ${m.replace(/^llm:/, '')}`);
 
 export function homeRoutes(ctx: Ctx): Route[] {
@@ -18,8 +17,11 @@ export function homeRoutes(ctx: Ctx): Route[] {
     const s = await requireStudent(ctx, req);
     const done = (await nextStep(ctx, s.id)) === 'home';
     // 거르기를 지난 열린 공지(관심 있어요는 선반에는 나오지만 가장 추천은 아니다)
-    const rows = await sql<(Row & { vector: string | null; no: string })[]>`
-      select x.*, v.vector::text, split_part(x.id, ':', 2) as no
+    // 비슷한 공지의 유사도(관심 있어요 공지들과의 코사인 최댓값)는 DB가 센다. 벡터를 받아 JS에서 세면 공지 3,000건에 홈이 1초를 넘었다(SC-007, T089)
+    const rows = await sql<(Row & { sim: number | null; no: string })[]>`
+      select x.*, split_part(x.id, ':', 2) as no,
+        nullif((select max(1 - (v.vector <=> ln.vector)) from actions la join notices ln on ln.id = la.notice_id
+         where la.student_id = ${s.id} and la.kind = 'like' and ln.vector is not null)::float8, 'NaN') as sim
       from (${SELECT(sql, s.id)} where ${sql.unsafe(OPEN)} and not coalesce(${sql.unsafe(HIDDEN)}, false)) x join notices v on v.id = x.id`;
     const all = await cards(sql, rows);
     const [{ today }] = await sql<{ today: string }[]>`select ${sql.unsafe(TODAY)}::text as today`;
@@ -51,17 +53,14 @@ export function homeRoutes(ctx: Ctx): Route[] {
     }
 
     const picked = new Set((await sql<{ field_id: string }[]>`select field_id from student_fields where student_id = ${s.id}`).map(r => r.field_id));
-    const liked = await sql<{ vector: string }[]>`
-      select n.vector::text from actions a join notices n on n.id = a.notice_id where a.student_id = ${s.id} and a.kind = 'like' and n.vector is not null`;
     const anyLikes = (await sql`select 1 from actions where student_id = ${s.id} and kind = 'like' limit 1`).length > 0;
     const items = rows.map((r, i) => ({
       card: all[i], id: r.id, no: Number(r.no), core: all[i].fields ? all[i].fields!.core.map(f => f.id) : null, related: all[i].fields?.related.map(f => f.id) ?? [],
-      deadline: r.deadline, postedOn: r.posted_on, liked: r.a_kind === 'like', vector: vec(r.vector)
+      deadline: r.deadline, postedOn: r.posted_on, liked: r.a_kind === 'like', sim: r.sim
     }));
     const seen = new Set(pick ? [pick.notice.id] : []);
-    const shelves = buildShelves(items, { picked, today, seen, anyJudged: judged, likedVectors: liked.map(l => vec(l.vector)!) });
+    const shelves = buildShelves(items, { picked, today, seen, anyJudged: judged });
     if (!anyLikes) shelves.similar = { items: [], empty: 'no_likes' };
-    else if (!liked.length) shelves.similar = { items: [], empty: 'no_match' }; // 관심 있어요 공지에 벡터가 없음
     return { body: { pick, pickEmpty, shelves }, headers: s.headers };
   }]];
 }

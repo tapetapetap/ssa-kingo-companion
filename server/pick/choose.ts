@@ -24,7 +24,7 @@ export async function choosePick(sql: Sql, student: number, model: Model | null,
     if (l.key.startsWith('liked:')) st.profile.liked.add(l.key.slice(6));
     if (l.key.startsWith('disliked:')) st.profile.disliked.add(l.key.slice(9));
   }
-  const top = rank(await loadCands(sql, student), st.profile).slice(0, LIMITS.candidates);
+  const top = rank(await loadCands(sql, student, st.profile.vector), st.profile).slice(0, LIMITS.candidates);
   if (!top.length) {
     await sql`delete from picks where student_id = ${student}`;
     return null;
@@ -46,7 +46,7 @@ export async function choosePick(sql: Sql, student: number, model: Model | null,
     });
     const lines = analysis?.lines ?? null;
     const user = pickMaterial({ cands, grade: st.profile.grade, term: st.term, goal: st.profile.goal, pickedNames: st.pickedNames, prompt: st.prompt, lines });
-    const out = await model.chat(PICK_SYSTEM, user, pickSchema(top.length));
+    const out = await model.chat(PICK_SYSTEM, user, pickSchema(top.length, [...(st.prompt ? ['prompt'] : []), ...(lines ?? []).map(l => l.key)]));
     const ok = typeof out === 'string' ? null : checkPick(out.text, top.length, (lines ?? []).map(l => l.key), !!st.prompt);
     if (ok) {
       chosen = top[ok.index];

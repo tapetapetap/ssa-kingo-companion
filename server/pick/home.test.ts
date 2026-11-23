@@ -6,6 +6,7 @@ import type { Post } from '../../etl/notices/llm.ts';
 import { testDb } from '../test/db.ts';
 import { axis, notice } from '../test/notice.ts';
 import { createDevStudent, PASSWORD, seedTaxonomy, studentApp } from '../test/student.ts';
+import { loadCands } from './candidates.ts';
 import { enqueue } from './queue.ts';
 import { makeWorker } from './repick.ts';
 
@@ -207,5 +208,19 @@ describe('홈 (US3)', () => {
     expect((await home()).pick).toMatchObject({ notice: { id: 'cse:1' }, cited: [{ key: 'liked:csr-nlp' }] });
     await app.request('PUT', '/api/me/analysis/excluded/liked:csr-nlp', {});
     expect((await home()).pick).toMatchObject({ cited: [], repicking: true });
+  });
+});
+
+describe('후보의 유사도 (T089: DB가 센다)', () => {
+  it('학생 벡터와의 코사인을 공지마다 주고, 벡터가 없는 공지나 학생 벡터가 없으면 null이다', async () => {
+    await notice(db.sql, { no: 1, vector: axis(5) });
+    await notice(db.sql, { no: 2, vector: axis(6) });
+    await notice(db.sql, { no: 3 });
+    const v = axis(5).map((x, i) => x + (i === 6 ? 1 : 0)); // 1번·2번과 45도
+    const sims = Object.fromEntries((await loadCands(db.sql, me, v)).map(c => [c.id, c.sim]));
+    expect(sims['cse:1']).toBeCloseTo(Math.SQRT1_2, 5);
+    expect(sims['cse:2']).toBeCloseTo(Math.SQRT1_2, 5);
+    expect(sims['cse:3']).toBeNull();
+    expect((await loadCands(db.sql, me, null)).every(c => c.sim === null)).toBe(true);
   });
 });
