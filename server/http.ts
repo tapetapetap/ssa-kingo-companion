@@ -79,7 +79,8 @@ function send(res: ServerResponse, status: number, body: unknown, headers: Recor
     res.writeHead(status).end();
     return;
   }
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }).end(JSON.stringify(body));
+  if (typeof body === 'string' && headers['content-type']) res.writeHead(status).end(body); // 글 파일(analysis.md)
+  else res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }).end(JSON.stringify(body));
 }
 
 export const health: Route = ['GET', '/api/health', () => ({ body: { ok: true } })];

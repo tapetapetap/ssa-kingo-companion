@@ -88,6 +88,10 @@ export async function ingest(input: unknown, taxonomyId: string, o: { switch?: b
     // 고른 분야: 목록을 갈아타면 모두, 같은 목록의 새 판이면 사라진 분야만 뺀다(FR-008). 남은 분야가 3개 미만이면 다음 할 일이 분야 고르기가 된다
     if (s.switched) await tx`delete from student_fields`;
     else await tx`delete from student_fields where not (field_id = any(${t.fields.map(x => x.id)}))`;
+    // 직접 넣은 활동의 분야와 몰린 분야의 뺀 줄도 같다(research R11). 활동은 남는다
+    const keep = s.switched ? [] : t.fields.map(x => x.id);
+    await tx`update activities set field_ids = array(select f from unnest(field_ids) f where f = any(${keep}::text[])) where not (field_ids <@ ${keep}::text[])`;
+    await tx`delete from excluded_lines where (line_key like 'liked:%' or line_key like 'disliked:%') and not (split_part(line_key, ':', 2) = any(${keep}::text[]))`;
     for (const [i, x] of t.fields.entries()) {
       const v = fv ? fv.vectors[fv.ids.indexOf(x.id)] : null;
       await tx`insert into fields (taxonomy_id, id, name, group_id, description, ord, vector) values (${t.id}, ${x.id}, ${x.name}, ${x.group}, ${x.desc}, ${i}, ${v ? vectorText(v) : null}::vector)

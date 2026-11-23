@@ -2,6 +2,7 @@
 import type { Sql } from '../db/sql.ts';
 import { LIMITS } from '../limits.ts';
 import type { Model } from '../model.ts';
+import { readAnalysis } from '../analysis/store.ts';
 import { loadCands, loadStudent } from './candidates.ts';
 import { checkPick, PICK_SYSTEM, PICK_VERSION, pickMaterial, pickSchema, type Line } from './llm.ts';
 import { ruleReason } from './reason.ts';
@@ -9,21 +10,25 @@ import { rank } from './score.ts';
 
 export type PickResult = { noticeId: string; method: string } | null;
 
-/** 나의 분석 줄(뺀 줄 제외)과 판. 분석이 생기면(US5 T065) 채운다 */
+/** 나의 분석 줄(뺀 줄 제외, 흐름 포함)과 판. 꺼져 있으면 null(FR-034) */
 export type Analysis = { version: number; lines: Line[] } | null;
 export type AnalysisOf = (sql: Sql, student: number) => Promise<Analysis>;
-const noAnalysis: AnalysisOf = async () => null;
 
 /** takenAt: 일꾼이 줄에서 행을 집은 때의 queued_at. 그 뒤에 홈이 바로 바꾼 가장 추천은 덮지 않는다 */
-export async function choosePick(sql: Sql, student: number, model: Model | null, analysisOf: AnalysisOf = noAnalysis, takenAt?: string): Promise<PickResult> {
+export async function choosePick(sql: Sql, student: number, model: Model | null, analysisOf: AnalysisOf = readAnalysis, takenAt?: string): Promise<PickResult> {
   const st = await loadStudent(sql, student);
   if (!st) return null;
+  const analysis = await analysisOf(sql, student);
+  // 몰린 분야(R8): 관심 있어요가 몰린 분야는 고른 분야처럼, 관심 없음이 몰린 분야는 뒤로
+  for (const l of analysis?.lines ?? []) {
+    if (l.key.startsWith('liked:')) st.profile.liked.add(l.key.slice(6));
+    if (l.key.startsWith('disliked:')) st.profile.disliked.add(l.key.slice(9));
+  }
   const top = rank(await loadCands(sql, student), st.profile).slice(0, LIMITS.candidates);
   if (!top.length) {
     await sql`delete from picks where student_id = ${student}`;
     return null;
   }
-  const analysis = await analysisOf(sql, student);
   let chosen = top[0];
   let reason = ruleReason(chosen);
   let cited: (Line | { key: 'prompt' })[] = [];

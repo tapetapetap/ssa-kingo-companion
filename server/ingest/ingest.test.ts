@@ -97,16 +97,22 @@ describe('ingest (US1)', () => {
     expect((await db.sql`select id from taxonomies where active`).map(x => x.id)).toEqual(['csrankings']);
   });
 
-  it('목록의 새 판에서 사라진 분야는 고른 분야에서 빠지고, 목록을 갈아타면 고른 분야가 모두 지워진다(FR-008)', async () => {
+  it('목록의 새 판에서 사라진 분야는 고른 분야·활동 분야·몰린 분야 뺀 줄에서 빠지고, 목록을 갈아타면 모두 지워진다(FR-008)', async () => {
     const d = deps();
     await ingest(file(), 'custom', {}, d);
     const [s] = await db.sql`insert into students default values returning id`;
     for (const f of ['backend', 'qa', 'frontend']) await db.sql`insert into student_fields (student_id, field_id) values (${s.id}, ${f})`;
+    await db.sql`insert into activities (student_id, name, term, kind, field_ids) values (${s.id}, 'x', '2025-1', 'edu', ${['qa', 'backend']})`;
+    await db.sql`insert into excluded_lines (student_id, line_key) values (${s.id}, 'liked:qa'), (${s.id}, 'disliked:backend'), (${s.id}, 'flow:ans+picked')`;
     // 'qa'가 사라진 새 판(1안 규칙 80개 이상을 지키려고 이름만 바꾼다)
     await ingest(file(), 'custom', {}, { ...d, taxonomyDir: lists((id, t) => { if (id === 'custom') t.fields = t.fields.map(f => (f.id === 'qa' ? { ...f, id: 'qa-new' } : f)); }) });
     expect((await db.sql`select field_id from student_fields order by field_id`).map(x => x.field_id)).toEqual(['backend', 'frontend']);
+    expect((await db.sql`select field_ids from activities`)[0].field_ids).toEqual(['backend']); // 활동은 남는다
+    expect((await db.sql`select line_key from excluded_lines order by line_key`).map(x => x.line_key)).toEqual(['disliked:backend', 'flow:ans+picked']);
     await ingest(file(), 'csrankings', { switch: true }, d);
     expect(await count('select count(*) n from student_fields')).toBe(0);
+    expect((await db.sql`select field_ids from activities`)[0].field_ids).toEqual([]);
+    expect((await db.sql`select line_key from excluded_lines`).map(x => x.line_key)).toEqual(['flow:ans+picked']);
   });
 
   it('--dry-run은 요약만 내고 아무것도 쓰지 않으며 모델을 부르지 않는다', async () => {
