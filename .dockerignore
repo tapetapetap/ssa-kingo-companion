@@ -1,0 +1,14 @@
+node_modules
+.git
+etl/.cache
+etl/gold
+# 결과 파일(etl/out/cse-notices.json)은 넣는다: 새로 설치한 날 etl-out 볼륨이 그 파일로 시작한다. 정답 라벨이 든 비교 결과만 뺀다
+etl/out/fields-compare*.json
+.env
+.env.*
+deploy/kingo.env
+deploy/.env
+deploy/config
+web/ops/dist
+dist
+.qa

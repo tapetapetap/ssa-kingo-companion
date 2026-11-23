@@ -1,0 +1,67 @@
+# 학교 데스크톱 한 대의 묶음(research R16). inner는 바깥 인터넷에 닿지 않는다: 학생 자료를 다루는 api·db는 inner에만 있다.
+# 쓰는 법: deploy/kingo.env를 만들고(kingo.env.example), deploy/config/에 consent.md·operators.json을 둔 뒤
+#   호스트 쪽 값(KINGO_PORT 기본 8080, KINGO_BACKUP_HOST_DIR 기본 /mnt/backup/kingo)은 compose가 deploy/.env에서 읽는다(kingo.env가 아니다)
+#   docker compose -f deploy/compose.yaml up -d db ollama api proxy
+#   docker compose -f deploy/compose.yaml run --rm ollama-pull        (처음 한 번 모델 받기)
+#   docker compose -f deploy/compose.yaml run --rm jobs node server/cli.ts migrate
+name: kingo
+x-app: &app
+  build: { context: .., dockerfile: deploy/Dockerfile }
+  image: kingo-app
+  env_file: kingo.env
+  depends_on: { db: { condition: service_healthy } }
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment: { POSTGRES_USER: kingo, POSTGRES_DB: kingo }
+    env_file: kingo.env
+    volumes: [db-data:/var/lib/postgresql/data]
+    networks: [inner]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U kingo -d kingo"], interval: 2s, timeout: 3s, retries: 30 }
+    restart: unless-stopped
+  ollama:
+    image: ollama/ollama:latest
+    environment: { OLLAMA_NUM_PARALLEL: "1" }
+    volumes: [ollama-models:/root/.ollama]
+    networks: [inner]
+    restart: unless-stopped
+  # 처음 한 번만: 바깥에 닿아 모델을 받는다(같은 볼륨)
+  ollama-pull:
+    image: ollama/ollama:latest
+    profiles: [setup]
+    volumes: [ollama-models:/root/.ollama]
+    networks: [outer]
+    # ponytail: 판은 학교 데스크톱에서 gemma4:12b 속도를 잴 때(T087) 고정한다
+    entrypoint: ["sh", "-c", "ollama serve & until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull gemma4:12b && ollama pull bge-m3"]
+  api:
+    <<: *app
+    command: ["node", "server/main.ts"]
+    volumes: [./config:/config:ro]
+    networks: [inner]
+    restart: unless-stopped
+  proxy:
+    image: caddy:2
+    ports: ["${KINGO_PORT:-8080}:8080"]
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro]
+    networks: [inner, outer]
+    depends_on: [api]
+    restart: unless-stopped
+  # 매일 작업과 분류기(학교 공지 서버에 1초 1건). systemd timer가 run --rm으로 부른다
+  jobs:
+    <<: *app
+    profiles: [jobs]
+    command: ["node", "server/cli.ts", "status"]
+    volumes:
+      - etl-cache:/app/etl/.cache
+      - etl-out:/app/etl/out
+      - ${KINGO_BACKUP_HOST_DIR:-/mnt/backup/kingo}:/backup
+      - ./config:/config:ro
+    networks: [inner, outer]
+networks:
+  inner: { internal: true }
+  outer: {}
+volumes:
+  db-data:
+  ollama-models:
+  etl-cache:
+  etl-out:
