@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { validList } from '../../etl/taxonomy/fixtures.ts';
+import { loadTaxonomy } from '../../etl/taxonomy/taxonomy.ts';
 import { file, opp, review } from '../test/result.ts';
 import { checkResultFile } from './check.ts';
 
@@ -11,7 +12,7 @@ describe('checkResultFile (결과 파일 계약)', () => {
   it('맞는 파일과 저장소의 실제 결과 파일은 통과한다', () => {
     expect(checkResultFile(file(), t)).toEqual([]);
     expect(checkResultFile(withFields({ core: ['backend'], related: ['csr-ai'] }), t)).toEqual([]);
-    expect(checkResultFile(JSON.parse(readFileSync(new URL('../../etl/out/cse-notices.json', import.meta.url), 'utf8')), t)).toEqual([]);
+    expect(checkResultFile(JSON.parse(readFileSync(new URL('../../etl/out/cse-notices.json', import.meta.url), 'utf8')), loadTaxonomy('custom'))).toEqual([]); // 실제 파일은 실제 목록으로
   });
 
   it.each<[string, unknown, string]>([
