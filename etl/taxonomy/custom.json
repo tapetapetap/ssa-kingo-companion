@@ -1100,5 +1100,13 @@
       "accessibility"
     ]
   },
-  "chosen": null
+  "chosen": {
+    "date": "2026-11-24",
+    "corePrecision": {
+      "num": 27,
+      "den": 31
+    },
+    "prompt": "73a2661c",
+    "model": "gemma4:12b"
+  }
 }
