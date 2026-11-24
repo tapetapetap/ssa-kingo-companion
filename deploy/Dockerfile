@@ -1,5 +1,5 @@
 # api와 jobs가 함께 쓰는 이미지(research R16). 명령만 다르다: api는 node server/main.ts, jobs는 node server/cli.ts …
-FROM node:22-slim
+FROM node:24-slim
 # 서버와 같은 판의 pg_dump(판이 낮으면 거절된다, R15)와 CPU 온도를 읽는 lm-sensors(R6)
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg lm-sensors \
   && install -d /usr/share/postgresql-common/pgdg \

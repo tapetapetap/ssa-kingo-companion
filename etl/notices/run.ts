@@ -1,4 +1,4 @@
-// 진입점: 목록 → 본문 → 판정 → 중복 정리 → 결과 파일. `node etl/notices/run.ts [기준일]` (Node 22.18 이상)
+// 진입점: 목록 → 본문 → 판정 → 중복 정리 → 결과 파일. `node etl/notices/run.ts [기준일]` (Node 24 이상)
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';

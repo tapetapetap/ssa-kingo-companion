@@ -17,7 +17,7 @@
 
 ## Technical Context
 
-**Language/Version**: TypeScript, Node 22.18 이상(빌드 없이 타입 제거로 실행, 1단계와 같음. CI는 `.nvmrc`의 22), ESM
+**Language/Version**: TypeScript, Node 24 이상(빌드 없이 타입 제거로 실행, 1단계와 같음. CI는 `.nvmrc`의 24, 2026-11-24에 22에서 올림), ESM
 
 **Primary Dependencies**: Node 표준(`node:http`, `node:crypto`), `postgres`(새, R3), 1단계 모듈(tasks T082의 파일 목록: `etl/notices/throttle.ts`·`sensors.ts`·`embed.ts`·`llm.ts`·`fields.ts`·`cse.ts`·`gold.ts`·`classify.ts`, `etl/taxonomy/taxonomy.ts`). 운영자 화면은 Vite + React + `@astryxdesign/core`(R17)
 

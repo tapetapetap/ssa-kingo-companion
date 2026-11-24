@@ -27,7 +27,7 @@
 
 ## 개발
 
-Node.js `^20.19.0` 또는 `>=22.12.0`(`.nvmrc`: 22).
+Node.js 24 이상(`.nvmrc`: 24).
 
 ```sh
 npm ci                 # 처음 한 번
@@ -45,7 +45,7 @@ npm run audit:entries  # 같은 목적지로 가는 진입점 수 검사
 
 ## 서버(2단계)
 
-`server/`는 공지 추천 서버(Node 22.18 이상, Postgres + pgvector, Ollama)다. `web/ops/`는 운영자 판정 검토 화면(`/ops/`)이다. 설계는 [specs/20261117-052701-backend-skeleton](specs/20261117-052701-backend-skeleton)에 있고, 끝까지 돌려 보는 순서는 그 폴더의 [quickstart.md](specs/20261117-052701-backend-skeleton/quickstart.md)에 있다.
+`server/`는 공지 추천 서버(Node 24 이상, Postgres + pgvector, Ollama)다. `web/ops/`는 운영자 판정 검토 화면(`/ops/`)이다. 설계는 [specs/20261117-052701-backend-skeleton](specs/20261117-052701-backend-skeleton)에 있고, 끝까지 돌려 보는 순서는 그 폴더의 [quickstart.md](specs/20261117-052701-backend-skeleton/quickstart.md)에 있다.
 
 ### 개발 맥
 
