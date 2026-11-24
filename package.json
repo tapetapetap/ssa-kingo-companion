@@ -5,7 +5,7 @@
   "type": "module",
   "description": "킹고 컴패니언: 성균관대 비교과·교과 선택을 돕는 에이전트 프로토타입 (SSA)",
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "vite",
@@ -29,7 +29,7 @@
   "devDependencies": {
     "@astryxdesign/cli": "^0.7.17",
     "@types/jsdom": "^21.1.7",
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.0.0",
