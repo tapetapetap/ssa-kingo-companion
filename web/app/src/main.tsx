@@ -16,12 +16,13 @@ import { Theme } from '@astryxdesign/core/theme';
 import { api, ApiError, type Me } from './api.ts';
 import { dropOther, stash } from './lib/draft.ts';
 import { forget } from './lib/load.ts';
+import { drop } from './lib/push.ts';
 import { actions } from './lib/store.ts';
 import { ActionHost, closeSheets } from './parts/ActionHost.tsx';
 import { HomeIcon, ListIcon, MeIcon, NoticeIcon } from './parts/icons.tsx';
 import { MENU_BAR, MENU_HEIGHT } from './parts/Page.tsx';
 import { Empty, Failed, Loading } from './parts/States.tsx';
-import { back, cameBack, go, onLinkClick, parse, savedPlace, setGuard, useHref, whereTo, type Route } from './route.ts';
+import { back, cameBack, go, onLinkClick, parse, safeTo, savedPlace, setGuard, useHref, whereTo, type Route } from './route.ts';
 import { Activity } from './screens/Activity.tsx';
 import { Analysis } from './screens/Analysis.tsx';
 import { Answers } from './screens/Answers.tsx';
@@ -34,6 +35,7 @@ import { Me as MeScreen } from './screens/Me.tsx';
 import { NoticeDetail } from './screens/NoticeDetail.tsx';
 import { Notices } from './screens/Notices.tsx';
 import { Prompt } from './screens/Prompt.tsx';
+import { Push } from './screens/Push.tsx';
 import { kingo } from './theme.ts';
 
 const MENU = [
@@ -94,9 +96,9 @@ function screen(r: Route, me: Me, done: () => Promise<void>, out: () => void): R
     case 'meAnswers': return <Answers parent="/me" onDone={saved} />;
     case 'prompt': return <Prompt />;
     case 'analysis': return <Analysis onChanged={done} />;
+    case 'push': return <Push me={me} onChanged={done} />;
     case 'activity': return <Activity key={r.id} id={r.id} />;
     case 'list': return <MyList tab={r.tab} />;
-    default: return <Empty title={TITLE[r.name]} description="준비하고 있어요." />; // 다음 PR들이 화면으로 바꾼다
   }
 }
 
@@ -125,7 +127,7 @@ function App() {
       else if (!quiet) setError(e);
     }
   }, []);
-  const signedOut = () => { dropOther(''); setMe(null); go('/login', 'replace'); };
+  const signedOut = () => { void drop(); dropOther(''); setMe(null); go('/login', 'replace'); };
   useEffect(() => { void check(); }, [check]);
   useEffect(() => {
     const on = (e: Event) => {
@@ -142,11 +144,15 @@ function App() {
     const seen = () => { if (document.visibilityState === 'visible') void check(true); };
     document.addEventListener('visibilitychange', seen);
     window.addEventListener('focus', seen);
+    // 알림을 누르면 서비스 워커가 열린 앱에 갈 화면을 알려 준다
+    const opened = (e: MessageEvent) => { if (e.data?.kind === 'open' && typeof e.data.url === 'string') go(safeTo(e.data.url)); };
+    navigator.serviceWorker?.addEventListener('message', opened);
     return () => {
       window.removeEventListener('app-auth', on);
       document.removeEventListener('click', onLinkClick);
       document.removeEventListener('visibilitychange', seen);
       window.removeEventListener('focus', seen);
+      navigator.serviceWorker?.removeEventListener('message', opened);
     };
   }, [check]);
 
@@ -170,6 +176,7 @@ function App() {
   const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, me!, () => check(), signedOut) : <Loading />;
   return (
     <HStack style={page} vAlign="stretch">
+      <ActionHost me={me ?? null} onPushChanged={check} />
       {menu && wide && <Menu name={route.name} wide />}
       <main key={me?.tag} ref={main} tabIndex={-1} style={{ ...column, paddingBlockEnd: menu && !wide ? MENU_HEIGHT : 0 }}>{body}</main>
       {menu && !wide && <Menu name={route.name} wide={false} />}
@@ -177,11 +184,14 @@ function App() {
   );
 }
 
+// 개발 서버(vite)에서는 등록하지 않는다(파일이 계속 바뀐다)
+if (import.meta.env.PROD) navigator.serviceWorker?.register('/sw.js').catch(() => {});
+
 // 컴포넌트 안의 글(찾기, 지우기 등)을 한국어로
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <InternationalizationProvider locale="ko-KR" messages={{ 'ko-KR': koKR }}>
-      <Theme theme={kingo}><LayerProvider inset={{ blockEnd: `calc(${MENU_BAR} + 1px)` }}><App /><ActionHost /></LayerProvider></Theme>
+      <Theme theme={kingo}><LayerProvider inset={{ blockEnd: `calc(${MENU_BAR} + 1px)` }}><App /></LayerProvider></Theme>
     </InternationalizationProvider>
   </StrictMode>
 );

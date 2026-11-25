@@ -7,14 +7,17 @@ import { DateInput } from '@astryxdesign/core/DateInput';
 import { HStack, VStack } from '@astryxdesign/core/Layout';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { useToast } from '@astryxdesign/core/Toast';
-import { messageOf, type Draft, type NoticeCard } from '../api.ts';
+import { messageOf, type Draft, type Me, type NoticeCard } from '../api.ts';
 import { again, type Want } from '../lib/actions.ts';
 import { kstToday } from '../lib/date.ts';
+import { flag, setFlag } from '../lib/flags.ts';
 import { laterRange } from '../lib/later.ts';
 import { dayText } from '../lib/notice.ts';
+import { readState } from '../lib/push.ts';
 import { actions } from '../lib/store.ts';
 import { UNDO_MS } from '../lib/values.ts';
 import { ActionBar } from './ActionBar.tsx';
+import { PushAsk } from './PushAsk.tsx';
 import { ActivityForm } from './ActivityForm.tsx';
 
 /** 홈의 가장 추천처럼 되돌리기를 알림 줄 대신 그 자리에서 보일 때 */
@@ -51,11 +54,19 @@ function Later({ notice, onPick }: { notice: NoticeCard; onPick: (day: string) =
   );
 }
 
-export function ActionHost() {
+export function ActionHost({ me, onPushChanged }: { me: Me | null; onPushChanged: () => Promise<void> }) {
   const toast = useToast();
   const now = useSyncExternalStore(f => { subs.add(f); return () => { subs.delete(f); }; }, () => ask);
   const [suggest, setSuggest] = useState<{ draft: Draft; undo: () => void } | null>(null);
   const [asking, setAsking] = useState(false);
+  const [pushAsk, setPushAsk] = useState(false);
+  // 관심 있어요를 처음 남기면 마감 알림을 켤지 한 번 묻는다(US3-1)
+  const askPush = async () => {
+    if (!me || flag('push-asked') || await readState(me.push) !== 'off') return;
+    setFlag('push-asked');
+    closeToast();
+    setPushAsk(true);
+  };
   perform = (notice, want, opts) => {
     const before = actions.of(notice);
     const fail = (e: unknown) => {
@@ -67,7 +78,8 @@ export function ActionHost() {
     closeToast = () => {};
     if (opts.onActed) opts.onActed(undo);
     else if (want) closeToast = toast({ body: said(want), uniqueID: 'action', autoHideDuration: UNDO_MS, endContent: <Button label="되돌리기" variant="ghost" size="lg" onClick={() => { closeToast(); undo(); }} /> });
-    actions.set(notice, want).then(d => { 
+    actions.set(notice, want).then(d => {
+      if (d && want?.kind === 'like') void askPush(); 
       if (!d?.suggestActivity) return;
       closeToast(); // 되돌리기는 제안 창에 있다
       setSuggest({ draft: d.suggestActivity, undo: () => { undo(); opts.onUndone?.(); } });
@@ -81,7 +93,7 @@ export function ActionHost() {
     open(null);
     act(now.notice, want, now.opts);
   };
-  const close = () => { setSuggest(null); setAsking(false); };
+  const close = () => { setSuggest(null); setAsking(false); setPushAsk(false); };
   shut = () => { open(null); close(); closeToast(); };
   const title = now?.mode === 'later' ? '언제 다시 볼까요?' : now?.mode === 'dislike' ? '어떤 점이 안 맞았어요?' : '표시하기';
   return (
@@ -109,6 +121,19 @@ export function ActionHost() {
             {asking
               ? <ActivityForm draft={suggest.draft} path="/me/activities/new" unsaved onSaved={() => { close(); toast({ body: '해 온 활동에 넣었어요' }); }} />
               : <HStack gap={2} wrap="wrap"><Button label="넣기" variant="primary" size="lg" onClick={() => setAsking(true)} /><Button label="안 넣을래요" variant="ghost" size="lg" onClick={close} /><Button label="되돌리기" variant="ghost" size="lg" onClick={() => { close(); suggest.undo(); }} /></HStack>}
+          </VStack>
+        )}
+      </BottomSheet>
+      <BottomSheet label="마감 알림" isOpen={pushAsk} onOpenChange={setPushAsk} height="hug" padding={5}>
+        {pushAsk && (
+          <VStack gap={4}>
+            <VStack gap={1}><Text size="sm" color="secondary">내 목록에 담았어요</Text><Heading level={2}>마감 전에 알려 드릴까요?</Heading></VStack>
+            <PushAsk onDone={async on => {
+              setPushAsk(false);
+              toast({ body: on ? '알림을 켰어요' : '알림을 켜려면 브라우저 설정에서 허용해 주세요', uniqueID: 'note' });
+              await onPushChanged();
+            }} />
+            <Button label="나중에" variant="ghost" size="lg" width="100%" onClick={() => setPushAsk(false)} />
           </VStack>
         )}
       </BottomSheet>

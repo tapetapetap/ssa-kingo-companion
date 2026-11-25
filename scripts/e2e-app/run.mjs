@@ -10,6 +10,7 @@ import { chromium } from 'playwright';
 import { loadTaxonomy } from '../../etl/taxonomy/taxonomy.ts';
 import { defaultMethods, routes } from '../../server/app.ts';
 import { APP_DIR, createServer } from '../../server/http.ts';
+import { generateVAPIDKeys } from '../../server/push/send.ts';
 import { readConsent } from '../../server/me/onboarding.ts';
 import { testDb } from '../../server/test/db.ts';
 import { day as kst, notice } from '../../server/test/notice.ts';
@@ -85,7 +86,7 @@ async function newPage(base) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ko-KR', timezoneId: 'America/New_York', hasTouch: true, isMobile: true, reducedMotion: 'reduce' });
   const page = await context.newPage();
   page.on('pageerror', e => problems.push(`화면 오류: ${e.message}`));
-  page.on('console', m => { if (m.type() === 'error' && !/status of (401|403|404|422)/.test(m.text()) && !(broken && /ERR_FAILED/.test(m.text()))) problems.push(`콘솔: ${m.text().slice(0, 200)}`); });
+  page.on('console', m => { if (m.type() === 'error' && !/status of (401|403|404|422)/.test(m.text()) && !(broken && /ERR_FAILED|ERR_INTERNET_DISCONNECTED/.test(m.text()))) problems.push(`콘솔: ${m.text().slice(0, 200)}`); });
   return { page, open: path => page.goto(base + path) };
 }
 async function login(page, email, password = PASSWORD) {
@@ -586,6 +587,68 @@ async function us4(base) {
   await page.context().close();
 }
 
+async function us5(base) {
+  await doneStudent('push@example.com');
+  const { page, open } = await signIn(base, 'push@example.com', '/me/push');
+  await page.getByText('알림은 아직 준비 중이에요').waitFor();
+  await check(page, 'push-soon');
+  // 처음 한 번 연 뒤 바로 끊겨도 껍데기가 열린다. API 답은 담기지 않는다
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.waitForFunction(async () => (await caches.match('/index.html')) !== undefined);
+  const kept = await page.evaluate(async () => { const out = []; for (const k of await caches.keys()) for (const r of await (await caches.open(k)).keys()) out.push(new URL(r.url).pathname); return out; });
+  ok(kept.length > 1 && kept.every(p => p === '/index.html' || p.startsWith('/assets/')), `보관: ${kept.join(', ')}`);
+  broken = true;
+  await page.context().setOffline(true);
+  await page.reload();
+  await page.getByRole('heading', { name: '인터넷에 연결되지 않았어요' }).waitFor();
+  await page.context().setOffline(false);
+  await page.getByRole('button', { name: '다시 불러오기' }).click();
+  await page.getByText('알림은 아직 준비 중이에요').waitFor();
+  broken = false;
+  // 준비되면 켜기 전에 무엇을 보내는지 보인다
+  ctx.push = { publicKey: generateVAPIDKeys().publicKey, publicUrl: 'https://kingo.example.ac.kr' };
+  // 화면 없는 크롬은 알림을 늘 막는다. 허용 상태만 흉내 낸다(실제 켜기는 quickstart 2를 손으로)
+  await page.addInitScript(() => { Object.defineProperty(Notification, 'permission', { get: () => localStorage.getItem('e2e-perm') ?? 'default' }); });
+  await open('/me/push');
+  await page.getByText('이 기기에서 꺼져 있어요').waitFor();
+  await page.getByText(/푸시 서버를 거쳐요/).waitFor();
+  await check(page, 'push-off');
+  // 관심 있어요를 처음 남기면 한 번 묻는다
+  await open('/notices/cse%3A30');
+  await page.getByRole('main').getByRole('button', { name: '관심 있어요', exact: true }).click();
+  await page.getByRole('heading', { name: '마감 전에 알려 드릴까요?' }).waitFor();
+  await check(page, 'push-ask');
+  await page.getByRole('button', { name: '나중에', exact: true }).click();
+  await open('/notices/cse%3A31');
+  await page.getByRole('main').getByRole('button', { name: '관심 있어요', exact: true }).click();
+  await page.getByText('내 목록에 담았어요').first().waitFor();
+  await page.waitForTimeout(500);
+  ok(await page.getByRole('heading', { name: '마감 전에 알려 드릴까요?' }).count() === 0, '알림 묻기가 두 번 나왔다');
+  // 막힌 브라우저
+  await page.evaluate(() => localStorage.setItem('e2e-perm', 'denied'));
+  await open('/me/push');
+  await page.getByText('브라우저가 알림을 막고 있어요').waitFor();
+  // 알림을 눌렀을 때 열린 앱이 그 화면으로 옮긴다
+  await page.evaluate(() => navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { kind: 'open', url: '/list' } })));
+  await at(page, '/list');
+  // 아이폰에서 설치하지 않았으면 안내
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1', locale: 'ko-KR', hasTouch: true, isMobile: true });
+  const ip = await phone.newPage();
+  await ip.goto(`${base}/login`);
+  await login(ip, 'push@example.com');
+  await ip.getByText('홈 화면에 추가하면 마감 알림을 받아요').waitFor();
+  await check(ip, 'home-install');
+  await ip.getByRole('button', { name: '닫기' }).click();
+  await ip.reload();
+  await ip.getByText(/골랐어요$/).first().waitFor();
+  ok(await ip.getByText('홈 화면에 추가하면').count() === 0, '설치 안내: 닫았는데 다시 나온다');
+  await ip.goto(`${base}/me/push`);
+  await ip.getByText('홈 화면에 추가하면 알림을 받아요').waitFor();
+  await phone.close();
+  delete ctx.push;
+  await page.context().close();
+}
+
 const t = loadTaxonomy('custom');
 let failed = null;
 try {
@@ -598,7 +661,7 @@ try {
   await new Promise(done => { server.listen(0, '127.0.0.1', done); });
   const base = `http://127.0.0.1:${server.address().port}`;
   const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null;
-  for (const [name, run] of [['US1', us1], ['US2', us2], ['US3', us3], ['US4', us4]]) {
+  for (const [name, run] of [['US1', us1], ['US2', us2], ['US3', us3], ['US4', us4], ['US5', us5]]) {
     if (only && !only.includes(name)) continue;
     const t0 = Date.now();
     await run(base);
