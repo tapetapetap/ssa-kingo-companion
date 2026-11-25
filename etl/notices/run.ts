@@ -8,7 +8,7 @@ import { deadlineOf, readDates, stripDates } from './deadline.ts';
 import { fieldGate, findChosen, loadTaxonomy, TAXONOMY_DIR, TAXONOMY_IDS, type Measured, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { makeEmbed } from './embed.ts';
 import { countField, FIELD_CACHE_DIR, fieldPart, makeFieldAsk, newStats, type FieldAnswer, type FieldAsk, type FieldStats } from './fields.ts';
-import { fromLlm, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type Gate, type LlmStats } from './llm.ts';
+import { fromLlm, LLM_CACHE_DIR, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type Gate, type LlmStats } from './llm.ts';
 import { createThrottle, type LoadSummary } from './throttle.ts';
 
 export type Opportunity = {
