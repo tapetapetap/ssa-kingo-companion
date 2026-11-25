@@ -52,3 +52,6 @@ export type Home = {
   pickEmpty: string | null; shelves: Record<'soon' | 'field' | 'similar', Shelf>;
 };
 export type Page = { items: NoticeCard[]; next: string | null; empty: string | null };
+export type Draft = { name: string; term: string; kind: string | null; fieldIds: string[] };
+export type Activity = { id: number; name: string; term: string; kind: string; fieldIds: string[]; proofUrl: string | null };
+export type ListItem = { notice: NoticeCard; flags: ('revisit_due' | 'closed' | 'down')[] };

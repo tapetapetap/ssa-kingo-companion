@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dday, kstDay, termOf, termSuggestion } from './date.ts';
+import { dday, kstDay, termOf, termsBefore, termSuggestion } from './date.ts';
 
 describe('한국 날짜', () => {
   it('기기 시간대와 상관없이 한국 날짜다(UTC 15:00에 날이 바뀐다)', () => {
@@ -16,6 +16,10 @@ describe('학기', () => {
     expect(['2027-02-28', '2027-03-01', '2027-08-31', '2027-09-01', '2027-01-01'].map(termOf)).toEqual(['2026-2', '2027-1', '2027-1', '2027-2', '2026-2']);
   });
   const a = (grade: number, t: number, day: string) => ({ grade, term: t, answeredAt: `${day}T12:00:00.000+09:00` });
+  it('고를 수 있는 학기는 이번 학기부터 거꾸로다', () => {
+    expect(termsBefore('2027-01-10').slice(0, 3)).toEqual(['2026-2', '2026-1', '2025-2']);
+    expect(termsBefore('2027-03-01', '2015-2').at(-1)).toBe('2015-2');
+  });
   it('같은 학기면 제안이 없다', () => {
     expect(termSuggestion(a(3, 2, '2026-11-25'), '2027-02-28')).toBeNull();
   });

@@ -1,5 +1,5 @@
 // 홈(US2, FR-012): 가장 추천 하나와 선반 셋. 다시 고르는 중이면 5초 뒤 한 번 다시 부른다
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Button } from '@astryxdesign/core/Button';
 import { Card } from '@astryxdesign/core/Card';
@@ -8,11 +8,14 @@ import { Collapsible } from '@astryxdesign/core/Collapsible';
 import { useMediaQuery } from '@astryxdesign/core/hooks';
 import { HStack, VStack } from '@astryxdesign/core/Layout';
 import { Heading, Text } from '@astryxdesign/core/Text';
-import { api, type Home as Data, type Shelf } from '../api.ts';
+import { type Home as Data, type Shelf } from '../api.ts';
 import { homeEmpty } from '../lib/empty.ts';
 import { useLoad } from '../lib/load.ts';
-import { actionText, kindName } from '../lib/notice.ts';
-import { HOME_REFRESH_MS } from '../lib/values.ts';
+import { kindName } from '../lib/notice.ts';
+import { hidden, useActions, withCards } from '../lib/store.ts';
+import { HOME_REFRESH_MS, UNDO_MS } from '../lib/values.ts';
+import { ActionBar } from '../parts/ActionBar.tsx';
+import type { Opts } from '../parts/ActionHost.tsx';
 import { Due, hrefOf, ShelfCard } from '../parts/NoticeCard.tsx';
 import { Page } from '../parts/Page.tsx';
 import { Empty, Failed, Loading } from '../parts/States.tsx';
@@ -20,9 +23,10 @@ import { Empty, Failed, Loading } from '../parts/States.tsx';
 const SHELVES = [['soon', '마감 임박', '/notices?sort=due'], ['field', '관심 분야 새 공지', null], ['similar', '비슷한 공지', null]] as const;
 const today = () => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'long', timeZone: 'Asia/Seoul' }).format(new Date());
 
-function Pick({ pick }: { pick: NonNullable<Data['pick']> }) {
+const cards = (d: Data) => [...(d.pick ? [d.pick.notice] : []), ...Object.values(d.shelves).flatMap(s => s.items)];
+
+function Pick({ pick, opts }: { pick: NonNullable<Data['pick']>; opts: Opts }) {
   const n = pick.notice;
-  const action = actionText(n.action);
   return (
     <VStack gap={4}>
       <VStack gap={1}>
@@ -41,7 +45,6 @@ function Pick({ pick }: { pick: NonNullable<Data['pick']> }) {
             {n.host && <Text size="sm" color="secondary">{n.host}</Text>}
             {n.fields && n.fields.core.length > 0 && <Text size="sm" color="secondary">{n.fields.core.map(f => f.name).join(', ')}</Text>}
           </VStack>
-          {action && <Text size="sm" color="accent" weight="semibold">{action}</Text>}
           {pick.cited.length > 0 && (
             <Collapsible defaultIsOpen={false} trigger={<Text>이걸 보고 골랐어요</Text>}>
               <VStack as="ul" gap={1} style={{ margin: 0, paddingInlineStart: 'var(--spacing-5)', listStyle: 'disc' }} data-server-text>
@@ -50,6 +53,7 @@ function Pick({ pick }: { pick: NonNullable<Data['pick']> }) {
             </Collapsible>
           )}
           <Button label="자세히 보기" variant="primary" size="lg" width="100%" href={hrefOf(n)} />
+          <ActionBar notice={n} opts={opts} />
         </VStack>
       </Card>
     </VStack>
@@ -70,23 +74,39 @@ function ShelfRow({ name, more, shelf }: { name: string; more: string | null; sh
 }
 
 export function Home() {
-  const { data, error, reload, refresh } = useLoad(() => api<Data>('GET', '/api/home'), [], 'home');
+  const { data, error, reload, refresh, cancel } = useLoad(() => withCards<Data>('GET', '/api/home', cards), [], 'home');
+  useActions();
+  // 가장 추천에 행동하면 그 자리에 되돌리기를 5초 보인 뒤 홈을 다시 부른다(FR-012)
+  const [undo, setUndo] = useState<(() => void) | null>(null);
+  const opts = useMemo<Opts>(() => ({ onActed: u => { cancel(); setUndo(() => u); }, onFailed: () => setUndo(null), onUndone: () => { cancel(); setUndo(null); } }), [cancel]);
+  useEffect(() => {
+    if (!undo) return;
+    const t = setTimeout(() => void refresh().then(() => setUndo(u => (u === undo ? null : u))), UNDO_MS);
+    return () => clearTimeout(t);
+  }, [undo, refresh]);
   const asked = useRef(false);
   const repicking = data?.pick?.repicking ?? false;
   useEffect(() => {
-    if (!repicking || asked.current) return;
+    if (!repicking || asked.current || undo) return;
     const t = setTimeout(() => { asked.current = true; void refresh(); }, HOME_REFRESH_MS);
     return () => clearTimeout(t);
-  }, [repicking, refresh]);
+  }, [repicking, refresh, undo]);
   if (error) return <Failed error={error} retry={reload} />;
   if (!data) return <Loading />;
   const none = homeEmpty(data.pickEmpty);
-  const shelves = SHELVES.filter(([id]) => data.shelves[id].items.length > 0);
+  const shelves = SHELVES.map(([id, name, more]) => ({ id, name, more, shelf: { ...data.shelves[id], items: data.shelves[id].items.filter(n => !hidden(n)) } })).filter(s => s.shelf.items.length > 0);
   return (
     <Page>
       <Text size="sm" color="secondary">{today()}</Text>
-      {data.pick ? <Pick pick={data.pick} /> : <Empty title={none.title} description={none.description} action={none.link && <Button label={none.link.label} size="lg" href={none.link.href} />} />}
-      {shelves.length ? shelves.map(([id, name, more]) => <ShelfRow key={id} name={name} more={more} shelf={data.shelves[id]} />)
+      {undo ? (
+        <Card padding={4}>
+          <HStack gap={2} justify="between" vAlign="center" wrap="wrap">
+            <Text role="status">다른 추천을 고르는 중이에요</Text>
+            <Button label="되돌리기" size="lg" onClick={() => { undo(); opts.onUndone?.(); }} />
+          </HStack>
+        </Card>
+      ) : data.pick ? <Pick pick={data.pick} opts={opts} /> : <Empty title={none.title} description={none.description} action={none.link && <Button label={none.link.label} size="lg" href={none.link.href} />} />}
+      {shelves.length ? shelves.map(s => <ShelfRow key={s.id} name={s.name} more={s.more} shelf={s.shelf} />)
         : <Text color="secondary">지금 보여 줄 선반이 없어요</Text>}
     </Page>
   );

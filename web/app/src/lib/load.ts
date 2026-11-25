@@ -39,5 +39,7 @@ export function useLoad<T>(fn: () => Promise<T>, deps: DependencyList, key?: str
     if (key) kept.set(key, data);
     set({ data, error: null });
   }, [key]);
-  return { ...s, set: put, reload: useCallback(() => void run(false), [run]), refresh: useCallback(() => run(true), [run]) };
+  /** 가는 중인 새로 고침을 버린다 */
+  const cancel = useCallback(() => { live.current++; }, []);
+  return { ...s, set: put, cancel, reload: useCallback(() => void run(false), [run]), refresh: useCallback(() => run(true), [run]) };
 }
