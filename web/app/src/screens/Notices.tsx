@@ -9,11 +9,12 @@ import { List } from '@astryxdesign/core/List';
 import { Selector } from '@astryxdesign/core/Selector';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { TextInput } from '@astryxdesign/core/TextInput';
-import { api, messageOf, type FieldList, type NoticeCard, type Page as Data } from '../api.ts';
+import { api, messageOf, type FieldList, type Page as Data } from '../api.ts';
 import { listEmpty } from '../lib/empty.ts';
 import { useLoad } from '../lib/load.ts';
 import { kindName, KINDS } from '../lib/notice.ts';
 import { SEARCH_WAIT_MS } from '../lib/values.ts';
+import { hidden, useActions, withCards } from '../lib/store.ts';
 import { Chip } from '../parts/Chip.tsx';
 import { FieldPicker } from '../parts/FieldPicker.tsx';
 import { NoticeRow } from '../parts/NoticeCard.tsx';
@@ -27,7 +28,8 @@ const show = (q: Partial<Query>) => go(noticesHref(q), 'replace');
 
 function Results({ href, plain, onClear }: { href: string; plain: boolean; onClear: () => void }) {
   const url = `/api${href}`;
-  const { data, error, reload, set } = useLoad(() => api<Data>('GET', url), [url], url, true);
+  const { data, error, reload, set } = useLoad(() => withCards<Data>('GET', url, d => d.items), [url], url, true);
+  useActions();
   const [more, setMore] = useState<'idle' | 'loading' | unknown>('idle');
   const busy = useRef(false);
   const loadMore = useCallback(async () => {
@@ -35,7 +37,7 @@ function Results({ href, plain, onClear }: { href: string; plain: boolean; onCle
     busy.current = true;
     setMore('loading');
     try {
-      const p = await api<Data>('GET', `${url}${url.includes('?') ? '&' : '?'}cursor=${encodeURIComponent(data.next)}`);
+      const p = await withCards<Data>('GET', `${url}${url.includes('?') ? '&' : '?'}cursor=${encodeURIComponent(data.next)}`, d => d.items);
       // 사이에 새 공지가 올라오면 쪽이 밀려 같은 공지가 다시 올 수 있다
       const have = new Set(data.items.map(n => n.id));
       set({ ...p, items: [...data.items, ...p.items.filter(n => !have.has(n.id))] });
@@ -62,7 +64,7 @@ function Results({ href, plain, onClear }: { href: string; plain: boolean; onCle
   }
   return (
     <VStack gap={3}>
-      <List hasDividers density="spacious" edge="flush">{data.items.map((n: NoticeCard) => <NoticeRow key={n.id} notice={n} />)}</List>
+      <List hasDividers density="spacious" edge="flush">{data.items.filter(n => !hidden(n)).map(n => <NoticeRow key={n.id} notice={n} />)}</List>
       <VStack ref={end} hAlign="center" paddingBlock={4} gap={2}>
         {more === 'loading' ? <Text color="secondary" role="status">더 불러오는 중이에요</Text>
           : more !== 'idle' ? <><Text color="secondary" role="alert">{messageOf(more)}</Text><Button label="다시 불러오기" size="lg" onClick={() => void loadMore()} /></>

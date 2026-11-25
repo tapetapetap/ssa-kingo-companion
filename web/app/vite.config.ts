@@ -8,6 +8,6 @@ export default defineConfig({
   base: '/',
   plugins: [react()],
   // ponytail: 덩어리 하나. 새 판이 올라간 뒤 옛 앱이 없는 덩어리를 부르는 일이 없다(R1)
-  build: { outDir: 'dist', emptyOutDir: true, chunkSizeWarningLimit: 1200, rolldownOptions: { output: { codeSplitting: false } } },
+  build: { outDir: 'dist', emptyOutDir: true, chunkSizeWarningLimit: 1500, rolldownOptions: { output: { codeSplitting: false } } },
   server: { proxy: { '/api': process.env.KINGO_API_URL ?? 'http://127.0.0.1:8080' } }
 });

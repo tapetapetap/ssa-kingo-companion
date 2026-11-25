@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { Button } from '@astryxdesign/core/Button';
 import { Icon } from '@astryxdesign/core/Icon';
 import { InternationalizationProvider } from '@astryxdesign/core/i18n';
+import { LayerProvider } from '@astryxdesign/core/Layer';
 import { HStack, VStack } from '@astryxdesign/core/Layout';
 import { Link } from '@astryxdesign/core/Link';
 import koKR from '@astryxdesign/core/locales/ko-KR.generated.js';
@@ -14,6 +15,8 @@ import { Text } from '@astryxdesign/core/Text';
 import { Theme } from '@astryxdesign/core/theme';
 import { api, ApiError, type Me } from './api.ts';
 import { forget } from './lib/load.ts';
+import { actions } from './lib/store.ts';
+import { ActionHost } from './parts/ActionHost.tsx';
 import { HomeIcon, ListIcon, MeIcon, NoticeIcon } from './parts/icons.tsx';
 import { Empty, Failed, Loading } from './parts/States.tsx';
 import { cameBack, go, onLinkClick, parse, savedPlace, useHref, whereTo, type Route } from './route.ts';
@@ -21,6 +24,7 @@ import { Answers } from './screens/Answers.tsx';
 import { Consent } from './screens/Consent.tsx';
 import { Fields } from './screens/Fields.tsx';
 import { Home } from './screens/Home.tsx';
+import { MyList } from './screens/List.tsx';
 import { Login } from './screens/Login.tsx';
 import { NoticeDetail } from './screens/NoticeDetail.tsx';
 import { Notices } from './screens/Notices.tsx';
@@ -78,6 +82,7 @@ function screen(r: Route, done: () => Promise<void>): ReactNode {
     case 'home': return <Home />;
     case 'notices': return <Notices query={r} />;
     case 'notice': return <NoticeDetail key={r.id} id={r.id} />;
+    case 'list': return <MyList tab={r.tab} />;
     default: return <Empty title={TITLE[r.name]} description="준비하고 있어요." />; // 다음 PR들이 화면으로 바꾼다
   }
 }
@@ -95,7 +100,10 @@ function App() {
     setError(null);
     try {
       const now = await api<Me>('GET', '/api/me');
-      if (tag.current !== now.tag) forget();
+      if (tag.current !== now.tag) {
+        forget();
+        actions.forget();
+      }
       tag.current = now.tag;
       setMe(now);
     } catch (e) {
@@ -140,7 +148,7 @@ function App() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <InternationalizationProvider locale="ko-KR" messages={{ 'ko-KR': koKR }}>
-      <Theme theme={kingo}><App /></Theme>
+      <Theme theme={kingo}><LayerProvider inset={{ blockEnd: 64 }}><App /><ActionHost /></LayerProvider></Theme>
     </InternationalizationProvider>
   </StrictMode>
 );

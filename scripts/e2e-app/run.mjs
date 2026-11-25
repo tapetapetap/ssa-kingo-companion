@@ -12,7 +12,7 @@ import { defaultMethods, routes } from '../../server/app.ts';
 import { APP_DIR, createServer } from '../../server/http.ts';
 import { readConsent } from '../../server/me/onboarding.ts';
 import { testDb } from '../../server/test/db.ts';
-import { notice } from '../../server/test/notice.ts';
+import { day as kst, notice } from '../../server/test/notice.ts';
 import { createDevStudent, PASSWORD, seedTaxonomy } from '../../server/test/student.ts';
 import { findCopyIssues } from '../audit-copy/rules.mjs';
 
@@ -38,11 +38,11 @@ const probe = () => {
   const doc = document.documentElement;
   const over = doc.scrollWidth - doc.clientWidth;
   const small = [...document.querySelectorAll('a, button, input, select, textarea, [role=radio], [role=tab], [role=switch]')].filter(e => e.matches('input[type=radio], input[type=checkbox]') ? e.closest('label, li') : visible(e)).map(e => {
-    // 라디오·확인란은 줄 전체(label이나 목록 줄)를 누른다
-    const hit = e.matches('input[type=radio], input[type=checkbox]') ? e.closest('label, li, [role=listitem]') ?? e : e.matches('input, textarea, [role=combobox]') ? e.parentElement : e;
+    // 라디오·확인란·목록 줄의 링크는 줄 전체를, 입력 칸 안쪽 단추는 칸 전체를 누른다
+    const hit = e.matches('input[type=radio], input[type=checkbox]') ? e.closest('label, li, [role=listitem]') ?? e : e.closest('[class*=astryx-date-input], [class*=astryx-multi-selector]') ?? (e.matches('input, textarea, [role=combobox]') ? e.parentElement : e.matches('li a') ? e.closest('li') : e);
     const r = hit.getBoundingClientRect();
     return { name: (e.getAttribute('aria-label') || e.innerText || e.getAttribute('name') || e.tagName).slice(0, 30), w: Math.round(r.width), h: Math.round(r.height) };
-  }).filter(x => x.w > 1 && x.h > 1 && (x.h < 44 || x.w < 44));
+  }).filter(x => x.w > 1 && x.h > 1 && (x.h < 44 || x.w < 44) && x.name !== '알림 닫기'); // 알림은 5초 뒤 저절로 사라진다
   const texts = [...document.querySelectorAll('body *')].filter(e => visible(e) && !e.closest('[data-server-text], script, style') && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())).map(e => e.innerText ?? '');
   return { over, small, texts };
 };
@@ -241,7 +241,7 @@ async function us2(base) {
   }
   await page.getByText('여기까지예요').waitFor();
   const total = await rows.count();
-  ok(total === 43, `공지: 열린 것 43개(마감 없는 둘은 30일이 지나 닫힘)인데 ${total}개가 보인다`);
+  ok(total === 44, `공지: 열린 것 44개(마감 없는 둘은 30일이 지나 닫힘)인데 ${total}개가 보인다`);
   const target = rows.nth(30);
   await target.scrollIntoViewIfNeeded();
   const y = await page.evaluate(() => window.scrollY);
@@ -254,7 +254,7 @@ async function us2(base) {
   await page.getByRole('button', { name: '뒤로' }).click();
   await at(page, '/notices');
   await page.waitForTimeout(300);
-  ok(await rows.count() === 43, '뒤로: 이어 받은 목록이 줄었다');
+  ok(await rows.count() === 44, '뒤로: 이어 받은 목록이 줄었다');
   const back = await page.evaluate(() => window.scrollY);
   ok(Math.abs(back - y) < 60, `뒤로: 자리가 ${y}에서 ${back}으로 바뀌었다`);
 
@@ -300,6 +300,132 @@ async function us2(base) {
   await page.context().close();
 }
 
+async function us3(base) {
+  const id = await doneStudent('act@example.com');
+  const { page, open } = await signIn(base, 'act@example.com', '/notices/cse%3A20');
+  const action = async (no = 20) => (await db.sql`select kind, revisit_on::text as day, reason from actions where student_id = ${id} and notice_id = ${`cse:${no}`}`)[0] ?? null;
+  const settled = async (want, no = 20) => {
+    for (let i = 0; i < 40; i++) {
+      if (JSON.stringify((await action(no))?.kind ?? null) === JSON.stringify(want)) return;
+      await page.waitForTimeout(50);
+    }
+    problems.push(`행동: ${no}번이 ${want}가 아니라 ${JSON.stringify(await action(no))}`);
+  };
+  const button = name => page.getByRole('main').getByRole('button', { name, exact: true });
+  const pressed = async name => await button(name).getAttribute('aria-pressed') === 'true';
+  await button('관심 있어요').click();
+  ok(await pressed('관심 있어요'), '행동: 누른 뒤 바로 바뀌지 않는다');
+  await page.getByText('내 목록에 담았어요').first().waitFor();
+  await check(page, 'acted');
+  await settled('like');
+  await button('관심 있어요').click();
+  await settled(null);
+  // 저장이 실패하면 되돌리고 알린다
+  broken = true;
+  await page.route('**/action', r => r.abort());
+  await button('관심 있어요').click();
+  await page.getByText('인터넷에 연결되지 않았어요').first().waitFor();
+  ok(!await pressed('관심 있어요'), '행동: 실패했는데 눌린 채다');
+  await page.unroute('**/action');
+  broken = false;
+  // 나중에 보기: 기본 3일 뒤
+  await button('나중에 보기').click();
+  await page.getByRole('heading', { name: '언제 다시 볼까요?' }).waitFor();
+  await check(page, 'later');
+  await page.getByRole('dialog').getByRole('button', { name: '나중에 보기' }).click();
+  await settled('later');
+  ok((await action()).day === kst(3), `나중에 보기: 기본 날이 ${(await action()).day}`);
+  // 관심 없음과 되돌리기(앞 행동으로)
+  await button('관심 없음').click();
+  await page.getByRole('heading', { name: '어떤 점이 안 맞았어요?' }).waitFor();
+  await check(page, 'dislike');
+  await page.getByRole('button', { name: '시간이 안 맞아요' }).click();
+  await settled('dislike');
+  await page.getByRole('button', { name: '되돌리기' }).click();
+  await settled('later');
+  // 이미 해 봤어요 → 활동 초안
+  await button('관심 없음').click();
+  await page.getByRole('button', { name: '이미 해 봤어요' }).click();
+  await page.getByRole('heading', { name: '나의 분석에 활동으로 넣을까요?' }).waitFor();
+  await check(page, 'suggest');
+  await page.getByRole('button', { name: '넣기', exact: true }).click();
+  await page.getByLabel('이름').waitFor();
+  ok(await page.getByLabel('이름').inputValue() === '공지 20', '활동: 초안이 채워지지 않았다');
+  await check(page, 'activity-draft');
+  await page.getByLabel('이름').fill('교내 해커톤');
+  await page.getByRole('button', { name: '저장하기' }).click();
+  await page.getByText('해 온 활동에 넣었어요').first().waitFor();
+  ok((await db.sql`select name from activities where student_id = ${id}`)[0]?.name === '교내 해커톤', '활동: 저장되지 않았다');
+  await page.waitForTimeout(600);
+  // 목록 줄: 한 번 눌러 관심 있어요, 관심 없음이면 빠지고 되돌리면 돌아온다
+  await open('/notices');
+  const row = no => page.locator('main li').filter({ has: page.getByText(`공지 ${no}`, { exact: true }) });
+  await row(5).getByRole('button', { name: '관심 있어요' }).click();
+  await settled('like', 5);
+  await row(6).getByRole('button', { name: '다른 표시' }).click();
+  await check(page, 'menu');
+  await page.getByRole('dialog').getByRole('button', { name: '관심 없음' }).click();
+  await page.getByRole('button', { name: '이유 없이' }).click();
+  await settled('dislike', 6);
+  await row(6).waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: '되돌리기' }).last().click();
+  await settled(null, 6);
+  await row(6).waitFor();
+  // 오늘 닫히는 공지에는 나중에 보기가 없다
+  await open('/notices/cse%3A103');
+  await page.getByText('오늘 닫히는 공지라').waitFor();
+  ok(await button('나중에 보기').isDisabled(), '오늘 닫히는 공지에 나중에 보기가 눌린다');
+  // 내 목록
+  await db.sql`insert into actions (student_id, notice_id, kind, revisit_on) values (${id}, 'cse:9', 'later', ${kst(0)}), (${id}, 'cse:10', 'later', ${kst(2)}), (${id}, 'cse:101', 'like', null), (${id}, 'cse:102', 'like', null), (${id}, 'cse:3', 'like', null)
+    on conflict do nothing`;
+  await page.getByRole('link', { name: '내 목록', exact: true }).click();
+  await page.getByRole('tab', { name: '관심 있어요 4' }).waitFor();
+  const titles = () => page.locator('main li').evaluateAll(ls => ls.map(l => /(공지 \d+|닫힌 공지|내려간 공지)/.exec(l.innerText)[0]));
+  ok((await titles()).join() === '공지 3,공지 5,닫힌 공지,내려간 공지', `내 목록 순서: ${await titles()}`);
+  await check(page, 'list');
+  await page.getByRole('tab', { name: '나중에 보기 2' }).click();
+  await at(page, '/list?tab=later');
+  await page.getByText('다시 볼 날이에요').waitFor();
+  ok((await titles()).join() === '공지 9,공지 10', `나중에 보기 순서: ${await titles()}`);
+  await check(page, 'list-later');
+  await open('/list');
+  await row(5).waitFor();
+  await page.locator('main li').filter({ hasText: '내려간 공지' }).getByRole('button', { name: '다른 표시' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '표시 지우기' }).click();
+  await settled(null, 102);
+  await page.getByRole('tab', { name: '관심 있어요 3' }).waitFor();
+  // 다른 기기에서 바꾼 것은 다시 열면 보인다
+  await db.sql`delete from actions where student_id = ${id} and notice_id = 'cse:5'`;
+  await page.getByRole('link', { name: '홈', exact: true }).click();
+  await page.getByRole('link', { name: '내 목록', exact: true }).click();
+  await page.getByRole('tab', { name: '관심 있어요 2' }).waitFor();
+  // 홈의 가장 추천에 행동: 5초 되돌리기
+  await page.getByRole('link', { name: '홈', exact: true }).click();
+  const top = page.getByRole('heading', { level: 1 });
+  await top.waitFor();
+  const before = await top.innerText();
+  await button('관심 있어요').first().click();
+  await page.getByText('다른 추천을 고르는 중이에요').waitFor();
+  await check(page, 'home-acted').catch(() => {});
+  await open('/');
+  await top.waitFor();
+  const second = await top.innerText();
+  ok(second !== before, '홈: 행동했는데 같은 추천이다');
+  await button('관심 없음').first().click();
+  await page.getByRole('button', { name: '이유 없이' }).click();
+  await page.getByText('다른 추천을 고르는 중이에요').waitFor();
+  await page.getByRole('main').getByRole('button', { name: '되돌리기' }).click();
+  await top.waitFor();
+  ok(await top.innerText() === second, '홈: 되돌렸는데 카드가 다르다');
+  await button('관심 없음').first().click();
+  await page.getByRole('button', { name: '이유 없이' }).click();
+  await page.getByText('다른 추천을 고르는 중이에요').waitFor();
+  await page.waitForTimeout(5800);
+  await top.waitFor();
+  ok(await top.innerText() !== second, '홈: 5초 뒤 다시 부르지 않았다');
+  await page.context().close();
+}
+
 const t = loadTaxonomy('custom');
 let failed = null;
 try {
@@ -307,10 +433,11 @@ try {
   for (let i = 1; i <= 45; i++) await notice(db.sql, { no: i, title: `공지 ${i}`, kind: i % 3 ? 'job' : 'hackathon', posted: -i, deadline: i % 7 ? i : null, core: [t.fields[i % t.fields.length].id] });
   await notice(db.sql, { no: 101, title: '닫힌 공지', deadline: -3, posted: -40 });
   await notice(db.sql, { no: 102, title: '내려간 공지', down: true });
+  await notice(db.sql, { no: 103, title: '오늘 닫히는 공지', deadline: 0 });
   for (const email of ['new@example.com', 'lock@example.com']) await createDevStudent(db.sql, email);
   await new Promise(done => { server.listen(0, '127.0.0.1', done); });
   const base = `http://127.0.0.1:${server.address().port}`;
-  for (const [name, run] of [['US1', us1], ['US2', us2]]) {
+  for (const [name, run] of [['US1', us1], ['US2', us2], ['US3', us3]]) {
     const t0 = Date.now();
     await run(base);
     console.log(`${name} ${((Date.now() - t0) / 1000).toFixed(1)}초`);

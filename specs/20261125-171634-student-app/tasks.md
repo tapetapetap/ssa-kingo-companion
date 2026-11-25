@@ -64,12 +64,12 @@
 
 **Goal**: 세 행동과 되돌리기, 내 목록. **Independent Test**: spec US3.
 
-- [ ] T027 [P] [US3] 시험과 구현: `web/app/src/lib/list.ts`(FR-017 순서. `revisit_due`와 `closed`가 함께 있는 것은 맨 아래)와 `web/app/src/lib/later.ts`(기본 날짜, 고를 수 있는 날, 오늘 닫히면 못 함)와 시험
-- [ ] T028 [P] [US3] 시험과 구현: `web/app/src/lib/actions.ts`(바로 바꾸고 실패하면 되돌림, 겹치면 마지막 것 하나만 보냄, 여러 화면의 같은 공지에 알림)와 시험
-- [ ] T029 [US3] `web/app/src/parts/ActionBar.tsx`: 관심 있어요·나중에 보기(날짜 칸)·관심 없음(네 이유와 '이유 없이'), 5초 되돌리기, 닫힌 공지는 지우기만. 홈의 가장 추천에서는 FR-012대로 '다른 추천을 고르는 중이에요'와 되돌리기 5초 뒤 홈을 다시 부른다(되돌리기는 앞 행동을 되살린다). `NoticeCard`와 `NoticeDetail`에 잇고, 알림 묻기 자리는 빈 고리로 둔다(US5)
-- [ ] T030 [US3] `web/app/src/parts/ActivityForm.tsx`: 활동 칸(이름 100자·학기·종류·분야 0~2·증빙). '이미 해 봤어요' 뒤 초안으로 연다. US4에서도 쓴다
-- [ ] T031 [US3] `web/app/src/screens/List.tsx`: 두 탭과 개수, D-n, 흐린 닫힌 공지, 다시 볼 날 표시
-- [ ] T032 [US3] `scripts/e2e-app/run.mjs`: US3 걸음(세 행동, 저장 실패 되돌림(요청 막기), 되돌리기, 홈 가장 추천 행동 뒤 다시 부르기와 되돌리기, 활동 초안 저장, 두 탭)
+- [X] T027 [P] [US3] 시험과 구현: `web/app/src/lib/list.ts`(FR-017 순서. `revisit_due`와 `closed`가 함께 있는 것은 맨 아래)와 `web/app/src/lib/later.ts`(기본 날짜, 고를 수 있는 날, 오늘 닫히면 못 함)와 시험
+- [X] T028 [P] [US3] 시험과 구현: `web/app/src/lib/actions.ts`(바로 바꾸고 실패하면 되돌림, 겹치면 마지막 것 하나만 보냄, 여러 화면의 같은 공지에 알림)와 시험
+- [X] T029 [US3] `web/app/src/parts/ActionBar.tsx`: 관심 있어요·나중에 보기(날짜 칸)·관심 없음(네 이유와 '이유 없이'), 5초 되돌리기, 닫힌 공지는 지우기만. 홈의 가장 추천에서는 FR-012대로 '다른 추천을 고르는 중이에요'와 되돌리기 5초 뒤 홈을 다시 부른다(되돌리기는 앞 행동을 되살린다). `NoticeCard`와 `NoticeDetail`에 잇고, 알림 묻기 자리는 빈 고리로 둔다(US5)
+- [X] T030 [US3] `web/app/src/parts/ActivityForm.tsx`: 활동 칸(이름 100자·학기·종류·분야 0~2·증빙). '이미 해 봤어요' 뒤 초안으로 연다. US4에서도 쓴다
+- [X] T031 [US3] `web/app/src/screens/List.tsx`: 두 탭과 개수, D-n, 흐린 닫힌 공지, 다시 볼 날 표시
+- [X] T032 [US3] `scripts/e2e-app/run.mjs`: US3 걸음(세 행동, 저장 실패 되돌림(요청 막기), 되돌리기, 홈 가장 추천 행동 뒤 다시 부르기와 되돌리기, 활동 초안 저장, 두 탭)
 
 **Checkpoint**: PR C.
 

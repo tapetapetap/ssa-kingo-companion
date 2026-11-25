@@ -16,6 +16,13 @@ const term = (day: string): 1 | 2 => { const m = ym(day)[1]; return m >= 3 && m 
 /** 이 날의 학기: '2026-2' */
 export const termOf = (day: string) => `${schoolYear(day)}-${term(day)}`;
 
+/** 고를 수 있는 학기: 이번 학기부터 다섯 해 앞까지(고른 학기가 그보다 앞이면 그것도) */
+export function termsBefore(today: string, chosen = ''): string[] {
+  const [y, t] = termOf(today).split('-').map(Number);
+  const out = Array.from({ length: 12 }, (_, i) => { const n = y * 2 + t - 1 - i; return `${Math.floor(n / 2)}-${(n % 2) + 1}`; });
+  return chosen && !out.includes(chosen) ? [...out, chosen] : out;
+}
+
 /** 처음 질문에 답한 학기가 지났으면 바꿀 값(FR-019). 바뀌는 것이 없으면 null */
 export function termSuggestion(answers: { grade: number; term: number; answeredAt: string }, today: string): { grade: number; term: 1 | 2 } | null {
   const answered = kstDay(new Date(answers.answeredAt));
