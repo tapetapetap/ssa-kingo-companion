@@ -40,3 +40,15 @@ export type Next = 'consent' | 'answers' | 'fields' | 'home';
 export type Me = { dept: string; next: Next; analysisOff: boolean; tag: string };
 export type Answers = { grade: number; term: number; goal: string; answeredAt: string };
 export type FieldList = { groups: { id: string; name: string; parent: string | null }[]; fields: { id: string; name: string; group: string; desc: string }[] };
+type Named = { id: string; name: string };
+export type Action = { kind: 'like' | 'later' | 'dislike'; revisitOn: string | null; reason: string | null; at: string | null };
+export type NoticeCard = {
+  id: string; title: string; host: string | null; kind: string | null; postedOn: string; deadline: string | null; closesOn: string;
+  open: boolean; down: boolean; fields: { core: Named[]; related: Named[]; by: string | null } | null; url: string; action: Action | null;
+};
+export type Shelf = { items: NoticeCard[]; empty: string | null };
+export type Home = {
+  pick: { notice: NoticeCard; reason: string; cited: { key: string; text?: string }[]; method: string; computedAt: string; repicking: boolean } | null;
+  pickEmpty: string | null; shelves: Record<'soon' | 'field' | 'similar', Shelf>;
+};
+export type Page = { items: NoticeCard[]; next: string | null; empty: string | null };

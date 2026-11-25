@@ -58,16 +58,29 @@ export function whereTo(next: 'consent' | 'answers' | 'fields' | 'home' | null, 
   return to === '/' ? step : `${step}?to=${encodeURIComponent(to).replaceAll("'", '%27')}`; // 주소창이 '를 %27로 적는다
 }
 
+// 뒤로 가기가 앞 화면의 같은 자리로 돌아가게(FR-002) 떠날 때의 자리를 주소마다 메모리에 둔다
+const places = new Map<string, number>();
+let popped = false;
+/** 지금 화면에 뒤로·앞으로 가기로 왔는가 */
+export const cameBack = () => popped;
+export const placeOf = (href: string) => (popped ? places.get(href) ?? 0 : 0);
+if (typeof history !== 'undefined') {
+  history.scrollRestoration = 'manual';
+  window.addEventListener('popstate', () => { popped = true; });
+}
+
 const subs = new Set<() => void>();
 const changed = () => subs.forEach(f => f());
 export const here = () => location.pathname + location.search;
 export function go(href: string, how: 'push' | 'replace' = 'push') {
   if (href === here()) return;
+  if (how === 'push') places.set(here(), window.scrollY);
   const moved = new URL(href, location.href).pathname !== location.pathname;
+  popped = false;
   // 앱 안에서 온 자리만 app을 단다. 처음 들어온 자리를 바꿔 적은 것은 그대로 둔다(back이 앱 밖으로 나가지 않게)
   if (how === 'push') history.pushState({ app: true }, '', href);
   else history.replaceState(history.state, '', href);
-  if (moved) window.scrollTo(0, 0); // 뒤로 가기는 브라우저가 자리를 되살린다
+  if (moved) window.scrollTo(0, 0);
   changed();
 }
 /** 앱 안에서 온 화면이면 뒤로, 주소로 바로 들어왔으면 윗 화면으로 */
