@@ -89,7 +89,7 @@ describe('기기 구독 (R6, contracts/api.md)', () => {
   });
 
   it('준비 전(공개 키나 서비스 주소 없음)이면 404이고 /api/me가 준비 전이라고 한다', async () => {
-    for (const p of [undefined, { publicKey: null, publicUrl: push.publicUrl }, { publicKey: 'BPub', publicUrl: null }]) {
+    for (const p of [undefined, { publicKey: null, publicUrl: push.publicUrl }, { publicKey: 'BPub', publicUrl: null }, { publicKey: 'BPub', publicUrl: 'http://kingo.local' }]) {
       await db.sql`truncate students cascade`;
       const none = await studentApp(db.sql, { push: p });
       await join('a@example.com', none);

@@ -17,10 +17,25 @@ const supported = () => 'serviceWorker' in navigator && 'PushManager' in window 
 export const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
 export const isStandalone = () => matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
 const worker = () => navigator.serviceWorker.getRegistration();
-const current = async () => (supported() ? (await worker())?.pushManager.getSubscription() ?? null : null);
+async function current(): Promise<PushSubscription | null> {
+  if (!supported()) return null;
+  try {
+    return (await (await worker())?.pushManager.getSubscription()) ?? null;
+  } catch {
+    return null; // 저장소를 막은 브라우저
+  }
+}
+const b64 = (b: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(b))).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+/** 지금 공개 키로 만든 구독인가. 키가 바뀌었으면 보내도 오지 않아 꺼짐으로 보고 다시 켜게 한다 */
+async function fresh(push: Me['push']): Promise<boolean> {
+  const sub = await current();
+  if (!sub || !push.ready) return false;
+  const { key } = await api<{ key: string }>('GET', '/api/me/push/key');
+  return !sub.options.applicationServerKey || b64(sub.options.applicationServerKey) === key.replace(/=+$/, '');
+}
 
 export async function readState(push: Me['push']): Promise<PushState> {
-  return pushState(push, { ios: isIos(), standalone: isStandalone(), supported: supported(), permission: supported() ? Notification.permission : 'default', subscribed: !!(await current()) });
+  return pushState(push, { ios: isIos(), standalone: isStandalone(), supported: supported(), permission: supported() ? Notification.permission : 'default', subscribed: push.on && await fresh(push) });
 }
 
 /** 켠다. 학생이 허용하지 않으면 false */

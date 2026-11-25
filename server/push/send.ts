@@ -12,19 +12,29 @@ export { generateVAPIDKeys };
 export type Keys = { publicKey: string; privateKey: string; subject: string };
 type Sub = { id: string; student_id: string; endpoint: string; p256dh: string; auth: string };
 export type SendFn = (sub: Sub, payload: string, ttl: number, keys: Keys) => Promise<void>;
-export type NotifyDeps = { sql: Sql; consentVersion: string; keys: Keys | null; now?: () => Date; wait?: (ms: number) => Promise<void>; send?: SendFn };
+export type NotifyDeps = { sql: Sql; consentVersion: string; keys: Keys | null; now?: () => Date; wait?: (ms: number) => Promise<void>; send?: SendFn; timeoutMs?: number };
 /** 통(학생·기기·날)으로 센 수 */
 export type NotifyResult = { sent: number; failed: number; gone: number; skipped: number };
 
 const realSend: SendFn = async (s, payload, ttl, keys) => {
   await sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload,
-    { vapidDetails: { subject: keys.subject, publicKey: keys.publicKey, privateKey: keys.privateKey }, TTL: ttl, urgency: 'normal', timeout: 10_000 });
+    { vapidDetails: { subject: keys.subject, publicKey: keys.publicKey, privateKey: keys.privateKey }, TTL: ttl, urgency: 'normal', timeout: LIMITS.pushTimeoutMs });
 };
 
 /** 설정에서 키를 읽는다. 하나라도 없거나 서비스 주소가 https가 아니면 null */
 export function pushKeysOf(env: Record<string, string | undefined>): Keys | null {
   const [publicKey, privateKey, subject] = [env.KINGO_PUSH_PUBLIC_KEY, env.KINGO_PUSH_PRIVATE_KEY, env.KINGO_PUBLIC_URL];
   return publicKey && privateKey && subject?.startsWith('https://') ? { publicKey, privateKey, subject } : null;
+}
+
+/** 라이브러리의 제한 시간은 조용한 동안만 센다. 답이 끝나지 않아도 이 시간이면 실패로 본다 */
+async function within(p: Promise<void>, ms: number): Promise<void> {
+  let t: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([p, new Promise<never>((_, no) => { t = setTimeout(() => no(new Error('시간 초과')), ms); })]);
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 const kst = (d: Date) => new Date(d.getTime() + 9 * 3600_000);
@@ -45,6 +55,10 @@ export async function notify(d: NotifyDeps): Promise<NotifyResult> {
   /** 기기 하나. 보내기 직전에 대상을 다시 보고, 보낸 자리를 먼저 적는다(죽어도 많아야 한 번) */
   async function one(s: Sub): Promise<keyof NotifyResult | null> {
     const student = Number(s.student_id);
+    // 도는 사이에 로그아웃했거나 다른 학생이 이 기기를 켰으면 보내지 않는다
+    const [still] = await sql`select 1 from push_subscriptions p join consents c on c.student_id = p.student_id and c.text_version = ${d.consentVersion}
+      where p.id = ${s.id} and p.student_id = ${student} and p.endpoint = ${s.endpoint}`;
+    if (!still) return null;
     const items = await targets(sql, student, day);
     if (!items.length) return null;
     const h = hash(s.endpoint);
@@ -66,7 +80,7 @@ export async function notify(d: NotifyDeps): Promise<NotifyResult> {
       if (!pushEndpoint(s.endpoint)) return 'failed' as const;
       const midnight = Date.parse(`${day}T00:00:00+09:00`) + 24 * 3600_000;
       try {
-        await send(s, JSON.stringify(message(mine, day)), Math.max(0, Math.floor((midnight - now().getTime()) / 1000)), keys);
+        await within(send(s, JSON.stringify(message(mine, day)), Math.max(0, Math.floor((midnight - now().getTime()) / 1000)), keys), d.timeoutMs ?? LIMITS.pushTimeoutMs);
         return 'sent' as const;
       } catch (e) {
         const code = (e as { statusCode?: unknown }).statusCode;
@@ -92,7 +106,8 @@ export async function notify(d: NotifyDeps): Promise<NotifyResult> {
         for (const s of subs) {
           if (only && !only.has(s.id)) continue;
           if (!open()) break;
-          const r = await one(s);
+          // 기기 하나의 DB 오류(보내는 사이 계정을 지움 등)가 다음 기기를 막지 않는다
+          const r = await one(s).catch(() => 'failed' as const);
           if (r) total[r]++;
           if (r === 'failed') failed.add(s.id);
         }

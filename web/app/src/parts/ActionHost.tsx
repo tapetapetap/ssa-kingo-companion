@@ -27,6 +27,7 @@ type Ask = { mode: 'menu' | 'later' | 'dislike'; notice: NoticeCard; opts: Opts 
 let ask: Ask | null = null;
 const subs = new Set<() => void>();
 let closeToast = () => {};
+let epoch = 0; // 화면이 바뀐 횟수
 function open(a: Ask | null) {
   if (a) closeToast(); // 앞 알림이 창의 단추를 덮지 않게
   ask = a;
@@ -59,13 +60,14 @@ export function ActionHost({ me, onPushChanged }: { me: Me | null; onPushChanged
   const now = useSyncExternalStore(f => { subs.add(f); return () => { subs.delete(f); }; }, () => ask);
   const [suggest, setSuggest] = useState<{ draft: Draft; undo: () => void } | null>(null);
   const [asking, setAsking] = useState(false);
-  const [pushAsk, setPushAsk] = useState(false);
+  const [pushAsk, setPushAsk] = useState<{ undo: () => void } | null>(null);
   // 관심 있어요를 처음 남기면 마감 알림을 켤지 한 번 묻는다(US3-1)
-  const askPush = async () => {
-    if (!me || flag('push-asked') || await readState(me.push) !== 'off') return;
+  const askPush = async (undo: () => void) => {
+    const at = epoch;
+    if (!me || flag('push-asked') || await readState(me.push).catch(() => null) !== 'off' || at !== epoch) return; // 그사이 화면이 바뀌었으면 다음에 묻는다
     setFlag('push-asked');
     closeToast();
-    setPushAsk(true);
+    setPushAsk({ undo });
   };
   perform = (notice, want, opts) => {
     const before = actions.of(notice);
@@ -79,7 +81,7 @@ export function ActionHost({ me, onPushChanged }: { me: Me | null; onPushChanged
     if (opts.onActed) opts.onActed(undo);
     else if (want) closeToast = toast({ body: said(want), uniqueID: 'action', autoHideDuration: UNDO_MS, endContent: <Button label="되돌리기" variant="ghost" size="lg" onClick={() => { closeToast(); undo(); }} /> });
     actions.set(notice, want).then(d => {
-      if (d && want?.kind === 'like') void askPush(); 
+      if (d && want?.kind === 'like') void askPush(() => { undo(); opts.onUndone?.(); }); 
       if (!d?.suggestActivity) return;
       closeToast(); // 되돌리기는 제안 창에 있다
       setSuggest({ draft: d.suggestActivity, undo: () => { undo(); opts.onUndone?.(); } });
@@ -93,8 +95,8 @@ export function ActionHost({ me, onPushChanged }: { me: Me | null; onPushChanged
     open(null);
     act(now.notice, want, now.opts);
   };
-  const close = () => { setSuggest(null); setAsking(false); setPushAsk(false); };
-  shut = () => { open(null); close(); closeToast(); };
+  const close = () => { setSuggest(null); setAsking(false); setPushAsk(null); };
+  shut = () => { epoch++; open(null); close(); closeToast(); };
   const title = now?.mode === 'later' ? '언제 다시 볼까요?' : now?.mode === 'dislike' ? '어떤 점이 안 맞았어요?' : '표시하기';
   return (
     <>
@@ -124,16 +126,19 @@ export function ActionHost({ me, onPushChanged }: { me: Me | null; onPushChanged
           </VStack>
         )}
       </BottomSheet>
-      <BottomSheet label="마감 알림" isOpen={pushAsk} onOpenChange={setPushAsk} height="hug" padding={5}>
+      <BottomSheet label="마감 알림" isOpen={!!pushAsk} onOpenChange={o => { if (!o) setPushAsk(null); }} height="hug" padding={5}>
         {pushAsk && (
           <VStack gap={4}>
             <VStack gap={1}><Text size="sm" color="secondary">내 목록에 담았어요</Text><Heading level={2}>마감 전에 알려 드릴까요?</Heading></VStack>
             <PushAsk onDone={async on => {
-              setPushAsk(false);
+              setPushAsk(null);
               toast({ body: on ? '알림을 켰어요' : '알림을 켜려면 브라우저 설정에서 허용해 주세요', uniqueID: 'note' });
               await onPushChanged();
             }} />
-            <Button label="나중에" variant="ghost" size="lg" width="100%" onClick={() => setPushAsk(false)} />
+            <HStack gap={2}>
+              <Button label="나중에" size="lg" onClick={() => setPushAsk(null)} />
+              <Button label="되돌리기" variant="ghost" size="lg" onClick={() => { setPushAsk(null); pushAsk.undo(); }} />
+            </HStack>
           </VStack>
         )}
       </BottomSheet>

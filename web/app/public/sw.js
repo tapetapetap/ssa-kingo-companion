@@ -36,7 +36,8 @@ self.addEventListener('fetch', e => {
     e.respondWith((async () => {
       try {
         const res = await fetch(e.request);
-        if (res.ok && !res.redirected) e.waitUntil(caches.open(SHELL).then(c => store(c, res.clone())).catch(() => {}));
+        const copy = res.clone(); // 답을 넘긴 뒤에는 베낄 수 없다
+        if (res.ok && !res.redirected) e.waitUntil(caches.open(SHELL).then(c => store(c, copy)).catch(() => {}));
         return res;
       } catch (err) {
         const kept = await caches.match('/index.html');
@@ -75,9 +76,14 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   const url = inApp(e.notification.data?.url);
   e.waitUntil((async () => {
-    const [open] = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = windows.find(w => !/^\/(api|ops)(\/|$)/.test(new URL(w.url).pathname)); // 운영자 화면은 앱이 아니다
     if (!open) return self.clients.openWindow(url);
-    await open.focus();
+    try {
+      await open.focus();
+    } catch {
+      return self.clients.openWindow(url);
+    }
     open.postMessage({ kind: 'open', url }); // 앱이 그 화면으로 옮긴다(쓰던 글이 있으면 앱이 묻는다)
   })());
 });

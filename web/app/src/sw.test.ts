@@ -8,7 +8,7 @@ type Handler = (e: Record<string, unknown>) => void;
 let on: Record<string, Handler>;
 let shown: { title: string; o: Record<string, unknown> }[];
 let opened: string[];
-let windows: { focus: () => Promise<void>; postMessage: (m: unknown) => void }[];
+let windows: { url: string; focus: () => Promise<void>; postMessage: (m: unknown) => void }[];
 let store: Map<string, Response>;
 let net: (path: string) => Response;
 
@@ -31,10 +31,11 @@ beforeEach(() => {
   };
   new Function('self', 'caches', 'fetch', code)(self, { open: async () => cache, keys: async () => ['kingo-shell-1'], delete: async () => true, match: cache.match }, async (r: string | { url: string }) => net(path(r)));
 });
+// 브라우저는 respondWith로 넘긴 답의 본문을 바로 쓴다(그 뒤에는 clone할 수 없다)
 const fire = async (type: string, e: Record<string, unknown> = {}) => {
   const waits: Promise<unknown>[] = [];
   let answer: Promise<Response> | undefined;
-  on[type]({ ...e, waitUntil: (p: Promise<unknown>) => { waits.push(p); }, respondWith: (p: Promise<Response>) => { answer = p; } });
+  on[type]({ ...e, waitUntil: (p: Promise<unknown>) => { waits.push(p); }, respondWith: (p: Promise<Response>) => { answer = p.then(r => { const keep = r.clone(); void r.text(); return keep; }); } });
   const res = answer && await answer.catch(() => 'fail' as const);
   await Promise.all(waits);
   return res;
@@ -78,8 +79,12 @@ describe('서비스 워커 (R3)', () => {
     for (const bad of ['https://evil.example', '//evil.example', '/\\evil.example', '/..//evil.example', undefined]) await click(bad);
     expect(opened).toEqual(['/notices/cse%3A1', '/list', '/list', '/list', '/list', '/list']);
     const got: unknown[] = [];
-    windows = [{ focus: async () => { got.push('focus'); }, postMessage: m => { got.push(m); } }];
+    windows = [{ url: `${ORIGIN}/ops/`, focus: async () => { got.push('ops'); }, postMessage: () => {} }, { url: `${ORIGIN}/me`, focus: async () => { got.push('focus'); }, postMessage: m => { got.push(m); } }];
     await click('/list');
     expect(got).toEqual(['focus', { kind: 'open', url: '/list' }]);
+    windows = [{ url: `${ORIGIN}/`, focus: async () => { throw new Error('안 됨'); }, postMessage: m => { got.push(m); } }];
+    await click('/me');
+    expect(opened.at(-1)).toBe('/me');
+    expect(got).toHaveLength(2);
   });
 });

@@ -1,4 +1,5 @@
 // 알림(US5, FR-036): 이 기기의 상태에 맞게 보인다
+import { useEffect } from 'react';
 import { Button } from '@astryxdesign/core/Button';
 import { VStack } from '@astryxdesign/core/Layout';
 import { Heading, Text } from '@astryxdesign/core/Text';
@@ -8,7 +9,7 @@ import { useLoad } from '../lib/load.ts';
 import { readState, turnOff, type PushState } from '../lib/push.ts';
 import { Page } from '../parts/Page.tsx';
 import { PushAsk } from '../parts/PushAsk.tsx';
-import { Loading } from '../parts/States.tsx';
+import { Failed, Loading } from '../parts/States.tsx';
 
 const SAID: Record<PushState, [string, string]> = {
   on: ['이 기기에서 켜져 있어요', '오전 9시에 하루 한 통으로 묶어 보내요.'],
@@ -20,7 +21,13 @@ const SAID: Record<PushState, [string, string]> = {
 };
 
 export function Push({ me, onChanged }: { me: Me; onChanged: () => Promise<void> }) {
-  const { data } = useLoad(() => readState(me.push), [me.push.ready, me.push.on]);
+  const { data, error, reload, refresh } = useLoad(() => readState(me.push), [me.push.ready, me.push.on]);
+  // 브라우저의 허용은 앱 밖(설정)에서 바뀐다
+  useEffect(() => {
+    const on = () => { void refresh(); };
+    window.addEventListener('focus', on);
+    return () => window.removeEventListener('focus', on);
+  }, [refresh]);
   const toast = useToast();
   const off = async () => {
     try {
@@ -33,10 +40,10 @@ export function Push({ me, onChanged }: { me: Me; onChanged: () => Promise<void>
   return (
     <Page parent="/me">
       <Heading level={1}>알림</Heading>
-      {!data ? <Loading /> : (
+      {error ? <Failed error={error} retry={reload} /> : !data ? <Loading /> : (
         <>
           <VStack gap={1}><Text weight="semibold">{SAID[data][0]}</Text><Text color="secondary">{SAID[data][1]}</Text></VStack>
-          {data === 'off' && <PushAsk onDone={onChanged} />}
+          {data === 'off' && <PushAsk onDone={async () => { await onChanged(); await refresh(); }} />}
           {data === 'on' && <Button label="이 기기에서 알림 끄기" size="lg" width="100%" clickAction={off} />}
           {(data === 'soon' || data === 'unsupported') && <Button label="내 목록 보기" size="lg" width="100%" href="/list" />}
         </>

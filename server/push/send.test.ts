@@ -156,6 +156,38 @@ describe('알림 보내기 (R7)', () => {
     expect(n).toBe(1);
   });
 
+  it('도는 사이에 로그아웃한 기기와 다른 학생이 켠 기기에는 보내지 않는다', async () => {
+    await notice(db.sql, { no: 1, deadline: 0 });
+    const ends: string[] = [];
+    for (const e of ['a', 'b', 'c']) {
+      const s = await student(`${e}@example.com`);
+      await like(s, 1);
+      ends.push(await device(s));
+    }
+    const other = await student('d@example.com');
+    const got: string[] = [];
+    await run({ send: async s => {
+      got.push(s.endpoint);
+      await db.sql`delete from sessions where student_id = (select student_id from push_subscriptions where endpoint = ${ends[1]})`;
+      await db.sql`update push_subscriptions set student_id = ${other} where endpoint = ${ends[2]}`;
+    } });
+    expect(got).toEqual([ends[0]]);
+  });
+
+  it('끝나지 않는 답은 시간이 지나면 실패로 보고 다음 기기로 간다. 한 기기의 DB 오류도 다음을 막지 않는다', async () => {
+    await notice(db.sql, { no: 1, deadline: 0 });
+    for (const e of ['a', 'b']) {
+      const s = await student(`${e}@example.com`);
+      await like(s, 1);
+      await device(s);
+    }
+    let n = 0;
+    expect(await run({ timeoutMs: 20, send: () => (++n === 1 ? new Promise<void>(() => {}) : Promise.resolve()) })).toEqual({ sent: 2, failed: 0, gone: 0, skipped: 0 });
+    await db.sql`truncate push_sent`;
+    n = 0;
+    expect(await run({ send: async s => { if (++n === 1) await db.sql`delete from students where id = ${s.student_id}`; } })).toMatchObject({ sent: 2 });
+  });
+
   it('저장된 주소가 정한 푸시 서버가 아니면 부르지 않는다. 30일 지난 기록은 지운다', async () => {
     const s = await student();
     await notice(db.sql, { no: 1, deadline: 0 });

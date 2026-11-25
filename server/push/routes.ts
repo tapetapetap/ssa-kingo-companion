@@ -8,7 +8,8 @@ import { LIMITS } from '../limits.ts';
 import { requireConsent } from '../me/onboarding.ts';
 import { pushEndpoint, pushKeys } from './endpoint.ts';
 
-export const pushReady = (ctx: Ctx) => !!ctx.push?.publicKey && !!ctx.push.publicUrl;
+/** 보내는 쪽(send.ts)이 받는 조건과 같다: 공개 키와 https 서비스 주소 */
+export const pushReady = (ctx: Ctx) => !!ctx.push?.publicKey && !!ctx.push.publicUrl?.startsWith('https://');
 /** 이 기기(세션)에 구독이 있는가 */
 export const pushOn = async (sql: Sql, req: Req) => (await sql`select 1 from push_subscriptions where token_hash = ${digest(req.cookies[COOKIE])}`).length > 0;
 
