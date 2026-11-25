@@ -26,9 +26,10 @@ describe('매일 작업 (US6, research R14)', () => {
   it('단계는 정한 순서로 돌고, 요약은 daily_runs에 남는다. 분류기의 부하 줄을 옮긴다', async () => {
     await seedTaxonomy(db.sql);
     const r = await runDaily(deps());
-    expect(Object.keys(r.steps)).toEqual(['rejudge', 'classifier', 'ingest', 'backup', 'facts', 'flow', 'counts', 'repick']);
+    expect(Object.keys(r.steps)).toEqual(['rejudge', 'classifier', 'ingest', 'map', 'backup', 'facts', 'flow', 'counts', 'repick']);
     expect(r.steps.rejudge).toMatchObject({ ok: false, skipped: true });
     expect(r.steps.ingest).toMatchObject({ ok: true, new: 1 });
+    expect(r.steps.map).toMatchObject({ ok: false, error: '벡터가 있는 분야가 0개라 지도를 만들지 못했어요(12개부터)' }); // 실패해도 이어진다
     expect(r.steps.backup).toMatchObject({ ok: true, file: '/backup/kingo-2026-11-24.dump' });
     expect(r.load.classifierLine).toBe('부하: GPU 평균 40% · 최고 70°C');
     const [row] = await db.sql`select steps, load from daily_runs`;

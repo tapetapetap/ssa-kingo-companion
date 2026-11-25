@@ -15,6 +15,7 @@ import type { Sql } from '../db/sql.ts';
 import { ingest, type IngestResult } from '../ingest/ingest.ts';
 import { openModel, withModelLock, type Model } from '../model.ts';
 import { enqueue } from '../pick/queue.ts';
+import { buildMap } from '../ops/map.ts';
 import { kstDay, saveCounts } from '../ops/counts.ts';
 import { hideSecrets } from '../log.ts';
 import { LIMITS } from '../limits.ts';
@@ -161,6 +162,8 @@ async function run(d: DailyDeps): Promise<DailyRun> {
       if (marks.length && steps.rejudge.ok && steps.classifier.ok) await sql`delete from rejudge_marks where notice_id = any(${marks})`;
       return { ...r.summary };
     });
+    // 지도는 실패해도 앞 지도를 두고 이어 간다(FR-050)
+    await step('map', async () => buildMap(sql));
     await step('backup', async () => {
       if (!d.backup && !d.backupDir) return 'skipped';
       return { file: await (d.backup ?? (() => backup(d.backupDir!, d.databaseUrl)))() };
