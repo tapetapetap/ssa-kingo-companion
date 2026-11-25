@@ -1,5 +1,5 @@
 // 공지 목록(US2, FR-013): 거르기·찾기·정렬은 주소에 남고, 20개씩 이어 불러온다. 뒤로 가기는 받은 쪽을 그대로 보인다
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@astryxdesign/core/Button';
 import { HStack, StackItem, VStack } from '@astryxdesign/core/Layout';
 import { Icon } from '@astryxdesign/core/Icon';
@@ -15,12 +15,15 @@ import { hidden, useActions, withCards } from '../lib/store.ts';
 import { Chip } from '../parts/Chip.tsx';
 import { NoticeRow } from '../parts/NoticeCard.tsx';
 import { Page } from '../parts/Page.tsx';
-import { part } from '../parts/Rest.tsx';
+import { part, useNeedRest } from '../parts/Rest.tsx';
 import { Empty, Failed, Loading } from '../parts/States.tsx';
 import { cut, go, noticesHref, type Route } from '../route.ts';
 
 export type Query = Extract<Route, { name: 'notices' }>;
-const [NoticeFilter, NoticeSort] = [part('NoticeFilter'), part('NoticeSort')];
+const NoticeFilter = part('NoticeFilter', { waiting: null, failed: null });
+// 첫 화면을 늦추지 않게 먼저 청하지 않는다. 오기 전까지 같은 크기의 단추를 둔다
+const sortText = <Button label="정렬" size="lg" isDisabled />;
+const NoticeSort = part('NoticeSort', { waiting: sortText, failed: sortText, ask: false });
 export const show = (q: Partial<Query>) => go(noticesHref(q), 'replace');
 
 function Results({ href, plain, onClear }: { href: string; plain: boolean; onClear: () => void }) {
@@ -75,6 +78,7 @@ export function Notices({ query }: { query: Query }) {
   const href = noticesHref(query); // 주소를 다듬은 것
   const fields = useLoad(() => api<FieldList>('GET', '/api/fields'), [], 'fields');
   const [open, setOpen] = useState(false);
+  const needRest = useNeedRest();
   const [opened, setOpened] = useState(false); // 한 번 연 뒤에는 닫힘 움직임이 보이게 남긴다
   const [q, setQ] = useState(query.q);
   useEffect(() => { setQ(query.q); }, [query.q]);
@@ -94,18 +98,18 @@ export function Notices({ query }: { query: Query }) {
       <VStack gap={3}>
         <HStack gap={2} vAlign="center" wrap="wrap">
           <StackItem size="fill" style={{ minWidth: 'min(12rem, 100%)' }}><TextInput label="공지 찾기" isLabelHidden placeholder="제목이나 주최로 찾기" type="search" startIcon="search" size="lg" value={q} onChange={v => setQ(cut(v))} /></StackItem>
-          <Button label={n ? `필터 ${n}` : '필터'} size="lg" icon={<Icon icon="funnel" />} onClick={() => { setOpened(true); setOpen(true); }} />
+          <Button label={n ? `필터 ${n}` : '필터'} size="lg" icon={<Icon icon="funnel" />} clickAction={async () => { if (!await needRest()) return; setOpened(true); setOpen(true); }} />
         </HStack>
         <HStack gap={2} wrap="wrap" vAlign="center">
           {query.kind.map(k => <Chip key={k} name={kindName(k) ?? k} onRemove={() => show({ ...query, kind: query.kind.filter(x => x !== k) })} />)}
           {query.field.map(f => <Chip key={f} name={fieldName(f)} onRemove={() => show({ ...query, field: query.field.filter(x => x !== f) })} />)}
           {(n > 0 || query.q) && <Button label="모두 지우기" variant="ghost" size="lg" onClick={clear} />}
           {/* 정렬 칸은 첫 화면 뒤에 온다. 자리는 같은 크기로 둔다 */}
-          <HStack style={{ marginInlineStart: 'auto' }}><Suspense fallback={<Button label={query.sort === 'due' ? '마감 가까운 순' : '새로 올라온 순'} size="lg" variant="secondary" isDisabled />}><NoticeSort query={query} /></Suspense></HStack>
+          <HStack style={{ marginInlineStart: 'auto' }}><NoticeSort query={query} /></HStack>
         </HStack>
       </VStack>
       <Results key={href} href={href} plain={!n && !query.q} onClear={clear} />
-      {opened && <Suspense><NoticeFilter isOpen={open} setOpen={setOpen} query={query} fields={fields} /></Suspense>}
+      {opened && <NoticeFilter isOpen={open} setOpen={setOpen} query={query} fields={fields} />}
     </Page>
   );
 }

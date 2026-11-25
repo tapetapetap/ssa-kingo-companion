@@ -128,7 +128,7 @@ describe('학생 앱 파일 (3단계 research R2)', () => {
     writeFileSync(join(root, 'dist', 'assets', 'z.js.br'), brotliCompressSync('z=1'));
     const br = await fetch(`${web.base}/assets/z.js`, { headers: { 'accept-encoding': 'gzip, br' } });
     expect([br.headers.get('content-encoding'), br.headers.get('vary'), br.headers.get('content-type'), await br.text()]).toEqual(['br', 'accept-encoding', 'text/javascript; charset=utf-8', 'z=1']);
-    const plain = await fetch(`${web.base}/assets/z.js`, { headers: { 'accept-encoding': 'gzip' } });
+    const plain = await fetch(`${web.base}/assets/z.js`, { headers: { 'accept-encoding': 'gzip, br;q=0' } });
     expect([plain.headers.get('content-encoding'), plain.headers.get('vary'), await plain.text()]).toEqual([null, 'accept-encoding', 'z=1']);
   });
 

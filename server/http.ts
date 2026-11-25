@@ -117,7 +117,7 @@ async function sendFile(req: IncomingMessage, res: ServerResponse, path: string,
   if (f === null || f === 'outside') throw new HttpError(404, 'not_found', '찾을 수 없어요');
   const html = !ops && f.type.startsWith('text/html');
   // 묶을 때 미리 만든 brotli(web/app/vite.config.ts)가 있으면 준다. 없으면 앞단이 압축한다
-  const br = path.startsWith('/assets/') && /\bbr\b/.test(String(req.headers['accept-encoding'] ?? '')) ? await staticFile(appDir, `${path.slice(1)}.br`) : null;
+  const br = path.startsWith('/assets/') && /\bbr\b(?!\s*;\s*q=0(\.0*)?\s*(,|$))/.test(String(req.headers['accept-encoding'] ?? '')) ? await staticFile(appDir, `${path.slice(1)}.br`) : null;
   const zipped = br && br !== 'outside' ? br.body : null;
   res.writeHead(200, {
     'content-type': f.type, 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin',

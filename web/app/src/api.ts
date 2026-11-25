@@ -17,7 +17,8 @@ let changed = false;
  *  (다른 탭에서 다른 학생이 들어왔는지 다시 묻는 요청이 옛 답을 받으면 안 된다) */
 async function early(method: string, path: string): Promise<Response | null> {
   if (method !== 'GET') changed = true;
-  if (changed || asked.has(path)) return null;
+  if (asked.has(path)) changed = true; // 무엇이든 다시 물었으면 누구인지도 다시 볼 때라 남은 것을 버린다
+  if (changed) return null;
   asked.add(path);
   const res = performance.now() < BOOT_MS ? await window.boot?.get(path) : null;
   return res?.ok ? res : null;

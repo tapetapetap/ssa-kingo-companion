@@ -45,6 +45,11 @@ describe('api', () => {
       boot('"옛"'); // 늦게 온 답이 남아도 둘째 요청은 새로 부른다
       expect(await call('GET', '/api/me')).toBe('새로');
       call = await fresh();
+      window.boot = new Map([['/api/me', Promise.resolve(new Response('1'))], ['/api/home', Promise.resolve(new Response('"앞 학생의 홈"'))]]);
+      await call('GET', '/api/me');
+      await call('GET', '/api/me'); // 다른 탭에서 바뀌었는지 다시 본 뒤
+      expect(await call('GET', '/api/home')).toBe('새로');
+      call = await fresh();
       boot('"앞 학생"');
       await call('POST', '/api/login');
       expect(await call('GET', '/api/me')).toBe('새로');

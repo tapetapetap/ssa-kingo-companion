@@ -1,7 +1,7 @@
 // 학생 앱의 틀: 들어올 때 규칙(contracts/app.md 1·2), 네 메뉴, 화면 고르기
 import '@astryxdesign/core/reset.css';
 import '@astryxdesign/core/astryx.css';
-import { StrictMode, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { StrictMode, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button } from '@astryxdesign/core/Button';
 import { Icon } from '@astryxdesign/core/Icon';
@@ -21,7 +21,7 @@ import { actions } from './lib/store.ts';
 import { ActionHost, closeSheets } from './parts/ActionHost.tsx';
 import { HomeIcon, ListIcon, MeIcon, NoticeIcon } from './parts/icons.tsx';
 import { MENU_BAR, MENU_HEIGHT } from './parts/Page.tsx';
-import { loadRest, part } from './parts/Rest.tsx';
+import { Guard, loadRest, part } from './parts/Rest.tsx';
 import { Empty, Failed, Loading } from './parts/States.tsx';
 import { back, cameBack, go, onLinkClick, parse, safeTo, savedPlace, setGuard, useHref, whereTo, type Route } from './route.ts';
 import { Home } from './screens/Home.tsx';
@@ -166,15 +166,15 @@ function App() {
   useEffect(() => closeSheets(), [place, me?.tag]);
   useLayoutEffect(() => { if (shown && cameBack()) window.scrollTo(0, savedPlace()); }, [href, shown]); // 뒤로 왔으면 떠날 때의 자리
 
-  // 첫 화면 뒤에 나머지를 받아 둔다. 못 받으면 그 화면을 열 때 다시 받는다
+  // 첫 화면이 보인 뒤 나머지를 받아 둔다
   useEffect(() => {
     if (!shown) return;
-    const t = setTimeout(() => { loadRest().catch(() => {}); }, 2000);
+    const t = setTimeout(() => { loadRest().catch(() => {}); }, 500);
     return () => clearTimeout(t);
   }, [shown]);
 
   const menu = shown && !('to' in route);
-  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? <Suspense fallback={<Loading />}>{screen(route, me!, () => check(), signedOut)}</Suspense> : <Loading />;
+  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, me!, () => check(), signedOut) : <Loading />;
   return (
     <HStack style={page} vAlign="stretch">
       <ActionHost me={me ?? null} onPushChanged={check} />
@@ -192,7 +192,7 @@ if (import.meta.env.PROD) navigator.serviceWorker?.register('/sw.js').catch(() =
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <InternationalizationProvider locale="ko-KR" messages={{ 'ko-KR': koKR }}>
-      <Theme theme={kingo}><LayerProvider inset={{ blockEnd: `calc(${MENU_BAR} + 1px)` }}><App /></LayerProvider></Theme>
+      <Theme theme={kingo}><LayerProvider inset={{ blockEnd: `calc(${MENU_BAR} + 1px)` }}><Guard><App /></Guard></LayerProvider></Theme>
     </InternationalizationProvider>
   </StrictMode>
 );

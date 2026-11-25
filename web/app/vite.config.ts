@@ -13,7 +13,7 @@ export default defineConfig({
       for (const f of Object.values(bundle)) if (/\.(js|css)$/.test(f.fileName)) this.emitFile({ type: 'asset', fileName: `${f.fileName}.br`, source: brotliCompressSync(f.type === 'chunk' ? f.code : f.source) });
     } }
   }],
-  // 덩어리는 둘이다: 첫 화면과 나머지(src/rest.ts). 나머지를 못 받으면 새로 고침을 알린다(R1)
+  // 첫 화면과 나머지(src/rest.ts)를 나눈다. 나머지를 못 받으면 새로 고침을 알린다(R1, parts/Rest.tsx)
   build: { outDir: 'dist', emptyOutDir: true, chunkSizeWarningLimit: 1500 },
   server: { proxy: { '/api': process.env.KINGO_API_URL ?? 'http://127.0.0.1:8080' } }
 });

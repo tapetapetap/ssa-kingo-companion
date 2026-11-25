@@ -656,6 +656,14 @@ async function us5(base) {
   await old.open('/login');
   await old.page.getByRole('heading', { name: '새로 고쳐 주세요' }).waitFor();
   await check(old.page, 'old-app');
+  // 첫 화면과 카드 행동은 그대로 되고, 창은 알림으로 알린다
+  await old.page.evaluate(([email, password]) => fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ method: 'dev', email, password }) }), ['push@example.com', PASSWORD]);
+  await old.open('/notices');
+  await old.page.getByRole('button', { name: '관심 있어요' }).first().click();
+  await old.page.getByText('내 목록에 담았어요').first().waitFor();
+  await old.page.getByRole('button', { name: '필터' }).click();
+  await old.page.getByText('새로 고쳐 주세요').first().waitFor();
+  ok(await old.page.getByRole('heading', { name: '새로 고쳐 주세요' }).count() === 0, '옛 앱: 공지 목록 안에 새로 고침 화면이 들어왔다');
   await old.page.context().close();
   broken = false;
   delete ctx.push;
