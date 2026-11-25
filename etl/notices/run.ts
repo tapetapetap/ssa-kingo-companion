@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { classify, hostOf, type Judged, type Kind } from './classify.ts';
 import { BoardError, bodyOf, CACHE_DIR, listSince, makeGet, SOURCE, viewUrl, type Get, type NoticeRow } from './cse.ts';
 import { deadlineOf, readDates, stripDates } from './deadline.ts';
-import { fieldGate, findChosen, loadTaxonomy, TAXONOMY_DIR, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
+import { fieldGate, findChosen, loadTaxonomy, TAXONOMY_DIR, TAXONOMY_IDS, type Measured, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { makeEmbed } from './embed.ts';
-import { countField, fieldPart, makeFieldAsk, newStats, type FieldAnswer, type FieldAsk, type FieldStats } from './fields.ts';
-import { fromLlm, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type Gate, type LlmStats } from './llm.ts';
+import { countField, FIELD_CACHE_DIR, fieldPart, makeFieldAsk, newStats, type FieldAnswer, type FieldAsk, type FieldStats } from './fields.ts';
+import { fromLlm, LLM_CACHE_DIR, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type Gate, type LlmStats } from './llm.ts';
 import { createThrottle, type LoadSummary } from './throttle.ts';
 
 export type Opportunity = {
@@ -61,7 +61,7 @@ export async function judgeAll(rows: NoticeRow[], lines: (string[] | null)[], as
     else if (o === 'fail') llm.failed++;
     else if (o.cached) llm.cached++;
     else llm.fresh++;
-    judged.push(judge(r, body, typeof o === 'object' ? fromLlm(o.answer, ask.model, low) : undefined));
+    judged.push(judge(r, body, typeof o === 'object' ? fromLlm(o.answer, o.model ?? ask.model, low) : undefined));
     if (++asked % 20 === 0 || asked === total) console.error(`LLM ${asked}/${total}`);
   }
   return { judged, llm };
@@ -190,7 +190,7 @@ async function addFields(file: ResultFile, rows: Map<number, NoticeRow>, bodies:
     const [row, lines] = [rows.get(no), bodies.get(no)];
     const r = row && lines ? await ask(row, lines) : null;
     countField(stats, r);
-    opportunities.push(typeof r === 'object' && r !== null ? { ...o, fields: r.answer, fieldRule: `LLM: ${ask.model}` } : o);
+    opportunities.push(typeof r === 'object' && r !== null ? { ...o, fields: r.answer, fieldRule: `LLM: ${r.model ?? ask.model}` } : o);
     if ((i + 1) % 20 === 0 || i + 1 === file.opportunities.length) console.error(`분야 ${i + 1}/${file.opportunities.length}`);
   }
   const { opportunities: _, review, ...head } = file;
@@ -237,7 +237,7 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
 
 /** 고른 안이 있으면 분야 판정기를 만들고 결과 파일에 넣어도 되는지 본다(스펙 3 research R12).
  *  목록 파일을 읽지 못하면 이유만 돌려줘 공지 수집은 그대로 돌고, 고른 안이 둘 이상일 때만 던진다(contracts/cli.md) */
-export function chosenField(t: { gate: () => Gate }, dir = TAXONOMY_DIR): RunExtra['field'] {
+export function chosenField(t: { gate: () => Gate }, dir = TAXONOMY_DIR, x: { older?: string[]; measured?: Measured | null } = {}): RunExtra['field'] {
   let lists: Taxonomy[];
   try {
     lists = TAXONOMY_IDS.map(id => loadTaxonomy(id, dir));
@@ -247,9 +247,19 @@ export function chosenField(t: { gate: () => Gate }, dir = TAXONOMY_DIR): RunExt
   const chosen = findChosen(lists);
   if (!chosen) return undefined;
   const gate = t.gate(); // 같은 throttle의 새 문: 분야 판정의 noTemp를 따로 센다
-  const ask = makeFieldAsk({ taxonomy: chosen, embed: makeEmbed({ gate }), gate });
-  const ok = fieldGate(chosen, ask.version, ask.model);
+  const ask = makeFieldAsk({ taxonomy: chosen, embed: makeEmbed({ gate }), gate, older: (x.older ?? []).map(model => ({ dir: FIELD_CACHE_DIR, model })) });
+  const ok = fieldGate(chosen, ask.version, ask.model, x.measured);
   return 'ok' in ok ? { ask, gate } : { reason: ok.reason };
+}
+
+/** 매일 작업이 넘긴 앞 모델들과 지금 모델을 잰 값(3단계 research R14). 손으로 돌리면 둘 다 없어 지금과 같다. 꼴이 틀리면 없는 것으로 본다 */
+export function modelEnv(env: Record<string, string | undefined>): { older: string[]; measured: Measured | null } {
+  let m: Partial<Measured> = {};
+  try {
+    m = JSON.parse(env.KINGO_FIELD_MEASURED ?? 'null') ?? {};
+  } catch { /* 없는 것으로 본다 */ }
+  const ok = typeof m.prompt === 'string' && typeof m.model === 'string' && Number.isInteger(m.num) && Number.isInteger(m.den);
+  return { older: (env.KINGO_LLM_OLDER ?? '').split(',').map(s => s.trim()).filter(Boolean), measured: ok ? m as Measured : null };
 }
 
 // 경로에 심볼릭 링크가 있어도 진입점을 알아본다(process.argv[1]과 import.meta.url 비교는 링크를 다르게 풀어 조용히 아무것도 안 한다).
@@ -258,13 +268,14 @@ if (import.meta.main) {
   const t = createThrottle();
   try {
     const gate = t.gate();
+    const swap = modelEnv(process.env);
     let field: RunExtra['field'] | null = null;
     try {
-      field = chosenField(t);
+      field = chosenField(t, TAXONOMY_DIR, swap);
     } catch (e) {
       console.error(messageOf(e));
     }
-    process.exitCode = field === null ? 1 : await main(process.argv.slice(2), makeGet(), OUT_FILE, CACHE_DIR, makeAsk({ gate }), { gate, field, load: t.stop, json: process.env.KINGO_RUN_JSON === '1' });
+    process.exitCode = field === null ? 1 : await main(process.argv.slice(2), makeGet(), OUT_FILE, CACHE_DIR, makeAsk({ gate, older: swap.older.map(model => ({ dir: LLM_CACHE_DIR, model })) }), { gate, field, load: t.stop, json: process.env.KINGO_RUN_JSON === '1' });
   } finally {
     t.stop();
   }

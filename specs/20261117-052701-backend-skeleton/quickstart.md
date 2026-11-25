@@ -80,6 +80,15 @@ docker compose -f deploy/compose.yaml run --rm jobs node server/cli.ts status   
 - 3일 동안 손대지 않고 `status`와 `daily_runs`에 날마다 요약이 남는지 본다.
 - 바깥 연결: api 컨테이너 안에서 바깥 주소로 연결을 시도하면 실패한다(`inner`가 internal 네트워크). 앱은 proxy가 연 8080으로 닿는다. 학교 공지 서버에는 jobs의 분류기만 1초 1건이다.
 - 부하: 요약의 GPU 평균 80% 이하, 최고 온도 80°C 이하. 리눅스 CPU 패키지 온도가 실제로 읽히는지 본다(1단계가 넘긴 확인).
+- 모델 재기(3단계)의 정답셋과 본문 보관본: 정답셋은 저장소 밖 폴더(`deploy/.env`의 `KINGO_GOLD_HOST_DIR`, 기본 `deploy/gold`)에 `dev-501.csv`와 `fields/sample*.csv`·`fields/custom*.csv`를 둔다. 본문 보관본은 정답셋 글의 `etl/.cache/cse/<번호>.html`을 `etl-cache` 볼륨에 옮긴다. 없으면 재기가 '정답셋이 없어요', '본문 보관본이 n건 없어요'로 실패한다.
+  ```sh
+  docker compose -f deploy/compose.yaml run --rm -v <본문 폴더>:/from:ro jobs sh -c 'mkdir -p etl/.cache/cse && cp -n /from/*.html etl/.cache/cse/'
+  ```
+- 급할 때 모델 바꾸기: 지금 모델은 `model_changes`의 마지막 줄이다. 재지 않고 바꿔야 하면 한 줄을 넣는다(다음 매일 작업부터). 그 모델을 같은 판으로 재어 85%를 넘은 결과가 없으면(처음 모델은 빼고) 결과 파일 전체에서 분야가 빠져 앞 공지의 분야까지 내려가니, 되도록 `/ops/`의 '모델'에서 바꾼다.
+- 서버 컴퓨터에서 `eval.ts`·`compare.ts`를 손으로 돌리지 않는다. 다른 모델의 답이 분류기 보관 폴더에 남으면 그 모델로 바꿨을 때 앞 판정이 바뀐다. 재기는 `/ops/`의 '모델'이 따로 둔 폴더로 한다.
+  ```sh
+  docker compose -f deploy/compose.yaml exec db psql -U kingo -c "insert into model_changes (old_model, new_model, by_operator) values ('<지금 모델>', '<새 모델>', '<바꾼 사람>')"
+  ```
 - 백업 되살리기: db 컨테이너에서 `createdb -U kingo kingo_restore`로 빈 DB를 만들고, jobs에서 `DATABASE_URL`을 그 DB로 바꿔 `restore /backup/<어제 파일>` → 학생·행동·분석 행 수가 백업 때와 같다. 끝나면 그 DB를 지운다.
 
 ## 7. 지키는 것(SC-008, SC-010, SC-011)

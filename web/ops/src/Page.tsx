@@ -8,9 +8,9 @@ import { Spinner } from '@astryxdesign/core/Spinner';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import type { Monitor } from './api.ts';
 
-export type PageProps = { data: Monitor | null; error: string | null; reload: () => Promise<void> };
+export type PageProps<T = Monitor> = { data: T | null; error: string | null; reload: () => Promise<void> };
 
-export function Page({ title, note, actions, data, error, reload, children }: PageProps & { title: string; note?: string; actions?: ReactNode; children: (d: Monitor) => ReactNode }) {
+export function Page<T>({ title, note, actions, data, error, reload, children }: PageProps<T> & { title: string; note?: string; actions?: ReactNode; children: (d: T) => ReactNode }) {
   return (
     <VStack gap={6} padding={6} style={{ maxWidth: 1200, wordBreak: 'keep-all' }}>
       <HStack gap={3} vAlign="center" justify="between">

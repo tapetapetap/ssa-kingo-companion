@@ -1,11 +1,14 @@
 // 운영 명령(contracts/cli.md). 끝 코드: 0 성공, 1 거절·실패, 2 쓰는 법이 틀림. --json이면 같은 내용을 JSON으로
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { accountCommand } from './auth/accounts.ts';
 import { loadConfig, type Mode } from './config.ts';
 import { migrate } from './db/migrate.ts';
 import { connect, type Sql } from './db/sql.ts';
-import { openModel } from './model.ts';
+import { currentModel, openModel } from './model.ts';
 import { ingest, summaryLine, type IngestDeps } from './ingest/ingest.ts';
+import { saveGoldVersion } from './ops/conditions.ts';
+import { runTrial } from './ops/trial.ts';
 import { runRequests } from './ops/requests.ts';
 import { exportGold } from './ops/export.ts';
 import { backup, restore } from './jobs/backup.ts';
@@ -74,7 +77,8 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
       }
       const daily = (): DailyDeps => ({ sql: sql!, mode, databaseUrl: c.databaseUrl, backupDir: c.backupDir, skipClassifier: rest.includes('--skip-classifier'), consentVersion: deps.sql ? undefined : readConsent(loadConfig(deps.env).consentFile).version, ...deps.daily });
       if (cmd === 'requests') {
-        const line = await runRequests({ sql, daily: () => runDaily({ ...daily(), waitMs: 0 }) }); // 돌고 있으면 기다리지 않고 다음 10분에 본다
+        const goldDir = (deps.env ?? process.env).KINGO_GOLD_DIR || fileURLToPath(new URL('../etl/gold', import.meta.url));
+        const line = await runRequests({ sql, gold: () => saveGoldVersion(sql!, goldDir), trial: (r, stop) => runTrial({ sql: sql!, goldDir, stop }, r), daily: () => runDaily({ ...daily(), waitMs: 0 }) }); // 돌고 있으면 기다리지 않고 다음 10분에 본다
         console.log(json ? JSON.stringify({ result: line }) : line);
         return 0;
       }
@@ -124,7 +128,7 @@ async function runIngest(sql: Sql, a: NonNullable<ReturnType<typeof ingestArgs>>
     return 1;
   }
   // 넣기의 임베딩도 부하 제한 하나와 모델 잠금을 지난다(research R7, T054b)
-  const model = extra.embed ? null : openModel(sql, 'ingest');
+  const model = extra.embed ? null : openModel(sql, 'ingest', { model: await currentModel(sql) });
   try {
     const embed = extra.embed ?? model!.embed;
     const r = await ingest(input, a.taxonomy, { switch: a.switch, dryRun: a.dryRun }, { sql, mode, embed, ...extra });

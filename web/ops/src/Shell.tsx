@@ -10,11 +10,12 @@ import { api, type Monitor as Data } from './api.ts';
 import { Console } from './Console.tsx';
 import { Daily } from './Daily.tsx';
 import { EmbedMap } from './EmbedMap.tsx';
+import { Models } from './Models.tsx';
 import { Collect, Overview } from './Monitor.tsx';
 import { Service } from './Service.tsx';
 import { when } from './format.ts';
 
-const MENU = [['review', '판정 검토'], ['overview', '개요'], ['collect', '수집과 판정'], ['daily', '매일 작업'], ['service', '서비스 지표'], ['map', '임베딩 지도']] as const;
+const MENU = [['review', '판정 검토'], ['overview', '개요'], ['collect', '수집과 판정'], ['daily', '매일 작업'], ['service', '서비스 지표'], ['map', '임베딩 지도'], ['models', '모델']] as const;
 type Menu = typeof MENU[number][0];
 const param = (k: string) => new URLSearchParams(location.search).get(k);
 const menuNow = (): Menu => MENU.find(([id]) => id === param('menu'))?.[0] ?? 'review';
@@ -79,7 +80,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         </SideNav>
       }>
       {menu === 'review' ? <Console key={notice ?? ''} first={notice} onDirty={setDirty} />
-        : menu === 'overview' ? <Overview {...page} /> : menu === 'collect' ? <Collect {...page} /> : menu === 'daily' ? <Daily {...page} /> : menu === 'map' ? <EmbedMap onReview={id => go('review', id)} /> : <Service {...page} />}
+        : menu === 'overview' ? <Overview {...page} /> : menu === 'collect' ? <Collect {...page} /> : menu === 'daily' ? <Daily {...page} /> : menu === 'map' ? <EmbedMap onReview={id => go('review', id)} /> : menu === 'models' ? <Models /> : <Service {...page} />}
       <AlertDialog isOpen={!!pending} onOpenChange={o => { if (!o) setPending(null); }} title="저장하지 않은 값이 있어요" description="다른 화면으로 가면 고친 값이 사라져요."
         actionLabel="버리고 가기" cancelLabel="계속 고치기" onAction={() => { pending?.(); setPending(null); }} />
     </AppShell>

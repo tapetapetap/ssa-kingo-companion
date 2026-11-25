@@ -1,6 +1,6 @@
 # 학교 데스크톱 한 대의 묶음(research R16). inner는 바깥 인터넷에 닿지 않는다: 학생 자료를 다루는 api·db는 inner에만 있다.
 # 쓰는 법: deploy/kingo.env를 만들고(kingo.env.example), deploy/config/에 consent.md·operators.json을 둔 뒤
-#   호스트 쪽 값(KINGO_PORT 기본 8080, KINGO_BACKUP_HOST_DIR 기본 /mnt/backup/kingo)은 compose가 deploy/.env에서 읽는다(kingo.env가 아니다)
+#   호스트 쪽 값(KINGO_PORT 기본 8080, KINGO_BACKUP_HOST_DIR 기본 /mnt/backup/kingo, KINGO_GOLD_HOST_DIR 기본 deploy/gold)은 compose가 deploy/.env에서 읽는다(kingo.env가 아니다)
 #   docker compose -f deploy/compose.yaml up -d db ollama api proxy
 #   docker compose -f deploy/compose.yaml run --rm ollama-pull        (처음 한 번 모델 받기)
 #   docker compose -f deploy/compose.yaml run --rm jobs node server/cli.ts migrate
@@ -51,6 +51,7 @@ services:
   jobs:
     <<: *app
     env_file: [kingo.env, { path: kingo.push.env, required: false }]
+    environment: { KINGO_GOLD_DIR: /gold }
     profiles: [jobs]
     command: ["node", "server/cli.ts", "status"]
     volumes:
@@ -58,6 +59,8 @@ services:
       - etl-out:/app/etl/out
       - ${KINGO_BACKUP_HOST_DIR:-/mnt/backup/kingo}:/backup
       - ./config:/config:ro
+      # 모델 재기의 정답셋(저장소 밖, 읽기만). 없으면 빈 폴더가 생기고 재기만 하지 못한다
+      - ${KINGO_GOLD_HOST_DIR:-./gold}:/gold:ro
     networks: [inner, outer]
 networks:
   inner: { internal: true }

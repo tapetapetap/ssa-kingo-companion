@@ -10,6 +10,7 @@ deploy/kingo.env
 deploy/kingo.push.env
 deploy/.env
 deploy/config
+deploy/gold
 web/ops/dist
 web/app/dist
 dist

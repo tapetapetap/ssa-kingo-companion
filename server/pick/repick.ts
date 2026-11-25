@@ -2,7 +2,7 @@
 // 집었을 때와 queued_at이 같을 때만 지운다(계산 중에 다시 걸리면 남아 한 번 더 고른다). 던지면 기록하고 행을 둔다
 import type { Sql } from '../db/sql.ts';
 import { logError } from '../log.ts';
-import { openModel, type Model, type ModelDeps } from '../model.ts';
+import { currentModel, openModel, type Model, type ModelDeps } from '../model.ts';
 import { choosePick, type AnalysisOf } from './choose.ts';
 
 
@@ -24,7 +24,8 @@ export function makeWorker(sql: Sql, d: WorkerDeps = {}) {
       return null;
     }
     const student = Number(row.student_id);
-    if (!d.noModel) model ??= openModel(sql, 'api', d.model);
+    // 모델은 줄이 비었다 다시 찰 때마다 새로 연다(바꾼 모델이 다음 일부터 쓰인다)
+    if (!d.noModel) model ??= openModel(sql, 'api', { model: await currentModel(sql), ...d.model });
     try {
       if (model) await fillPromptVector(sql, student, model);
       await choosePick(sql, student, model, d.analysisOf, row.queued_at);

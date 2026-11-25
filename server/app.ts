@@ -11,12 +11,15 @@ import { pushRoutes } from './push/routes.ts';
 import type { Operators } from './ops/guard.ts';
 import type { Installed } from './model.ts';
 import { mapRoutes } from './ops/map.ts';
+import { modelRoutes } from './ops/models.ts';
 import { monitorRoutes } from './ops/monitor.ts';
 import { opsRoutes } from './ops/verdict.ts';
 
 export type Ctx = { sql: Sql; mode: Mode; consent: Consent; methods: Record<string, LoginMethod>; operators?: Operators; push?: { publicKey: string | null; publicUrl: string | null };
   /** 설치된 모델(시험은 넣는다) */
-  models?: () => Promise<Installed[]> };
+  models?: () => Promise<Installed[]>;
+  /** 분야 목록 폴더(시험은 넣는다) */
+  taxonomyDir?: string };
 
 export const defaultMethods = (): Record<string, LoginMethod> => ({ dev: devLogin });
 
@@ -28,5 +31,5 @@ export function checkStartup(ctx: Ctx) {
 }
 
 export function routes(ctx: Ctx): Route[] {
-  return [health, ...authRoutes(ctx, id => nextStep(ctx, id)), ...onboardingRoutes(ctx), ...noticeRoutes(ctx), ...homeRoutes(ctx), ...analysisRoutes(ctx), ...pushRoutes(ctx), ...opsRoutes(ctx), ...monitorRoutes(ctx), ...mapRoutes(ctx)];
+  return [health, ...authRoutes(ctx, id => nextStep(ctx, id)), ...onboardingRoutes(ctx), ...noticeRoutes(ctx), ...homeRoutes(ctx), ...analysisRoutes(ctx), ...pushRoutes(ctx), ...opsRoutes(ctx), ...monitorRoutes(ctx), ...mapRoutes(ctx), ...modelRoutes(ctx)];
 }

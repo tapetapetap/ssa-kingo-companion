@@ -32,3 +32,4 @@ deploy/kingo.env
 deploy/kingo.push.env
 deploy/.env
 deploy/config/
+deploy/gold/

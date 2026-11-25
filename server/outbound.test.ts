@@ -31,9 +31,15 @@ describe('바깥으로 나가는 곳 (SC-009, FR-042)', () => {
 
   it('server/가 가져오는 etl/ 파일은 정한 목록뿐이다', () => {
     const allowed = ['etl/taxonomy/taxonomy.ts', 'etl/notices/embed.ts', 'etl/notices/throttle.ts', 'etl/notices/sensors.ts', 'etl/notices/llm.ts',
-      'etl/notices/fields.ts', 'etl/notices/cse.ts', 'etl/notices/gold.ts', 'etl/notices/classify.ts'];
+      'etl/notices/fields.ts', 'etl/notices/cse.ts', 'etl/notices/gold.ts', 'etl/notices/classify.ts',
+      // 모델 재기(3단계 R15)가 셈에 쓴다. 학교 서버를 부르는 함수는 아래 시험이 막는다
+      'etl/notices/score.ts', 'etl/notices/eval.ts', 'etl/notices/run.ts'];
     const used = new Set(src.flatMap(f => [...f.text.matchAll(/from '((?:\.\.\/)+etl\/[^']+)'/g)].map(m => relative(ROOT, resolve(ROOT, f.path, '..', m[1])))));
     expect([...used].filter(p => !allowed.includes(p))).toEqual([]);
+  });
+
+  it('server/는 학교 서버를 부르는 함수(makeGet·listSince·collect)를 쓰지 않는다', () => {
+    expect(src.filter(f => /\b(makeGet|listSince|collect)\(/.test(f.text)).map(f => f.path)).toEqual([]);
   });
 
   it('postOnce·makeEmbed·fetchPost는 model.ts와 ingest/vectors.ts만 부른다', () => {

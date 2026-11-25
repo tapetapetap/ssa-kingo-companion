@@ -2,7 +2,8 @@
 import type { Sql } from '../db/sql.ts';
 import { HttpError, kstIso } from '../http.ts';
 import { hideSecrets } from '../log.ts';
-import { DailyBusy, type DailyRun } from '../jobs/daily.ts';
+import { LIMITS } from '../limits.ts';
+import { DailyBusy, dailyRunning, type DailyRun } from '../jobs/daily.ts';
 
 export type Kind = 'daily' | 'model_trial';
 type Row = { id: string; kind: Kind; model: string | null; by_operator: string; at: Date; status: string; done: number; total: number; started_at: Date | null; ended_at: Date | null; error: string | null };
@@ -25,7 +26,23 @@ export async function openRequest(sql: Sql, kind: Kind, by: string, model: strin
   return view(r);
 }
 
-export type RequestDeps = { sql: Sql; daily: () => Promise<DailyRun> };
+export type RequestDeps = {
+  sql: Sql; daily: () => Promise<DailyRun>; now?: () => Date;
+  /** 모델 재기 하나. 멈추면 까닭을 준다. 없으면 재지 않는다 */
+  trial?: (request: { id: string; model: string }, stop: () => Promise<'night' | 'daily' | null>) => Promise<'done' | 'night' | 'daily' | 'down'>;
+  /** 정답셋 판을 적는다 */
+  gold?: () => Promise<void>;
+};
+
+/** 모델을 재도 되는 때(FR-052): 22:00~02:50, 그리고 오늘 03:00 뒤에 시작한 매일 작업이 끝나고 다른 매일 작업이 돌지 않을 때부터 07:00까지 */
+export async function nightOpen(sql: Sql, now: Date): Promise<boolean> {
+  const k = new Date(now.getTime() + 9 * 3600_000);
+  const m = k.getUTCHours() * 60 + k.getUTCMinutes();
+  if (m >= LIMITS.trialNightFrom || m < LIMITS.trialNightTo) return true;
+  if (m < LIMITS.trialMorningFrom || m >= LIMITS.trialMorningTo) return false;
+  const three = new Date(`${k.toISOString().slice(0, 10)}T03:00:00+09:00`);
+  return (await sql`select 1 from daily_runs where started_at >= ${three} limit 1`).length > 0 && !await dailyRunning(sql);
+}
 
 /** 기다리는 요청을 한다. 출력 한 줄을 준다 */
 export async function runRequests(d: RequestDeps): Promise<string> {
@@ -38,12 +55,44 @@ export async function runRequests(d: RequestDeps): Promise<string> {
       // 잠금을 얻었으니 '도는 중'으로 남은 것은 도중에 죽은 것이다
       await sql`update op_requests set status = 'failed', ended_at = now(), error = '도중에 끝났어요' where kind = 'daily' and status = 'running'`;
       await sql`update op_requests set status = 'paused' where kind = 'model_trial' and status = 'running'`;
-      return await daily(d) ?? '요청 없음';
+      await d.gold?.();
+      const out: string[] = [];
+      // 재기가 매일 작업에 물러나면 매일 작업을 돌린 뒤 시간이 남았을 때 이어서 잰다
+      for (;;) {
+        const line = await daily(d);
+        if (line) out.push(line);
+        if (line === WAIT) break;
+        const t = await trial(d);
+        if (t) out.push(t.line);
+        if (t?.why !== 'daily') break;
+      }
+      return out.join(' · ') || '요청 없음';
     } finally {
       await conn`select pg_advisory_unlock(hashtext('kingo:requests:' || current_schema()))`;
     }
   } finally {
     conn.release();
+  }
+}
+
+const WAIT = '매일 작업이 돌고 있어 기다려요';
+
+async function trial(d: RequestDeps): Promise<{ line: string; why: string } | null> {
+  const { sql } = d;
+  const now = d.now ?? (() => new Date());
+  if (!d.trial || !await nightOpen(sql, now())) return null;
+  const [r] = await sql<{ id: string; model: string }[]>`update op_requests set status = 'running', started_at = coalesce(started_at, now()) where kind = 'model_trial' and status in ('waiting', 'paused') returning id, model`;
+  if (!r) return null;
+  const stop = async () => (!await nightOpen(sql, now()) ? 'night' as const : (await sql`select 1 from op_requests where kind = 'daily' and status = 'waiting'`).length ? 'daily' as const : null);
+  try {
+    const why = await d.trial(r, stop);
+    await sql`update op_requests set status = ${why === 'done' ? 'done' : 'paused'}, ended_at = case when ${why === 'done'} then now() end where id = ${r.id}`;
+    const [p] = await sql<{ done: number; total: number }[]>`select done, total from op_requests where id = ${r.id}`;
+    return { line: why === 'done' ? `모델 재기 끝 ${p.done}/${p.total}` : `모델 재기 멈춤 ${p.done}/${p.total}`, why };
+  } catch (e) {
+    const error = hideSecrets(e instanceof Error ? e.message : String(e));
+    await sql`update op_requests set status = 'failed', ended_at = now(), error = ${error} where id = ${r.id}`;
+    return { line: `모델 재기 실패(${error})`, why: 'failed' };
   }
 }
 
@@ -59,7 +108,7 @@ async function daily({ sql, daily }: RequestDeps): Promise<string | null> {
   } catch (e) {
     if (e instanceof DailyBusy) {
       await sql`update op_requests set status = 'waiting', started_at = null where id = ${r.id}`; // 다음 10분에 다시 본다
-      return '매일 작업이 돌고 있어 기다려요';
+      return WAIT;
     }
     await end('failed', hideSecrets(e instanceof Error ? e.message : String(e)));
     throw e;

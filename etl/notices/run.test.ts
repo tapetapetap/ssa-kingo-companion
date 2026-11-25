@@ -7,7 +7,7 @@ import { saveTaxonomy, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.
 import { BoardError, listUrl, SOURCE, viewUrl, type Get, type NoticeRow } from './cse.ts';
 import type { FieldAsk, FieldOutcome } from './fields.ts';
 import type { Ask, LlmOutcome } from './llm.ts';
-import { buildResult, chosenField, collect, formatSummary, judge, judgeAll, main, writeResult, type ResultFile } from './run.ts';
+import { buildResult, chosenField, collect, formatSummary, judge, judgeAll, main, modelEnv, writeResult, type ResultFile } from './run.ts';
 
 const row = (no: number, title: string, postedAt: string, board = '채용/모집'): NoticeRow => ({ no, title, board, postedAt, pinned: false });
 const DONGJIN = '[동진쎄미켐] 2026년 11월 신입/경력 정기채용 (~11/15(일))';
@@ -326,6 +326,19 @@ describe('judgeAll (스펙 2)', () => {
     expect(await main(['2026-10-01'], fakeBoard([2, 1]).get, join(dir, 'out.json'), join(dir, 'cache'), ask)).toBe(0);
     expect(ask.mock.calls).toHaveLength(2); // 기본은 '모든 글' 방식이라 본문을 받은 두 글을 모두 묻는다
     expect(log.mock.calls).toEqual([['새 글 2 · 기회 2 · 기회 아님 0 · 확인 필요 0 · 합친 중복 0 · 마감 빈칸 0 · LLM 판정 2(보관 1 · 새로 1 · 실패 0)']]);
+  });
+
+  it('앞 모델의 답이면 근거는 실제로 판정한 모델이다(3단계 R14)', async () => {
+    quiet();
+    const { judged } = await judgeAll(R, [[], BODY, []], fake({ 1: { ...O, cached: true, model: 'old:1' }, 2: O }), 'all');
+    expect(judged[0]).toMatchObject({ rule: 'LLM: old:1' });
+    expect(judged[1]).toMatchObject({ rule: 'LLM: m' });
+  });
+
+  it('modelEnv: 앞 모델과 잰 값을 읽고, 없거나 꼴이 틀리면 없는 것으로 본다', () => {
+    const measured = { prompt: 'p', model: 'b', num: 30, den: 34 };
+    expect(modelEnv({ KINGO_LLM_OLDER: 'a:1, c:2 ,', KINGO_FIELD_MEASURED: JSON.stringify(measured) })).toEqual({ older: ['a:1', 'c:2'], measured });
+    for (const bad of [undefined, '{깨짐', 'null', '{"prompt":1}', '[]']) expect(modelEnv({ KINGO_FIELD_MEASURED: bad })).toEqual({ older: [], measured: null });
   });
 
   it('json이면 끝에 숫자만 담은 요약JSON 한 줄을 더 낸다. 글이나 본문은 없다(3단계 R10)', async () => {

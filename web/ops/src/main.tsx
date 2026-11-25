@@ -10,6 +10,7 @@ import { EmptyState } from '@astryxdesign/core/EmptyState';
 import { VStack } from '@astryxdesign/core/Layout';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { Heading, Text } from '@astryxdesign/core/Text';
+import { defineTheme, Theme } from '@astryxdesign/core/theme';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { InternationalizationProvider } from '@astryxdesign/core/i18n';
 import koKR from '@astryxdesign/core/locales/ko-KR.generated.js';
@@ -94,7 +95,10 @@ function App() {
   );
 }
 
+// 기본 값 그대로의 테마. 감싸지 않으면 토스트의 어두운 바탕에 글자색이 뒤집히지 않는다. 밝은 화면은 있던 그대로
+const theme = defineTheme({ name: 'kingo-ops' });
+
 // 컴포넌트 안의 글(달력 열기, 찾기 등)과 때 표시를 한국어로
 createRoot(document.getElementById('root')!).render(
-  <StrictMode><InternationalizationProvider locale="ko-KR" messages={{ 'ko-KR': koKR }}><App /></InternationalizationProvider></StrictMode>
+  <StrictMode><InternationalizationProvider locale="ko-KR" messages={{ 'ko-KR': koKR }}><Theme theme={theme} mode="light"><App /></Theme></InternationalizationProvider></StrictMode>
 );

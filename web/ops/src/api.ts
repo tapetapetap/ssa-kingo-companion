@@ -53,3 +53,9 @@ export type FieldMap = { at: null; reason: string } | {
   at: string; stale: boolean; fields: { id: string; name: string; group: string; groupName: string; x: number; y: number }[]; notices: MapNotice[];
   pairs: { a: string; b: string; sim: number }[]; empty: { field: string; notices: string[] }[]; unused: string[]; noVector: number;
 };
+export type Ratio = { num: number; den: number };
+export type ModelTrial = { id: number; model: string; at: string; stale: boolean; passes: boolean; metrics: Record<'corePrecision' | 'coreRecall' | 'relatedPrecision' | 'oppRight' | 'oppMissed', Ratio> & { failed: number; secPerAsk: number | null; gpuAvg: number | null; tempMax: number | null } };
+export type Models = {
+  current: { model: string; since: string | null; by: string | null; trial: ModelTrial | null }; initial: ({ model: string; usable: boolean } & Ratio) | null;
+  serverOk: boolean; goldReady: boolean; installed: { name: string; size: number; parameterSize: string }[]; request: OpRequest | null; trials: ModelTrial[]; changes: { old: string; new: string; by: string; at: string; corePrecision: Ratio | null }[];
+};

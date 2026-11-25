@@ -59,7 +59,7 @@
 
 ### `GET /api/ops/models`
 
-`current`: `{ model, since, by, trial }`(바꾼 기록이 없으면 `since`·`by`·`trial`은 null), `initial`: `{ model, num, den, usable }`(분야 목록의 고른 기록. `usable`은 지금 조건과 같고 설치돼 있는가), `installed`: `[{ name, size, parameterSize }]`(임베딩 모델 제외), `trials`: `[{ id, model, at, stale, passes, metrics }]`(최근 20개), `changes`: `[{ old, new, by, at }]`(최근 20개).
+`current`: `{ model, since, by, trial }`(바꾼 기록이 없으면 `since`·`by`·`trial`은 null), `initial`: `{ model, num, den, usable }`(분야 목록의 고른 기록. `usable`은 지금 조건과 같고 설치돼 있는가), `installed`: `[{ name, size, parameterSize }]`(임베딩 모델 제외), `trials`: `[{ id, model, at, stale, passes, metrics }]`(최근 20개), `changes`: `[{ old, new, by, at, corePrecision }]`(최근 20개. 처음 모델로 되돌린 줄은 `corePrecision`이 null). `serverOk`: 모델 서버에 닿았는가, `goldReady`: 정답셋 판이 적혀 있는가(`op_state`).
 
 ## 알림 본문(서버 → 서비스 워커)
 
