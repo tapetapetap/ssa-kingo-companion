@@ -109,18 +109,22 @@ async function staticFile(dir: string, rel: string): Promise<File | 'outside' | 
     return null;
   }
 }
-async function sendFile(res: ServerResponse, path: string, opsDir: string, appDir: string) {
+async function sendFile(req: IncomingMessage, res: ServerResponse, path: string, opsDir: string, appDir: string) {
   const ops = path === '/ops' || path.startsWith('/ops/');
   let f = ops ? await staticFile(opsDir, path.replace(/^\/ops\/?/, '')) : await staticFile(appDir, path.slice(1));
   // 앱 안 주소(마지막 조각에 확장자가 없음)는 앱이 연다
   if (!ops && f === null && !extname(path)) f = await staticFile(appDir, '');
   if (f === null || f === 'outside') throw new HttpError(404, 'not_found', '찾을 수 없어요');
   const html = !ops && f.type.startsWith('text/html');
+  // 묶을 때 미리 만든 brotli(web/app/vite.config.ts)가 있으면 준다. 없으면 앞단이 압축한다
+  const br = path.startsWith('/assets/') && /\bbr\b/.test(String(req.headers['accept-encoding'] ?? '')) ? await staticFile(appDir, `${path.slice(1)}.br`) : null;
+  const zipped = br && br !== 'outside' ? br.body : null;
   res.writeHead(200, {
     'content-type': f.type, 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin',
     ...(ops ? {} : { 'cache-control': path.startsWith('/assets/') && !html ? 'public, max-age=31536000, immutable' : 'no-cache' }),
+    ...(path.startsWith('/assets/') ? { vary: 'accept-encoding' } : {}), ...(zipped ? { 'content-encoding': 'br' } : {}),
     ...(html ? { 'content-security-policy': CSP } : {})
-  }).end(f.body);
+  }).end(zipped ?? f.body);
 }
 
 export const health: Route = ['GET', '/api/health', () => ({ body: { ok: true } })];
@@ -136,7 +140,7 @@ export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR, a
       if (!url) throw new HttpError(404, 'not_found', '찾을 수 없어요');
       if (method === 'GET' && url.pathname !== '/api' && !url.pathname.startsWith('/api/')) {
         route = /^\/ops(\/|$)/.test(url.pathname) ? '/ops/' : '/(앱)';
-        await sendFile(res, url.pathname, opsDir, appDir);
+        await sendFile(req, res, url.pathname, opsDir, appDir);
         logRequest({ method, route, status: 200, ms: performance.now() - t0 }, write);
         return;
       }

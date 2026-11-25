@@ -2,10 +2,13 @@
  * 학생 앱 자동 화면 검사(3단계 research R19, FR-061): 시험 스키마에 공지·분야·개발 계정을 넣고 서버를 띄워 걸음을 끝까지 돈다.
  * 걸음마다 320·390·768px과 글자 200%에서 가로 넘침 0, axe 심각·중대 위반 0, 앱이 쓴 글의 문구 검사, 누르는 자리 44px.
  * 쓰는 법: npm run build:app && npm run e2e:app [-- --shots <폴더> --only US1,US2]
+ *   -- --perf: SC-002만 잰다(1.6Mbps·150ms·CPU 4배 느림·보관 없이 5번의 가운데 값, 미리 만든 brotli와 앞단 같은 gzip)
  */
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import http from 'node:http';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { chromium } from 'playwright';
 import { loadTaxonomy } from '../../etl/taxonomy/taxonomy.ts';
 import { defaultMethods, routes } from '../../server/app.ts';
@@ -645,8 +648,82 @@ async function us5(base) {
   await ip.goto(`${base}/me/push`);
   await ip.getByText('홈 화면에 추가하면 알림을 받아요').waitFor();
   await phone.close();
+  // 새 판이 올라가 둘째 덩어리가 없으면 새로 고침을 알린다(R1)
+  const old = await newPage(base);
+  broken = true;
+  await old.page.route('**/assets/rest-*', r => r.abort());
+  await old.open('/login');
+  await old.page.getByText('새로 고쳐 주세요').waitFor();
+  await check(old.page, 'old-app');
+  await old.page.context().close();
+  broken = false;
   delete ctx.push;
   await page.context().close();
+}
+
+/** 첫 공지 제목이 보일 때까지, 관심 있어요를 누르고 표시가 바뀔 때까지(SC-002) */
+async function perf(base) {
+  await doneStudent('perf@example.com');
+  // 앞단(Caddy)처럼 /api 아닌 답만 압축하고, 미리 압축된 것은 그대로 둔다
+  const front = http.createServer(async (req, res) => {
+    const body = await new Promise(done => { const b = []; req.on('data', c => b.push(c)).on('end', () => done(Buffer.concat(b))); });
+    const { host, connection, 'content-length': _, ...headers } = req.headers;
+    const r = await fetch(base + req.url, { method: req.method, headers: { ...headers, ...(headers.origin ? { origin: base } : {}) }, body: body.length ? body : undefined, redirect: 'manual' });
+    // fetch는 brotli를 풀어 주므로 api가 준 파일은 미리 만든 것을 다시 읽는다
+    const br = r.headers.get('content-encoding') === 'br' ? readFileSync(join(APP_DIR, `${req.url.slice(1)}.br`)) : null;
+    const raw = br ?? Buffer.from(await r.arrayBuffer());
+    const zip = !req.url.startsWith('/api/') && r.ok && raw.length > 512 && !br;
+    const out = Object.fromEntries([...r.headers].filter(([k]) => !['content-length', 'content-encoding', 'transfer-encoding', 'connection', 'keep-alive', 'set-cookie'].includes(k)));
+    if (r.headers.getSetCookie().length) out['set-cookie'] = r.headers.getSetCookie();
+    res.writeHead(r.status, { ...out, ...(zip ? { 'content-encoding': 'gzip' } : br ? { 'content-encoding': 'br' } : {}) });
+    res.end(zip ? gzipSync(raw) : raw);
+  });
+  await new Promise(done => { front.listen(0, '127.0.0.1', done); });
+  const url = `http://127.0.0.1:${front.address().port}`;
+  const median = xs => Math.round([...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]);
+  for (const [name, path] of [['홈', '/'], ['공지', '/notices']]) {
+    const [first, act, bytes] = [[], [], []];
+    for (let i = 0; i < 5; i++) {
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ko-KR', hasTouch: true, isMobile: true, serviceWorkers: 'block' });
+      const page = await context.newPage();
+      const r = await page.request.post(`${url}/api/login`, { data: { method: 'dev', email: 'perf@example.com', password: PASSWORD }, headers: { origin: url } });
+      if (!r.ok()) throw new Error(`들어가지 못함 ${r.status()}`);
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Network.enable');
+      await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+      await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 1.6e6 / 8, uploadThroughput: 750e3 / 8 });
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+      let n = 0;
+      cdp.on('Network.loadingFinished', e => { n += e.encodedDataLength; });
+      // 시계는 쪽의 시작(navigationStart)이다
+      await page.addInitScript(() => {
+        const look = () => { if ([...document.querySelectorAll('[data-server-text]')].some(e => /공지 \d/.test(e.textContent))) window.seen = performance.now(); else requestAnimationFrame(look); };
+        requestAnimationFrame(look);
+      });
+      await page.goto(url + path, { waitUntil: 'commit' });
+      await page.waitForFunction(() => window.seen, null, { timeout: 30_000 });
+      first.push(await page.evaluate(() => window.seen));
+      bytes.push(n);
+      if (process.env.PERF_DETAIL && i === 4) console.log(await page.evaluate(() => performance.getEntriesByType('resource').map(e => `${e.name.split('/').slice(3).join('/').slice(0, 40)} ${Math.round(e.startTime)}~${Math.round(e.responseEnd)} ${Math.round(e.encodedBodySize / 1024)}KB`).join('\n') + '\npaint ' + performance.getEntriesByType('paint').map(e => Math.round(e.startTime))));
+      await page.waitForLoadState('networkidle');
+      act.push(await page.evaluate(() => new Promise(done => {
+        const b = [...document.querySelectorAll('button[aria-pressed=false]')].find(x => (x.getAttribute('aria-label') ?? x.innerText).includes('관심 있어요'));
+        // 홈의 가장 추천은 그 자리가 되돌리기로 바뀐다
+        const now = () => document.querySelector('button[aria-pressed=true]') || [...document.querySelectorAll('main button')].some(x => x.innerText.includes('되돌리기'));
+        const t0 = performance.now();
+        const look = () => { if (now()) done(performance.now() - t0); else requestAnimationFrame(look); };
+        b.click();
+        requestAnimationFrame(look);
+      })));
+      await db.sql`delete from actions`;
+      await context.close();
+    }
+    console.log(`${name}: 첫 화면 ${median(first)}ms (${first.map(Math.round).join(', ')}), 행동 표시 ${median(act)}ms, 받은 양 ${Math.round(median(bytes) / 1024)}KB`);
+    if (median(first) > 2000) problems.push(`${name} 첫 화면이 2초를 넘음: ${median(first)}ms`);
+    if (median(act) > 100) problems.push(`${name} 행동 표시가 0.1초를 넘음: ${median(act)}ms`);
+  }
+  front.closeAllConnections();
+  front.close();
 }
 
 const t = loadTaxonomy('custom');
@@ -661,7 +738,7 @@ try {
   await new Promise(done => { server.listen(0, '127.0.0.1', done); });
   const base = `http://127.0.0.1:${server.address().port}`;
   const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null;
-  for (const [name, run] of [['US1', us1], ['US2', us2], ['US3', us3], ['US4', us4], ['US5', us5]]) {
+  for (const [name, run] of process.argv.includes('--perf') ? [['SC-002', perf]] : [['US1', us1], ['US2', us2], ['US3', us3], ['US4', us4], ['US5', us5]]) {
     if (only && !only.includes(name)) continue;
     const t0 = Date.now();
     await run(base);

@@ -1,7 +1,7 @@
 // 학생 앱의 틀: 들어올 때 규칙(contracts/app.md 1·2), 네 메뉴, 화면 고르기
 import '@astryxdesign/core/reset.css';
 import '@astryxdesign/core/astryx.css';
-import { StrictMode, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { StrictMode, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button } from '@astryxdesign/core/Button';
 import { Icon } from '@astryxdesign/core/Icon';
@@ -21,22 +21,16 @@ import { actions } from './lib/store.ts';
 import { ActionHost, closeSheets } from './parts/ActionHost.tsx';
 import { HomeIcon, ListIcon, MeIcon, NoticeIcon } from './parts/icons.tsx';
 import { MENU_BAR, MENU_HEIGHT } from './parts/Page.tsx';
+import { loadRest, part } from './parts/Rest.tsx';
 import { Empty, Failed, Loading } from './parts/States.tsx';
 import { back, cameBack, go, onLinkClick, parse, safeTo, savedPlace, setGuard, useHref, whereTo, type Route } from './route.ts';
-import { Activity } from './screens/Activity.tsx';
-import { Analysis } from './screens/Analysis.tsx';
-import { Answers } from './screens/Answers.tsx';
-import { Consent } from './screens/Consent.tsx';
-import { Fields } from './screens/Fields.tsx';
 import { Home } from './screens/Home.tsx';
 import { MyList } from './screens/List.tsx';
-import { Login } from './screens/Login.tsx';
-import { Me as MeScreen } from './screens/Me.tsx';
 import { NoticeDetail } from './screens/NoticeDetail.tsx';
 import { Notices } from './screens/Notices.tsx';
-import { Prompt } from './screens/Prompt.tsx';
-import { Push } from './screens/Push.tsx';
 import { kingo } from './theme.ts';
+
+const [Activity, Analysis, Answers, Consent, Fields, Login, MeScreen, Prompt, Push] = [part('Activity'), part('Analysis'), part('Answers'), part('Consent'), part('Fields'), part('Login'), part('Me'), part('Prompt'), part('Push')];
 
 const MENU = [
   { href: '/', label: '홈', icon: HomeIcon, names: ['home'] },
@@ -172,8 +166,15 @@ function App() {
   useEffect(() => closeSheets(), [place, me?.tag]);
   useLayoutEffect(() => { if (shown && cameBack()) window.scrollTo(0, savedPlace()); }, [href, shown]); // 뒤로 왔으면 떠날 때의 자리
 
+  // 첫 화면 뒤에 나머지를 받아 둔다. 못 받으면 그 화면을 열 때 다시 받는다
+  useEffect(() => {
+    if (!shown) return;
+    const t = setTimeout(() => { loadRest().catch(() => {}); }, 2000);
+    return () => clearTimeout(t);
+  }, [shown]);
+
   const menu = shown && !('to' in route);
-  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, me!, () => check(), signedOut) : <Loading />;
+  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? <Suspense fallback={<Loading />}>{screen(route, me!, () => check(), signedOut)}</Suspense> : <Loading />;
   return (
     <HStack style={page} vAlign="stretch">
       <ActionHost me={me ?? null} onPushChanged={check} />
