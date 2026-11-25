@@ -27,6 +27,7 @@ const y = (v: number) => PAD + v * (H - PAD * 2);
 const options = (all: string, xs: [string, string][]) => [{ value: ALL, label: all }, ...xs.map(([value, label]) => ({ value, label }))];
 type Focus = { kind: 'notice'; id: string } | { kind: 'fields'; ids: string[] } | null;
 type Status = 'ok' | 'far' | 'none';
+const LAYER: Record<Status, number> = { none: 0, ok: 1, far: 2 };
 const NOTE: Record<Status, string> = { ok: '핵심 분야 있음', far: '멀리 붙음', none: '핵심 분야 없음' };
 
 /** 공지 점: 핵심 있음은 파란 동그라미, 멀리 붙음은 노란 세모, 핵심 없음은 빈 동그라미 */
@@ -71,9 +72,9 @@ function Body({ data, onReview }: { data: Extract<FieldMap, { at: string }>; onR
   const field = useMemo(() => new Map(data.fields.map(f => [f.id, f])), [data]);
   const name = (id: string) => field.get(id)?.name ?? '지금 목록에 없는 분야';
   const groups = useMemo(() => [...new Map(data.fields.map(f => [f.group, f.groupName]))], [data]);
-  const status = (n: MapNotice): Status => (n.rank === null ? 'none' : n.rank > Number(k) ? 'far' : 'ok');
+  const status = (n: MapNotice): Status => (!n.core.length ? 'none' : n.rank !== null && n.rank > Number(k) ? 'far' : 'ok');
   const groupOf = (n: MapNotice) => field.get(n.core[0] ?? n.first)?.group;
-  const since = period === ALL ? '' : new Date(Date.now() + 9 * 3600_000 - Number(period) * 86400_000).toISOString().slice(0, 10);
+  const since = period === ALL ? '' : new Date(Date.now() + 9 * 3600_000 - (Number(period) - 1) * 86400_000).toISOString().slice(0, 10);
   const notices = data.notices.filter(n => n.postedOn >= since && (source === ALL || n.source === source) && (kind === ALL || n.kind === kind) && (group === ALL || groupOf(n) === group) && (!review || n.review));
   const shown = new Set(notices.map(n => n.id));
   const fields = data.fields.filter(f => group === ALL || f.group === group);
@@ -81,15 +82,17 @@ function Body({ data, onReview }: { data: Extract<FieldMap, { at: string }>; onR
   const far = notices.filter(n => status(n) === 'far').sort((a, b) => b.rank! - a.rank!);
   const pairs = data.pairs.filter(p => inGroup(p.a) || inGroup(p.b));
   const empty = data.empty.map(e => ({ ...e, notices: e.notices.filter(id => shown.has(id)) })).filter(e => e.notices.length >= 3);
-  const unused = data.unused.filter(inGroup);
+  const used = new Set(notices.flatMap(n => [...n.core, ...n.related])); // 거른 공지에 한 번도 없는 분야
+  const unused = fields.map(f => f.id).filter(id => !used.has(id));
   const counts = { ok: 0, far: 0, none: 0 };
   for (const n of notices) counts[status(n)]++;
 
-  const picked = focus?.kind === 'notice' ? data.notices.find(n => n.id === focus.id) ?? null : null;
+  const picked = focus?.kind === 'notice' ? notices.find(n => n.id === focus.id) ?? null : null;
   const ring: CSSProperties = { pointerEvents: 'none' };
+  const item = (n: MapNotice) => <ListItem key={n.id} label={n.title} isSelected={picked?.id === n.id} description={n.core.length ? `핵심 ${name(n.core[0])}${n.rank ? `, ${n.rank}위` : ''}` : `핵심 없음, ${name(n.first)} 근처`} onClick={() => setFocus({ kind: 'notice', id: n.id })} />;
   const lists: Record<string, { label: string; n: number; none: string }> = {
     far: { label: '멀리 붙음', n: far.length, none: '이 기준으로 멀리 붙은 공지가 없어요. 분류기는 가까운 3위 안의 분야만 핵심으로 붙여서, 운영자가 고친 공지 말고는 보통 없어요.' }, pairs: { label: '헷갈림', n: pairs.length, none: '없어요.' },
-    empty: { label: '빈 곳', n: empty.length, none: '핵심이 없는 공지 3건 이상이 모인 곳이 없어요.' }, unused: { label: '안 쓰임', n: unused.length, none: '모든 분야가 한 번은 쓰였어요.' }
+    empty: { label: '빈 곳', n: empty.length, none: '핵심이 없는 공지 3건 이상이 모인 곳이 없어요.' }, unused: { label: '안 쓰임', n: unused.length, none: '모든 분야가 한 번은 쓰였어요.' }, all: { label: '모든 공지', n: notices.length, none: '거르기에 맞는 공지가 없어요.' }
   };
   return (
     <VStack gap={4}>
@@ -107,9 +110,10 @@ function Body({ data, onReview }: { data: Extract<FieldMap, { at: string }>; onR
             <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }} role="img" aria-label={`세부 분야 ${fields.length}개와 공지 ${notices.length}개의 지도. 같은 내용이 오른쪽 목록에 있어요`}>
               {picked && field.has(picked.core[0]) && <line x1={x(picked.x)} y1={y(picked.y)} x2={x(field.get(picked.core[0])!.x)} y2={y(field.get(picked.core[0])!.y)} stroke="var(--color-accent)" strokeWidth={2} />}
               {picked && field.has(picked.first) && <line x1={x(picked.x)} y1={y(picked.y)} x2={x(field.get(picked.first)!.x)} y2={y(field.get(picked.first)!.y)} stroke="var(--color-text-secondary)" strokeWidth={2} strokeDasharray="4 4" />}
-              {notices.map(n => <g key={n.id} onClick={() => setFocus({ kind: 'notice', id: n.id })} style={{ cursor: 'pointer' }}><title>{`${n.title} (${NOTE[status(n)]}${n.rank ? `, ${n.rank}위` : ''})`}</title><circle cx={x(n.x)} cy={y(n.y)} r={9} fill="transparent" /><Mark s={status(n)} cx={x(n.x)} cy={y(n.y)} /></g>)}
               {fields.map(f => <g key={f.id} onClick={() => setFocus({ kind: 'fields', ids: [f.id] })} style={{ cursor: 'pointer' }}><title>{`${f.name} (${f.groupName})`}</title><circle cx={x(f.x)} cy={y(f.y)} r={9} fill="transparent" /><Diamond cx={x(f.x)} cy={y(f.y)} /></g>)}
-              {(focus?.kind === 'fields' ? focus.ids : picked ? [picked.core[0], picked.first] : []).flatMap(id => field.get(id) ?? []).map(f => (
+              {/* 먼저 볼 것이 맨 위에 오게 그린다 */}
+              {notices.toSorted((a, b) => LAYER[status(a)] - LAYER[status(b)]).map(n => <g key={n.id} onClick={() => setFocus({ kind: 'notice', id: n.id })} style={{ cursor: 'pointer' }}><title>{`${n.title} (${NOTE[status(n)]}${n.rank ? `, ${n.rank}위` : ''})`}</title><circle cx={x(n.x)} cy={y(n.y)} r={9} fill="transparent" /><Mark s={status(n)} cx={x(n.x)} cy={y(n.y)} /></g>)}
+              {[...new Set(focus?.kind === 'fields' ? focus.ids.filter(inGroup) : picked ? [picked.core[0], picked.first] : [])].flatMap(id => field.get(id) ?? []).map(f => (
                 <g key={f.id} style={ring}>
                   <circle cx={x(f.x)} cy={y(f.y)} r={12} fill="none" stroke="var(--color-accent)" strokeWidth={3} />
                   <text x={x(f.x) > W - 160 ? x(f.x) - 16 : x(f.x) + 16} y={y(f.y) + 5} textAnchor={x(f.x) > W - 160 ? 'end' : 'start'} fontSize={14} fontWeight={600} fill="var(--color-text-primary)" stroke="var(--color-background-card)" strokeWidth={4} paintOrder="stroke">{f.name}</text>
@@ -138,15 +142,21 @@ function Body({ data, onReview }: { data: Extract<FieldMap, { at: string }>; onR
           </Card>
           <Card padding={4}>
             <VStack gap={2}>
-              <TabList value={list} onChange={setList} size="sm" role="tablist">{Object.entries(lists).map(([id, l]) => <Tab key={id} value={id} label={`${l.label} ${l.n}`} />)}</TabList>
+              <TabList value={list} onChange={setList} size="sm" role="tablist" aria-label="먼저 볼 것">{Object.entries(lists).map(([id, l]) => <Tab key={id} value={id} panelId="map-list" label={`${l.label} ${l.n}`} />)}</TabList>
+              <VStack id="map-list" role="tabpanel" aria-label={lists[list].label}>
               {lists[list].n === 0 ? <Text color="secondary">{lists[list].none}</Text> : (
                 <List density="compact" hasDividers style={{ maxHeight: 480, overflowY: 'auto' }}>
-                  {list === 'far' && far.map(n => <ListItem key={n.id} label={n.title} isSelected={picked?.id === n.id} description={`핵심 ${name(n.core[0])}, ${n.rank}위`} onClick={() => setFocus({ kind: 'notice', id: n.id })} />)}
+                  {list === 'far' && far.map(item)}
                   {list === 'pairs' && pairs.map(p => <ListItem key={`${p.a}-${p.b}`} label={`${name(p.a)}, ${name(p.b)}`} description={`뜻이 ${(p.sim * 100).toFixed(0)}% 가까워요`} onClick={() => setFocus({ kind: 'fields', ids: [p.a, p.b] })} />)}
-                  {list === 'empty' && empty.map(e => <ListItem key={e.field} label={`${name(e.field)} 근처`} description={`핵심이 없는 공지 ${e.notices.length}건`} onClick={() => setFocus({ kind: 'fields', ids: [e.field] })} />)}
+                  {list === 'empty' && empty.flatMap(e => [
+                    <ListItem key={e.field} label={`${name(e.field)} 근처`} description={`핵심이 없는 공지 ${e.notices.length}건`} onClick={() => setFocus({ kind: 'fields', ids: [e.field] })} />,
+                    ...(focus?.kind === 'fields' && focus.ids[0] === e.field || e.notices.some(id => id === picked?.id) ? e.notices.map(id => notices.find(n => n.id === id)!).map(item) : [])
+                  ])}
+                  {list === 'all' && notices.map(item)}
                   {list === 'unused' && unused.map(id => <ListItem key={id} label={name(id)} description={field.get(id)?.groupName} onClick={() => setFocus({ kind: 'fields', ids: [id] })} />)}
                 </List>
               )}
+              </VStack>
             </VStack>
           </Card>
         </VStack>

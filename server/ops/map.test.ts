@@ -118,6 +118,18 @@ describe('GET /api/ops/map', () => {
     expect((m.notices as unknown[])[0]).toMatchObject({ title: '제목 1', kind: 'job', source: 'src', core: [ids[3]], rank: 1, first: ids[3], review: true });
     expect((m.fields as unknown[])[0]).toMatchObject({ id: ids[0], groupName: '묶음 0' });
     expect(m.empty).toEqual([{ field: ids[3], notices: ['cse:2', 'cse:3'] }]);
+    // 지도를 만든 뒤 운영자가 고친 것을 따른다
+    await db.sql`insert into notice_fields (notice_id, field_id, level, ord) values ('cse:2', ${ids[60]}, 'core', 0), ('cse:2', ${ids[61]}, 'related', 0)`;
+    const after = await get() as unknown as { notices: { core: string[]; related: string[]; rank: number | null }[]; empty: unknown[]; stale: boolean };
+    expect(after.notices[1]).toMatchObject({ core: [ids[60]], related: [ids[61]] });
+    expect(after.notices[1].rank).toBeGreaterThan(3);
+    expect(after.empty).toEqual([{ field: ids[3], notices: ['cse:3'] }]);
+    await db.sql`update fields set vector = null where id = ${ids[60]}`;
+    expect((await get() as unknown as typeof after).notices[1]).toMatchObject({ core: [ids[60]], rank: null });
+    await db.sql`update taxonomies set active = false`;
+    expect((await get()).stale).toBe(true);
+    await db.sql`update taxonomies set active = true`;
+    expect((await get()).stale).toBe(false);
     await db.sql`insert into daily_runs (started_at, ended_at, steps, load) values (now() + interval '1 minute', now(), '{}', '{}')`;
     expect((await get()).stale).toBe(true);
     await app.request('POST', '/api/logout');

@@ -78,21 +78,26 @@ export function mapRoutes(ctx: Ctx): Route[] {
     const [m] = await sql<{ at: Date; taxonomy_id: string; data: MapData }[]>`select at, taxonomy_id, data from field_maps order by id desc limit 1`;
     const [run] = await sql<{ started_at: Date; error: string | null }[]>`select started_at, steps->'map'->>'error' as error from daily_runs order by id desc limit 1`;
     if (!m) return { body: { at: null, reason: !run ? '아직 매일 작업이 돌지 않았어요' : run.error ? hideSecrets(run.error) : '아직 지도를 만들지 않았어요' }, headers: o.headers };
+    const [active] = await sql<{ id: string }[]>`select id from taxonomies where active`;
     const groups = new Map((await sql<{ id: string; name: string; parent_id: string | null }[]>`select id, name, parent_id from field_groups where taxonomy_id = ${m.taxonomy_id}`).map(g => [g.id, g]));
     const top = (id: string) => { let g = groups.get(id); while (g?.parent_id && groups.has(g.parent_id)) g = groups.get(g.parent_id); return g; };
     const fields = new Map((await sql<{ id: string; name: string; group_id: string }[]>`select id, name, group_id from fields where taxonomy_id = ${m.taxonomy_id}`).map(f => [f.id, f]));
-    const notices = new Map((await sql<{ id: string; title: string; kind: string | null; deadline: string | null; posted_on: string; source: string; core: string[]; review: boolean }[]>`
-      select n.id, n.title, n.kind, n.deadline::text, n.posted_on::text, n.source,
-        coalesce((select array_agg(nf.field_id order by nf.ord) from notice_fields nf where nf.notice_id = n.id and nf.level = 'core'), '{}') as core,
+    // 분야와 순위는 지금 값으로 준다(지도를 만든 뒤 운영자가 고친 것을 따른다). 순위는 첫 핵심보다 가까운 분야 수 + 1
+    const notices = new Map((await sql<{ id: string; title: string; kind: string | null; deadline: string | null; posted_on: string; source: string; core: string[]; related: string[]; rank: number | null; review: boolean }[]>`
+      select n.id, n.title, n.kind, n.deadline::text, n.posted_on::text, n.source, x.core,
+        coalesce((select array_agg(nf.field_id order by nf.ord) from notice_fields nf join fields f on f.id = nf.field_id and f.taxonomy_id = ${m.taxonomy_id} where nf.notice_id = n.id and nf.level = 'related'), '{}') as related,
+        (select 1 + (select count(*) from fields o where o.taxonomy_id = ${m.taxonomy_id} and o.vector is not null and (o.vector <=> n.vector) < (c.vector <=> n.vector))
+          from fields c where c.taxonomy_id = ${m.taxonomy_id} and c.id = x.core[1] and c.vector is not null)::int as rank,
         exists(select 1 from review_items r where r.notice_id = n.id and r.checked_at is null) as review
-      from notices n where n.is_notice and not n.down and n.id = any(${m.data.notices.map(n => n.id)})`).map(n => [n.id, n]));
+      from notices n cross join lateral (select coalesce((select array_agg(nf.field_id order by nf.ord) from notice_fields nf join fields f on f.id = nf.field_id and f.taxonomy_id = ${m.taxonomy_id} where nf.notice_id = n.id and nf.level = 'core'), '{}') as core) x
+      where n.is_notice and not n.down and n.id = any(${m.data.notices.map(n => n.id)})`).map(n => [n.id, n]));
     return {
       body: {
-        at: kstIso(m.at), stale: !!run && m.at < run.started_at,
+        at: kstIso(m.at), stale: (!!run && m.at < run.started_at) || active?.id !== m.taxonomy_id,
         fields: m.data.fields.flatMap(f => { const x = fields.get(f.id); const g = x && top(x.group_id); return x ? [{ ...f, name: x.name, group: g?.id ?? '', groupName: g?.name ?? '' }] : []; }),
         // 그 뒤 내려갔거나 공지가 아니게 된 것은 뺀다
-        notices: m.data.notices.flatMap(p => { const n = notices.get(p.id); return n ? [{ ...p, title: n.title, kind: n.kind, deadline: n.deadline, postedOn: n.posted_on, source: n.source, core: n.core, review: n.review }] : []; }),
-        pairs: m.data.pairs, empty: m.data.empty.map(e => ({ ...e, notices: e.notices.filter(id => notices.has(id)) })).filter(e => e.notices.length > 0), unused: m.data.unused, noVector: m.data.noVector
+        notices: m.data.notices.flatMap(p => { const n = notices.get(p.id); return n ? [{ ...p, rank: n.rank, title: n.title, kind: n.kind, deadline: n.deadline, postedOn: n.posted_on, source: n.source, core: n.core, related: n.related, review: n.review }] : []; }),
+        pairs: m.data.pairs, empty: m.data.empty.map(e => ({ ...e, notices: e.notices.filter(id => notices.get(id)?.core.length === 0) })).filter(e => e.notices.length > 0), unused: m.data.unused, noVector: m.data.noVector
       },
       headers: o.headers
     };
