@@ -651,9 +651,10 @@ async function us5(base) {
   // 새 판이 올라가 둘째 덩어리가 없으면 새로 고침을 알린다(R1)
   const old = await newPage(base);
   broken = true;
+  await old.page.addInitScript(() => Object.defineProperty(navigator, 'serviceWorker', { value: undefined })); // 서비스 워커의 요청은 막히지 않는다
   await old.page.route('**/assets/rest-*', r => r.abort());
   await old.open('/login');
-  await old.page.getByText('새로 고쳐 주세요').waitFor();
+  await old.page.getByRole('heading', { name: '새로 고쳐 주세요' }).waitFor();
   await check(old.page, 'old-app');
   await old.page.context().close();
   broken = false;
