@@ -129,10 +129,10 @@
 
 **Goal**: 지도와 먼저 볼 것. **Independent Test**: spec US7.
 
-- [ ] T064 [P] [US7] 시험과 구현: `server/ops/tsne.ts`(R13)와 시험(같은 입력 같은 글자, 세 무리가 갈라짐, 91개 1초 안)
-- [ ] T065 [US7] 시험과 구현: `server/ops/map.ts`의 `buildMap`(무게 가운데, 순위, 쌍·빈 곳·안 쓰인 분야, 벡터 없음, 분야 12개 미만, 7개만 남김, 공지 1,000개 1분 안)과 `server/jobs/daily.ts`의 `map` 단계(실패해도 이어짐)
-- [ ] T066 [US7] 시험과 구현: `GET /api/ops/map`(contracts/api.md, 내려간 공지 빠짐, `stale`, 없을 때 까닭)
-- [ ] T067 [US7] `web/ops/src/EmbedMap.tsx`: SVG 점(지도 시안의 상태 색과 모양 둘 다로 구분: 파란 점, 노란 멀리 붙음, 빈 동그라미), 기준 3·5·10·15, 목록 넷, 거르기 다섯(기간은 전체·최근 30일·최근 7일), 판정 검토로 가기, 자판으로 목록을 다 쓸 수 있음. 시안(8Mdj7g1CwejvUDQdkgM3Ki)을 읽어 맞춘다
+- [X] T064 [P] [US7] 시험과 구현: `server/ops/tsne.ts`(R13)와 시험(같은 입력 같은 글자, 세 무리가 갈라짐, 91개 1초 안)
+- [X] T065 [US7] 시험과 구현: `server/ops/map.ts`의 `buildMap`(무게 가운데, 순위, 쌍·빈 곳·안 쓰인 분야, 벡터 없음, 분야 12개 미만, 7개만 남김, 공지 1,000개 1분 안)과 `server/jobs/daily.ts`의 `map` 단계(실패해도 이어짐)
+- [X] T066 [US7] 시험과 구현: `GET /api/ops/map`(contracts/api.md, 내려간 공지 빠짐, `stale`, 없을 때 까닭)
+- [X] T067 [US7] `web/ops/src/EmbedMap.tsx`: SVG 점(지도 시안의 상태 색과 모양 둘 다로 구분: 파란 점, 노란 멀리 붙음, 빈 동그라미), 기준 3·5·10·15, 목록 넷, 거르기 다섯(기간은 전체·최근 30일·최근 7일), 판정 검토로 가기, 자판으로 목록을 다 쓸 수 있음. 시안(8Mdj7g1CwejvUDQdkgM3Ki)을 읽어 맞춘다
 
 **Checkpoint**: PR G.
 

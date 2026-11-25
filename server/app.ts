@@ -10,6 +10,7 @@ import { analysisRoutes } from './analysis/routes.ts';
 import { pushRoutes } from './push/routes.ts';
 import type { Operators } from './ops/guard.ts';
 import type { Installed } from './model.ts';
+import { mapRoutes } from './ops/map.ts';
 import { monitorRoutes } from './ops/monitor.ts';
 import { opsRoutes } from './ops/verdict.ts';
 
@@ -27,5 +28,5 @@ export function checkStartup(ctx: Ctx) {
 }
 
 export function routes(ctx: Ctx): Route[] {
-  return [health, ...authRoutes(ctx, id => nextStep(ctx, id)), ...onboardingRoutes(ctx), ...noticeRoutes(ctx), ...homeRoutes(ctx), ...analysisRoutes(ctx), ...pushRoutes(ctx), ...opsRoutes(ctx), ...monitorRoutes(ctx)];
+  return [health, ...authRoutes(ctx, id => nextStep(ctx, id)), ...onboardingRoutes(ctx), ...noticeRoutes(ctx), ...homeRoutes(ctx), ...analysisRoutes(ctx), ...pushRoutes(ctx), ...opsRoutes(ctx), ...monitorRoutes(ctx), ...mapRoutes(ctx)];
 }

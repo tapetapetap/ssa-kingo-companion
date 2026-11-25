@@ -7,5 +7,6 @@ export const LIMITS = {
   sessionDays: 30, loginFailMax: 5, lockMinutes: 15, noDeadlineOpenDays: 30,
   bodyBytes: 64 * 1024, backupDays: 7, dailyHour: 3, dailyStopHour: 7, minFields: 3,
   pushDevices: 10, pushKeepDays: 30, pushTitleChars: 40, pushFrom: 9, pushUntil: 21, pushRetryMinutes: 10, endpointChars: 1000, pushTimeoutMs: 10_000,
-  alertRuns: 2, alertFailPercent: 10, alertStaleHours: 36, monitorDays: 14, editRateDays: 30, dailyWaitMinutes: 30
+  alertRuns: 2, alertFailPercent: 10, alertStaleHours: 36, monitorDays: 14, editRateDays: 30, dailyWaitMinutes: 30,
+  mapDays: 90, mapKeep: 7, mapPairs: 10, mapEmptyMin: 3, mapMinFields: 12
 } as const;

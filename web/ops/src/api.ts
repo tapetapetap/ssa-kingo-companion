@@ -48,3 +48,8 @@ export type Monitor = {
   days: { day: string; startedAt: string; seconds: number; steps: Partial<Record<string, Step>>; load: { gpuAvg: number | null; tempMax: number | null; requests: number } }[];
   counts: ({ day: string; server_error: number } & Record<'consented' | 'consented_new' | 'active7' | 'like' | 'later' | 'dislike' | 'push_sent' | 'push_failed' | 'push_devices', number | null>)[];
 };
+export type MapNotice = { id: string; title: string; kind: string | null; deadline: string | null; postedOn: string; source: string; x: number; y: number; rank: number | null; first: string; core: string[]; related: string[]; review: boolean };
+export type FieldMap = { at: null; reason: string } | {
+  at: string; stale: boolean; fields: { id: string; name: string; group: string; groupName: string; x: number; y: number }[]; notices: MapNotice[];
+  pairs: { a: string; b: string; sim: number }[]; empty: { field: string; notices: string[] }[]; unused: string[]; noVector: number;
+};
