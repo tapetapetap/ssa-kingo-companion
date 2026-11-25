@@ -77,13 +77,13 @@
 
 **Goal**: 나에 대한 것을 고친다. **Independent Test**: spec US4.
 
-- [ ] T033 [P] [US4] 시험과 구현: `web/app/src/lib/draft.ts`(R17의 `sessionStorage` 글, `tag`가 다르면 버림, 저장소가 막히면 조용히)와 시험
-- [ ] T034 [P] [US4] `web/app/src/screens/Me.tsx`: 칸과 길, 로그아웃, 계정 지우기 두 번 확인
-- [ ] T035 [P] [US4] `web/app/src/screens/Prompt.tsx`: 글자 수, 저장하지 않고 나가면 묻기, `draft` 잇기
-- [ ] T036 [US4] `web/app/src/screens/Analysis.tsx`: 세 칸, 출처·증빙, 줄 빼기·되살리기, 흐름의 근거 줄, 끄기(지워지는 것 알림)·켜기, `.md` 내려받기. 뺀 줄의 글은 서버가 키만 주므로 키를 사람이 읽을 말로 푼다(`liked:<분야>` → '관심 있어요가 몰린 분야: <이름>', `disliked:<분야>` → '관심 없음이 몰린 분야: <이름>', `flow:<키+키>` → '컴패니언이 본 흐름 한 줄'과 근거 줄 이름들, 목록에 없는 분야는 id 대신 '지금 목록에 없는 분야', `web/app/src/lib/lineKey.ts`와 시험)
-- [ ] T037 [US4] `web/app/src/screens/Activity.tsx`: `ActivityForm`으로 넣기·고치기·지우기, 100개 한도, `draft` 잇기. 처음 질문·분야 고치기는 `Answers`·`Fields`를 다시 쓴다
-- [ ] T038 [US4] `web/app/src/screens/Home.tsx`에 새 학기 제안(FR-019, `termSuggestion`), 닫으면 `localStorage`에 학기
-- [ ] T039 [US4] `scripts/e2e-app/run.mjs`: US4 걸음(프롬프트 쓰다 로그인 끊김 → 복구, 다른 계정이면 복구 없음, 줄 빼기, 끄기·켜기, `.md`, 새 학기, 계정 지우기)
+- [X] T033 [P] [US4] 시험과 구현: `web/app/src/lib/draft.ts`(R17의 `sessionStorage` 글, `tag`가 다르면 버림, 저장소가 막히면 조용히)와 시험
+- [X] T034 [P] [US4] `web/app/src/screens/Me.tsx`: 칸과 길, 로그아웃, 계정 지우기 두 번 확인
+- [X] T035 [P] [US4] `web/app/src/screens/Prompt.tsx`: 글자 수, 저장하지 않고 나가면 묻기, `draft` 잇기
+- [X] T036 [US4] `web/app/src/screens/Analysis.tsx`: 세 칸, 출처·증빙, 줄 빼기·되살리기, 흐름의 근거 줄, 끄기(지워지는 것 알림)·켜기, `.md` 내려받기. 뺀 줄의 글은 서버가 키만 주므로 키를 사람이 읽을 말로 푼다(`liked:<분야>` → '관심 있어요가 몰린 분야: <이름>', `disliked:<분야>` → '관심 없음이 몰린 분야: <이름>', `flow:<키+키>` → '컴패니언이 본 흐름 한 줄'과 근거 줄 이름들, 목록에 없는 분야는 id 대신 '지금 목록에 없는 분야', `web/app/src/lib/lineKey.ts`와 시험)
+- [X] T037 [US4] `web/app/src/screens/Activity.tsx`: `ActivityForm`으로 넣기·고치기·지우기, 100개 한도, `draft` 잇기. 처음 질문·분야 고치기는 `Answers`·`Fields`를 다시 쓴다
+- [X] T038 [US4] `web/app/src/screens/Home.tsx`에 새 학기 제안(FR-019, `termSuggestion`), 닫으면 `localStorage`에 학기
+- [X] T039 [US4] `scripts/e2e-app/run.mjs`: US4 걸음(프롬프트 쓰다 로그인 끊김 → 복구, 다른 계정이면 복구 없음, 줄 빼기, 끄기·켜기, `.md`, 새 학기, 계정 지우기)
 
 **Checkpoint**: PR D. 여기까지면 학생 화면이 온전히 돈다.
 

@@ -18,3 +18,6 @@ export const dayText = (day: string) => `${Number(day.slice(5, 7))}월 ${Number(
 export const actionText = (a: Action | null) => (!a ? null : a.kind === 'like' ? '관심 있어요' : a.kind === 'dislike' ? '관심 없음' : `${dayText(a.revisitOn!)}에 다시 보기`);
 /** 분야를 누가 붙였는가(contracts/app.md 6) */
 export const byText = (by: string | null) => (by === '운영자' ? '운영자 확인' : 'AI 추정');
+export const GOALS: [string, string][] = [['job', '취업'], ['grad', '대학원'], ['startup', '창업'], ['unsure', '아직 모르겠어요']];
+export const goalText = (g: string) => GOALS.find(([id]) => id === g)?.[1] ?? g;
+export const gradeText = (n: number) => (n >= 4 ? '4학년 이상' : `${n}학년`);

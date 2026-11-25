@@ -45,7 +45,7 @@ export const kingo = defineTheme({
     ...(COLORS as Record<keyof typeof COLORS, [string, string]>),
     '--radius-inner': '0.375rem', '--radius-element': '0.625rem', '--radius-container': '0.75rem', '--radius-page': '1.75rem',
     '--font-size-sm': '0.75rem', '--font-size-base': '0.875rem', '--font-size-lg': '1.125rem', '--font-size-xl': '1.5rem', '--font-size-2xl': '1.9375rem', '--font-size-3xl': '2.5rem',
-    '--size-element-lg': '2.75rem' // 누르는 자리 44px(FR-006)
+    '--size-element-md': '2.75rem', '--size-element-lg': '2.75rem' // 누르는 자리 44px(FR-006)
   },
   components: {
     heading: { base: { letterSpacing: '-0.02em' } },

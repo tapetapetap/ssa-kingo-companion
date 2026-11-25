@@ -1,7 +1,7 @@
 /**
  * 학생 앱 자동 화면 검사(3단계 research R19, FR-061): 시험 스키마에 공지·분야·개발 계정을 넣고 서버를 띄워 걸음을 끝까지 돈다.
  * 걸음마다 320·390·768px과 글자 200%에서 가로 넘침 0, axe 심각·중대 위반 0, 앱이 쓴 글의 문구 검사, 누르는 자리 44px.
- * 쓰는 법: npm run build:app && npm run e2e:app [--shots <폴더>]
+ * 쓰는 법: npm run build:app && npm run e2e:app [-- --shots <폴더> --only US1,US2]
  */
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -426,6 +426,166 @@ async function us3(base) {
   await page.context().close();
 }
 
+async function us4(base) {
+  const id = await doneStudent('me@example.com');
+  const { page, open } = await signIn(base, 'me@example.com', '/me');
+  const button = name => page.getByRole('button', { name, exact: true });
+  await page.getByText('3학년 2학기, 취업').waitFor();
+  await check(page, 'me');
+  // 처음 질문·분야 고치기
+  await page.getByRole('link', { name: /처음 질문/ }).click();
+  await at(page, '/me/answers');
+  await button('4학년 이상').click();
+  await check(page, 'me-answers');
+  await button('저장하기').click();
+  await at(page, '/me');
+  await page.getByText('4학년 이상 2학기, 취업').waitFor();
+  await page.getByRole('link', { name: /고른 분야/ }).click();
+  await page.getByText('5개 골랐어요').waitFor();
+  await button('머신러닝 빼기').click();
+  await check(page, 'me-fields');
+  await button('저장하기').click();
+  await at(page, '/me');
+  ok(Number((await db.sql`select count(*)::int n from student_fields where student_id = ${id}`)[0].n) === 4, '분야: 고친 것이 저장되지 않았다');
+  // 프롬프트: 글자 수, 저장하지 않고 나가면 묻기
+  await page.getByRole('link', { name: /나에 대한 프롬프트/ }).click();
+  const area = page.getByRole('textbox', { name: '나에 대한 프롬프트' });
+  await area.fill('가'.repeat(1001));
+  await page.getByText('1,001/1,000').waitFor();
+  ok(await button('저장하기').isDisabled(), '프롬프트: 1,000자를 넘는데 저장이 눌린다');
+  await area.fill('백엔드 인턴을 찾고 있어요');
+  await check(page, 'prompt');
+  await button('뒤로').click();
+  await page.getByText('저장하지 않고 나갈까요?').waitFor();
+  await check(page, 'leave');
+  await button('이어서 쓰기').click();
+  await page.goBack();
+  await page.getByText('저장하지 않고 나갈까요?').waitFor();
+  await button('이어서 쓰기').click();
+  await at(page, '/me/prompt');
+  ok(await area.inputValue() === '백엔드 인턴을 찾고 있어요', '프롬프트: 이어서 쓰는데 글이 사라졌다');
+  // 로그인이 끊긴 채 저장 → 다시 로그인하면 글이 남아 있다
+  await db.sql`delete from sessions where student_id = ${id}`;
+  await button('저장하기').click();
+  await at(page, '/login?to=%2Fme%2Fprompt');
+  await login(page, 'me@example.com');
+  await at(page, '/me/prompt');
+  await page.waitForFunction(() => document.querySelector('textarea')?.value === '백엔드 인턴을 찾고 있어요');
+  // 다른 학생이면 남지 않는다
+  await area.fill('몰래 쓴 글이에요');
+  await db.sql`delete from sessions where student_id = ${id}`;
+  await button('저장하기').click();
+  await at(page, '/login?to=%2Fme%2Fprompt');
+  const other = await doneStudent('other@example.com');
+  await login(page, 'other@example.com');
+  await at(page, '/me/prompt');
+  await page.getByText('0/1,000').waitFor();
+  ok(await area.inputValue() === '', '프롬프트: 다른 학생에게 쓰던 글이 보인다');
+  ok(await page.evaluate(() => sessionStorage.length) === 0, '쓰던 글이 다른 학생의 저장소에 남았다');
+  await open('/me');
+  await button('로그아웃').click();
+  await at(page, '/login');
+  await login(page, 'me@example.com');
+  await at(page, '/');
+  await open('/me/prompt');
+  await area.fill('백엔드 인턴을 찾고 있어요');
+  await button('저장하기').click();
+  await page.getByText('저장했어요').first().waitFor();
+  await button('뒤로').click();
+  await at(page, '/me');
+  // 나의 분석: 활동 넣기·고치기·지우기, 줄 빼기·되살리기
+  await db.sql`insert into actions (student_id, notice_id, kind) values (${id}, 'cse:11', 'like')`;
+  await notice(db.sql, { no: 201, title: '같은 분야 공지', core: [t.fields[11].id], deadline: 30 });
+  await db.sql`insert into actions (student_id, notice_id, kind) values (${id}, 'cse:201', 'like')`;
+  await page.getByRole('link', { name: /나의 분석/ }).click();
+  await page.getByText(/관심 있어요가 몰린 분야/).first().waitFor();
+  await check(page, 'analysis');
+  await page.getByRole('link', { name: '해 온 활동 넣기' }).click();
+  await page.getByRole('textbox', { name: '이름' }).fill('교내 해커톤');
+  await page.getByRole('combobox', { name: '학기' }).click();
+  await page.getByRole('option', { name: '2025년 2학기' }).click();
+  await page.getByRole('combobox', { name: '종류' }).click();
+  await page.getByRole('option', { name: '해커톤' }).click();
+  await page.waitForTimeout(500); // 창이 닫히며 초점을 되돌린 뒤
+  await page.getByRole('textbox', { name: '증빙 주소' }).fill('내 블로그');
+  await button('저장하기').click();
+  await page.getByText(/http:\/\/ 나 https/).first().waitFor();
+  await check(page, 'activity');
+  await page.getByRole('textbox', { name: '증빙 주소' }).fill('https://example.com/me');
+  await button('저장하기').click();
+  await at(page, '/me/analysis');
+  await page.getByText('2025-2 · 교내 해커톤 · 해커톤').waitFor();
+  await page.getByText('증빙 링크').waitFor();
+  await page.getByRole('main').locator('li').filter({ hasText: '교내 해커톤' }).getByRole('link', { name: '고치기' }).click();
+  await page.getByRole('textbox', { name: '이름' }).fill('교외 해커톤');
+  await button('저장하기').click();
+  await page.getByText('교외 해커톤').waitFor();
+  await page.getByRole('main').locator('li').filter({ hasText: '몰린 분야' }).getByRole('button', { name: '빼기' }).click();
+  await button('뺀 줄 1개').click();
+  await check(page, 'analysis-excluded');
+  await button('되살리기').click();
+  await page.getByRole('button', { name: /^뺀 줄/ }).waitFor({ state: 'detached' });
+  await page.getByRole('main').locator('li').filter({ hasText: '교외 해커톤' }).getByRole('link', { name: '고치기' }).click();
+  await button('활동 지우기').click();
+  await button('지우기').click();
+  await at(page, '/me/analysis');
+  await page.getByText('아직 넣은 활동이 없어요.').waitFor();
+  const md = await page.evaluate(async () => { const r = await fetch('/api/me/analysis.md'); return [r.headers.get('content-disposition'), await r.text()]; });
+  ok(md[0].includes('analysis.md') && md[1].startsWith('# 나의 분석'), '.md가 파일로 오지 않는다');
+  const [file] = await Promise.all([page.waitForEvent('download'), button('.md 파일로 내려받기').click()]);
+  ok(file.suggestedFilename() === 'analysis.md' && readFileSync(await file.path(), 'utf8') === md[1], '.md 파일이 보이는 글과 다르다');
+  // 끄기·켜기
+  await page.getByRole('switch', { name: '나의 분석으로 추천받기' }).click();
+  await page.getByText('나의 분석을 끌까요?').waitFor();
+  await button('끄기').click();
+  await page.getByRole('heading', { name: '나의 분석을 꺼 두었어요' }).waitFor();
+  await check(page, 'analysis-off');
+  await button('다시 켜기').click();
+  await page.getByRole('switch', { name: '나의 분석으로 추천받기' }).waitFor();
+  // 다른 탭에서 다른 학생이 로그인하면 이 탭도 그 학생이 된다(앞 학생의 계정을 지우지 않는다)
+  await open('/me');
+  await button('계정 지우기').waitFor();
+  const tab = await page.context().newPage();
+  await tab.goto(`${base}/me`);
+  await tab.evaluate(p => fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ method: 'dev', email: 'other@example.com', password: p }) }), PASSWORD);
+  await tab.close();
+  await button('계정 지우기').click();
+  await button('다음').click();
+  await button('모두 지우기').click();
+  await page.waitForTimeout(800);
+  ok((await db.sql`select 1 from students where id = ${other}`).length === 1, '다른 탭에서 로그인한 학생의 계정이 지워졌다');
+  await open('/me');
+  await button('로그아웃').click();
+  await at(page, '/login');
+  await login(page, 'me@example.com');
+  await at(page, '/');
+  // 새 학기
+  await db.sql`update answers set answered_at = now() - interval '400 days', grade = 2, term = 1 where student_id = ${id}`;
+  await open('/');
+  await page.getByText('새 학기예요').waitFor();
+  await check(page, 'home-term');
+  await button('닫기').click();
+  await open('/');
+  await page.getByText(/골랐어요$/).first().waitFor();
+  ok(await page.getByText('새 학기예요').count() === 0, '새 학기: 닫았는데 다시 나온다');
+  await page.evaluate(() => localStorage.clear());
+  await open('/');
+  await page.getByRole('button', { name: /학기로 바꾸기$/ }).click();
+  await page.getByText('새 학기예요').waitFor({ state: 'detached' });
+  ok((await db.sql`select grade from answers where student_id = ${id}`)[0].grade > 2, '새 학기: 바뀌지 않았다');
+  // 계정 지우기: 두 번 확인
+  await open('/me');
+  await button('계정 지우기').click();
+  await check(page, 'delete');
+  await button('다음').click();
+  await page.getByText('지우면 되살릴 수 없어요.').waitFor();
+  await button('모두 지우기').click();
+  await at(page, '/login');
+  ok((await db.sql`select 1 from students where id = ${id}`).length === 0, '계정이 지워지지 않았다');
+  ok((await db.sql`select 1 from students where id = ${other}`).length === 1, '다른 계정이 지워졌다');
+  await page.context().close();
+}
+
 const t = loadTaxonomy('custom');
 let failed = null;
 try {
@@ -437,13 +597,16 @@ try {
   for (const email of ['new@example.com', 'lock@example.com']) await createDevStudent(db.sql, email);
   await new Promise(done => { server.listen(0, '127.0.0.1', done); });
   const base = `http://127.0.0.1:${server.address().port}`;
-  for (const [name, run] of [['US1', us1], ['US2', us2], ['US3', us3]]) {
+  const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null;
+  for (const [name, run] of [['US1', us1], ['US2', us2], ['US3', us3], ['US4', us4]]) {
+    if (only && !only.includes(name)) continue;
     const t0 = Date.now();
     await run(base);
     console.log(`${name} ${((Date.now() - t0) / 1000).toFixed(1)}초`);
   }
 } catch (e) {
   failed = e;
+  if (shots) for (const [i, p] of browser.contexts().flatMap(c => c.pages()).entries()) await p.screenshot({ path: join(shots, `failed-${i}.png`) }).catch(() => {});
 } finally {
   await browser.close();
   server.closeAllConnections();

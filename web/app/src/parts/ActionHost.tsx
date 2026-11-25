@@ -107,7 +107,7 @@ export function ActionHost() {
           <VStack gap={4}>
             <VStack gap={1}><Heading level={2}>나의 분석에 활동으로 넣을까요?</Heading><Text size="sm" color="secondary">나중에 고치거나 지울 수 있어요.</Text></VStack>
             {asking
-              ? <ActivityForm draft={suggest.draft} onSaved={() => { close(); toast({ body: '해 온 활동에 넣었어요' }); }} />
+              ? <ActivityForm draft={suggest.draft} path="/me/activities/new" unsaved onSaved={() => { close(); toast({ body: '해 온 활동에 넣었어요' }); }} />
               : <HStack gap={2} wrap="wrap"><Button label="넣기" variant="primary" size="lg" onClick={() => setAsking(true)} /><Button label="안 넣을래요" variant="ghost" size="lg" onClick={close} /><Button label="되돌리기" variant="ghost" size="lg" onClick={() => { close(); suggest.undo(); }} /></HStack>}
           </VStack>
         )}
