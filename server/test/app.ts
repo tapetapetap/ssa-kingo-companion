@@ -2,9 +2,9 @@
 import type { AddressInfo } from 'node:net';
 import { createServer, type Route } from '../http.ts';
 
-export async function testApp(routes: Route[], opsDir?: string, appDir?: string) {
+export async function testApp(routes: Route[], opsDir?: string, appDir?: string, onError?: () => unknown) {
   const lines: string[] = [];
-  const server = createServer(routes, l => { lines.push(l); }, opsDir, appDir);
+  const server = createServer(routes, l => { lines.push(l); }, opsDir, appDir, onError);
   await new Promise<void>(ok => { server.listen(0, '127.0.0.1', ok); });
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const jar = new Map<string, string>();

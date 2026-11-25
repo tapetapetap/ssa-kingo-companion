@@ -26,6 +26,15 @@ export async function withModelLock<T>(sql: Sql, fn: () => Promise<T>): Promise<
   }
 }
 
+export type Installed = { name: string; size: number; parameterSize: string | null; family: string };
+/** 모델 서버에 설치된 모델(FR-042·FR-051). 3초 안에 답이 없으면 던진다 */
+export async function installedModels(host?: string): Promise<Installed[]> {
+  const res = await fetch(`${ollamaBase(host ?? process.env.OLLAMA_HOST)}/api/tags`, { signal: AbortSignal.timeout(3000) });
+  if (!res.ok) throw new Error('모델 서버의 답이 실패예요');
+  const { models = [] } = await res.json() as { models?: { name: string; size?: number; details?: { family?: string; parameter_size?: string } }[] };
+  return models.map(m => ({ name: m.name, size: m.size ?? 0, parameterSize: m.details?.parameter_size || null, family: m.details?.family ?? '' }));
+}
+
 /** 부하 제한 하나를 연다. close()는 요약을 model_bursts에 한 줄 남긴다(요청이 0이면 남기지 않는다) */
 export function openModel(sql: Sql, who: Who, d: ModelDeps = {}): Model {
   const name = d.model ?? (process.env.KINGO_LLM_MODEL || DEFAULT_MODEL);

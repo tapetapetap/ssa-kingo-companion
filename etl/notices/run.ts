@@ -7,7 +7,7 @@ import { BoardError, bodyOf, CACHE_DIR, listSince, makeGet, SOURCE, viewUrl, typ
 import { deadlineOf, readDates, stripDates } from './deadline.ts';
 import { fieldGate, findChosen, loadTaxonomy, TAXONOMY_DIR, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { makeEmbed } from './embed.ts';
-import { countField, fieldPart, makeFieldAsk, newStats, type FieldAnswer, type FieldAsk } from './fields.ts';
+import { countField, fieldPart, makeFieldAsk, newStats, type FieldAnswer, type FieldAsk, type FieldStats } from './fields.ts';
 import { fromLlm, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type Gate, type LlmStats } from './llm.ts';
 import { createThrottle, type LoadSummary } from './throttle.ts';
 
@@ -168,7 +168,7 @@ function daysAgo(n: number): string {
 
 /** gate는 기회 판정 ask를 만든 문(noTemp를 읽는다), field는 분야 판정기와 그 문 또는 넣지 않은 이유, load는 throttle의 stop(요약을 찍을 때 부른다).
  *  없으면 스펙 2와 같다 */
-export type RunExtra = { gate?: Gate; field?: { ask: FieldAsk; gate?: Gate } | { reason: string }; load?: () => LoadSummary };
+export type RunExtra = { gate?: Gate; field?: { ask: FieldAsk; gate?: Gate } | { reason: string }; load?: () => LoadSummary; json?: boolean };
 
 /** buildResult가 남긴 기회마다 분야를 묻고 data-model 7의 칸을 더한다. 답을 받지 못한 기회(실패·못 물음)는 fields가 없다 */
 async function addFields(file: ResultFile, rows: Map<number, NoticeRow>, bodies: Map<number, string[] | null>, ask: FieldAsk) {
@@ -202,16 +202,20 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
     writeResult(out, built.file); // 분야 단계가 던져도 기회 결과는 남게 먼저 쓴다
     const f = x.field && 'ask' in x.field ? x.field : null;
     let field = x.field && 'reason' in x.field ? x.field.reason : undefined;
+    let fieldStats: FieldStats | null = null;
     if (f) {
       try {
         const added = await addFields(built.file, new Map(rows.map(r => [r.no, r])), bodies, f.ask);
         writeResult(out, added.file);
+        fieldStats = added.stats;
         field = fieldPart(added.stats);
       } catch (e) {
         field = `분야 판정을 마치지 못해 분야를 넣지 않았어요 (${messageOf(e)})`;
       }
     }
     console.log(formatSummary(built.summary, llm, { llmNoTemp: x.gate?.noTemp, fieldNoTemp: f?.gate?.noTemp, field, load: x.load?.().line }));
+    // 매일 작업이 읽는 숫자(3단계 research R10). 글이나 본문은 없다
+    if (x.json) console.log(`요약JSON: ${JSON.stringify({ ...built.summary, llm, field: fieldStats, fieldReason: fieldStats ? null : field ?? null })}`);
     return 0;
   } catch (e) {
     if (!(e instanceof BoardError)) throw e;
@@ -249,7 +253,7 @@ if (import.meta.main) {
     } catch (e) {
       console.error(messageOf(e));
     }
-    process.exitCode = field === null ? 1 : await main(process.argv.slice(2), makeGet(), OUT_FILE, CACHE_DIR, makeAsk({ gate }), { gate, field, load: t.stop });
+    process.exitCode = field === null ? 1 : await main(process.argv.slice(2), makeGet(), OUT_FILE, CACHE_DIR, makeAsk({ gate }), { gate, field, load: t.stop, json: process.env.KINGO_RUN_JSON === '1' });
   } finally {
     t.stop();
   }

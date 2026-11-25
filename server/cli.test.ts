@@ -18,7 +18,7 @@ afterEach(() => { vi.restoreAllMocks(); });
 const quiet = () => ({ err: vi.spyOn(console, 'error').mockImplementation(() => {}), log: vi.spyOn(console, 'log').mockImplementation(() => {}) });
 
 describe('cli (contracts/cli.md)', () => {
-  it.each([[[]], [['nope']], [['migrate', 'x']], [['ingest']], [['ingest', 'a.json']], [['ingest', 'a.json', '--taxonomy']], [['ingest', 'a.json', 'b.json', '--taxonomy', 'custom']], [['account']], [['account', 'make', 'a@b.co']], [['account', 'delete', 'a@b.co', '--dept', 'x']], [['export-gold']], [['export-gold', 'a', 'b']], [['notify', 'x']], [['push-keys', 'x']]])('%j는 쓰는 법과 2', async args => {
+  it.each([[[]], [['nope']], [['migrate', 'x']], [['ingest']], [['ingest', 'a.json']], [['ingest', 'a.json', '--taxonomy']], [['ingest', 'a.json', 'b.json', '--taxonomy', 'custom']], [['account']], [['account', 'make', 'a@b.co']], [['account', 'delete', 'a@b.co', '--dept', 'x']], [['export-gold']], [['export-gold', 'a', 'b']], [['notify', 'x']], [['push-keys', 'x']], [['requests', 'x']]])('%j는 쓰는 법과 2', async args => {
     const { err } = quiet();
     expect(await main(args, { sql: db.sql })).toBe(2);
     expect(String(err.mock.calls[0][0])).toMatch(/^쓰는 법: /);
@@ -40,6 +40,12 @@ describe('cli (contracts/cli.md)', () => {
     expect(String(err.mock.calls[0][0])).toContain('알림 키가 없어요');
     expect(await main(['notify'], { sql: db.sql, env: { KINGO_PUSH_PUBLIC_KEY: 'a', KINGO_PUSH_PRIVATE_KEY: 'b', KINGO_PUBLIC_URL: 'https://x' }, notify: n })).toBe(0);
     expect(log.mock.calls[1][0]).toBe('알림 보냄 0 · 실패 0 · 사라짐 0 · 건너뜀 0');
+  });
+
+  it('requests는 기다리는 요청이 없으면 그렇게 말하고 0', async () => {
+    const { log } = quiet();
+    expect(await main(['requests'], { sql: db.sql })).toBe(0);
+    expect(log.mock.calls[0][0]).toBe('요청 없음');
   });
 
   it('설정이 틀리면 이유를 내고 1', async () => {

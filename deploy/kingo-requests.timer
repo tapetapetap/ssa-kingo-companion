@@ -1,0 +1,9 @@
+# 10분마다 운영자 요청을 본다
+[Unit]
+Description=킹고 운영자 요청 10분마다
+
+[Timer]
+OnCalendar=*:0/10
+
+[Install]
+WantedBy=timers.target

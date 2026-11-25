@@ -125,7 +125,7 @@ async function sendFile(res: ServerResponse, path: string, opsDir: string, appDi
 
 export const health: Route = ['GET', '/api/health', () => ({ body: { ok: true } })];
 
-export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR, appDir = APP_DIR): Server {
+export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR, appDir = APP_DIR, onError?: () => unknown): Server {
   return createHttp(async (req, res) => {
     const t0 = performance.now();
     const method = req.method ?? 'GET';
@@ -154,7 +154,10 @@ export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR, a
       logRequest({ method, route, status: out.status ?? 200, ms: performance.now() - t0, student: r.student }, write);
     } catch (e) {
       const known = e instanceof HttpError;
-      if (!known) logError(route, e, write);
+      if (!known) {
+        logError(route, e, write);
+        onError?.();
+      }
       const err = known ? e : new HttpError(500, 'server_error', '잠시 뒤에 다시 해 주세요');
       send(res, err.status, { error: { code: err.code, message: err.message, ...err.extra } });
       logRequest({ method, route, status: err.status, ms: performance.now() - t0, student: r?.student }, write);

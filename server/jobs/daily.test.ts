@@ -7,12 +7,12 @@ import type { Model } from '../model.ts';
 import { testDb } from '../test/db.ts';
 import { notice } from '../test/notice.ts';
 import { createDevStudent, seedTaxonomy } from '../test/student.ts';
-import { rejudgePaths, runDaily, type DailyDeps } from './daily.ts';
+import { DailyBusy, dailyLine, dailyRunning, rejudgePaths, runDaily, type DailyDeps } from './daily.ts';
 
 let db: Awaited<ReturnType<typeof testDb>>;
 beforeAll(async () => { db = await testDb(); });
 afterAll(async () => { await db.close(); });
-beforeEach(async () => { await db.sql`truncate students, taxonomies, notices, daily_runs, model_bursts, rejudge_marks, repick_queue cascade`; });
+beforeEach(async () => { await db.sql`truncate students, taxonomies, notices, daily_runs, model_bursts, rejudge_marks, repick_queue, daily_counts cascade`; });
 
 const fakeModel = (): Model => ({ name: 'm', chat: async () => 'fail', embed: async () => 'down' as never, noTemp: 0, close: async () => ({}) as never });
 const at = (iso: string) => () => new Date(iso);
@@ -26,7 +26,7 @@ describe('매일 작업 (US6, research R14)', () => {
   it('단계는 정한 순서로 돌고, 요약은 daily_runs에 남는다. 분류기의 부하 줄을 옮긴다', async () => {
     await seedTaxonomy(db.sql);
     const r = await runDaily(deps());
-    expect(Object.keys(r.steps)).toEqual(['rejudge', 'classifier', 'ingest', 'backup', 'facts', 'flow', 'repick']);
+    expect(Object.keys(r.steps)).toEqual(['rejudge', 'classifier', 'ingest', 'backup', 'facts', 'flow', 'counts', 'repick']);
     expect(r.steps.rejudge).toMatchObject({ ok: false, skipped: true });
     expect(r.steps.ingest).toMatchObject({ ok: true, new: 1 });
     expect(r.steps.backup).toMatchObject({ ok: true, file: '/backup/kingo-2026-11-24.dump' });
@@ -102,7 +102,37 @@ describe('매일 작업 (US6, research R14)', () => {
     const r = await runDaily(deps({ now: () => new Date(n++ < 3 ? '2026-11-24T06:59:59+09:00' : '2026-11-24T07:00:01+09:00') }));
     expect(r.steps.repick).toMatchObject({ ok: true, queued: 1, left: 1 });
     const late = await runDaily(deps({ now: at('2026-11-24T09:00:00+09:00') }));
-    expect(late.steps.repick).toMatchObject({ left: 1 });
+    expect(late.steps.repick).toMatchObject({ left: 1, daytime: true, llm: null, rule: null });
+    expect(dailyLine(late)).toContain('낮 실행(다시 고르기 남음 1)');
+  });
+
+  it('분류기의 요약JSON을 단계에 담고, 깨졌으면 비운다(단계는 성공). 하루 숫자는 어제 것이다', async () => {
+    await seedTaxonomy(db.sql);
+    const line = '요약JSON: {"fetched":5,"opportunity":2,"llm":{"fresh":4,"failed":1},"field":null}';
+    const r = await runDaily(deps({ consentVersion: 'dev-1', classifier: async () => ({ code: 0, stdout: `새 글 5\n${line}\n` }) }));
+    expect(r.steps.classifier).toMatchObject({ ok: true, fetched: 5, opportunity: 2, llm: { fresh: 4, failed: 1 }, field: null });
+    expect(r.steps.counts).toMatchObject({ ok: true, day: '2026-11-23' });
+    expect((await db.sql`select count(*)::int as n from daily_counts where day = '2026-11-23'`)[0].n).toBeGreaterThan(5);
+    const bad = await runDaily(deps({ classifier: async () => ({ code: 0, stdout: '요약JSON: {깨짐' }) }));
+    expect(bad.steps.classifier).toMatchObject({ ok: true });
+    expect(bad.steps.classifier.fetched).toBeUndefined();
+    expect(bad.steps.counts).toMatchObject({ skipped: true });
+  });
+
+  it('어느 때든 하나만 돈다: 뒤의 것은 기다렸다 돌고, 오래 기다리면 DailyBusy다(FR-045)', async () => {
+    await seedTaxonomy(db.sql);
+    const order: string[] = [];
+    let go = () => {};
+    const first = runDaily(deps({ classifier: () => new Promise(ok => { order.push('첫째 시작'); go = () => { order.push('첫째 끝'); ok({ code: 0, stdout: '' }); }; }) }));
+    while (!order.length) await new Promise(r => setTimeout(r, 5));
+    expect(await dailyRunning(db.sql)).toBe(true);
+    await expect(runDaily(deps({ waitMs: 20 }))).rejects.toThrow(DailyBusy);
+    const second = runDaily(deps({ classifier: async () => { order.push('둘째'); return { code: 0, stdout: '' }; } }));
+    await new Promise(r => setTimeout(r, 30));
+    go();
+    await Promise.all([first, second]);
+    expect(order).toEqual(['첫째 시작', '첫째 끝', '둘째']);
+    expect(await dailyRunning(db.sql)).toBe(false);
   });
 
   it('--skip-classifier면 분류기 없이 있는 결과 파일로 넣는다', async () => {
