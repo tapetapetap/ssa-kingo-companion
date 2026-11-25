@@ -185,6 +185,13 @@ describe('모델 재기 (R15)', () => {
     expect(await db.sql`select 1 from op_state where key = 'gold_version'`).toHaveLength(0);
     await db.sql`update op_requests set status = 'done'`;
     await expect(runTrial(d, await request('gemma4:12b'))).rejects.toThrow('정답셋이 없어요');
+    // 꼴이 틀린 파일의 글은 오류 글에 나오지 않는다(FR-053)
+    const dev = join(d.goldDir, 'dev-501.csv');
+    writeFileSync(dev, writeCsv([['링크', '게시판', '제목', '게시일', '기회', '종류', '마감', '주최', '확신', '메모'], ['비밀 라벨', '', '', '', 'O', '', '', '', '', '']]));
+    const e = await runTrial(d, { id: '1', model: 'gemma4:12b' }).catch((x: Error) => x.message);
+    expect(e).toMatch(/정답셋/);
+    expect(e).not.toContain('비밀');
+    rmSync(dev);
     // 다음 회차의 정답이 생기면 그것을 쓴다
     cpSync(file, join(d.goldDir, 'fields', 'custom-2.csv'));
     expect(goldVersion(d.goldDir, 'custom')).toBeNull();

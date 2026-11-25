@@ -83,7 +83,7 @@ export function modelRoutes(ctx: Ctx): Route[] {
         if (!first.usable) throw new HttpError(422, 'trial_stale', '고른 뒤 조건이 바뀌었거나 모델이 없어요. 다시 재야 해요');
         model = first.model;
       } else {
-        const [t] = typeof trialId === 'number' && Number.isInteger(trialId) ? await sql<Trial[]>`select * from model_trials where id = ${trialId}` : [];
+        const [t] = Number.isSafeInteger(trialId) ? await sql<Trial[]>`select * from model_trials where id = ${trialId as number}` : [];
         if (!t) throw invalid('trialId', '없는 결과예요');
         if (!passes(t.metrics.corePrecision)) throw new HttpError(422, 'trial_low', '핵심 정밀도가 85% 미만이라 바꿀 수 없어요');
         if (isStale(t, c)) throw new HttpError(422, 'trial_stale', '잰 뒤 조건이 바뀌었어요. 다시 재야 해요');

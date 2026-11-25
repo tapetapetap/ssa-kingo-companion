@@ -40,6 +40,15 @@ class Pause extends Error {
 
 type Gold = { t: Taxonomy; fieldItems: NoticeRow[]; labels: Map<number, GoldLabel>; opp: GoldRow[]; bodies: Map<number, string[]>; version: string };
 
+/** 파일 꼴이 틀리면 오류 글에 파일 속 글이 섞일 수 있어, DB와 화면에는 정한 글만 둔다(FR-053) */
+function readable<T>(read: () => T): T {
+  try {
+    return read();
+  } catch {
+    throw new Error('정답셋 파일을 읽지 못했어요. 서버 컴퓨터에서 파일 꼴을 확인해 주세요');
+  }
+}
+
 /** 정답셋과 본문을 읽는다. 모자라면 까닭을 던진다(라벨과 본문은 이 프로세스 밖으로 나가지 않는다) */
 async function readGold(d: TrialDeps): Promise<Gold> {
   const t = await activeTaxonomy(d.sql, d.taxonomyDir);
@@ -47,15 +56,15 @@ async function readGold(d: TrialDeps): Promise<Gold> {
   const round = latestRound(d.goldDir, t.id);
   const version = goldVersion(d.goldDir, t.id);
   if (!round || !version) throw new Error('정답셋이 없어요');
-  const sample = readSample(d.goldDir, round);
-  const labels = readGoldFile(t, d.goldDir, round);
+  const sample = readable(() => readSample(d.goldDir, round));
+  const labels = readable(() => readGoldFile(t, d.goldDir, round));
   if (sample.some(x => !labels.get(x.no)?.final)) throw new Error(`${round}회차 정답에 정하지 않은 글이 있어요`);
-  const { gold, errors } = parseGold(readCsv(decodeCsv(readFileSync(join(d.goldDir, 'dev-501.csv')))));
+  const { gold, errors } = readable(() => parseGold(readCsv(decodeCsv(readFileSync(join(d.goldDir, 'dev-501.csv'))))));
   if (errors.length) throw new Error(`기회 정답셋을 읽지 못했어요(${errors.length}건)`);
   const pick = new Set(sampleBySha1(gold.map(g => g.id), LIMITS.trialOppSample));
   const opp = gold.filter(g => pick.has(g.id));
   const bodies = new Map<number, string[]>();
-  const nos = [...new Set([...sample.map(x => x.no), ...opp.map(g => noOf(g.id))])];
+  const nos = readable(() => [...new Set([...sample.map(x => x.no), ...opp.map(g => noOf(g.id))])]);
   for (const no of nos) {
     const lines = await cachedBody(no, d.cacheDir ?? CACHE_DIR);
     if (lines) bodies.set(no, lines);
