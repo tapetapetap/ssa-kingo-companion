@@ -7,10 +7,11 @@ import { nextStep, onboardingRoutes, type Consent } from './me/onboarding.ts';
 import { noticeRoutes } from './notices/routes.ts';
 import { homeRoutes } from './pick/home.ts';
 import { analysisRoutes } from './analysis/routes.ts';
+import { pushRoutes } from './push/routes.ts';
 import type { Operators } from './ops/guard.ts';
 import { opsRoutes } from './ops/verdict.ts';
 
-export type Ctx = { sql: Sql; mode: Mode; consent: Consent; methods: Record<string, LoginMethod>; operators?: Operators };
+export type Ctx = { sql: Sql; mode: Mode; consent: Consent; methods: Record<string, LoginMethod>; operators?: Operators; push?: { publicKey: string | null; publicUrl: string | null } };
 
 export const defaultMethods = (): Record<string, LoginMethod> => ({ dev: devLogin });
 
@@ -22,5 +23,5 @@ export function checkStartup(ctx: Ctx) {
 }
 
 export function routes(ctx: Ctx): Route[] {
-  return [health, ...authRoutes(ctx, id => nextStep(ctx, id)), ...onboardingRoutes(ctx), ...noticeRoutes(ctx), ...homeRoutes(ctx), ...analysisRoutes(ctx), ...opsRoutes(ctx)];
+  return [health, ...authRoutes(ctx, id => nextStep(ctx, id)), ...onboardingRoutes(ctx), ...noticeRoutes(ctx), ...homeRoutes(ctx), ...analysisRoutes(ctx), ...pushRoutes(ctx), ...opsRoutes(ctx)];
 }

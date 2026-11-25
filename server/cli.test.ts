@@ -18,7 +18,7 @@ afterEach(() => { vi.restoreAllMocks(); });
 const quiet = () => ({ err: vi.spyOn(console, 'error').mockImplementation(() => {}), log: vi.spyOn(console, 'log').mockImplementation(() => {}) });
 
 describe('cli (contracts/cli.md)', () => {
-  it.each([[[]], [['nope']], [['migrate', 'x']], [['ingest']], [['ingest', 'a.json']], [['ingest', 'a.json', '--taxonomy']], [['ingest', 'a.json', 'b.json', '--taxonomy', 'custom']], [['account']], [['account', 'make', 'a@b.co']], [['account', 'delete', 'a@b.co', '--dept', 'x']], [['export-gold']], [['export-gold', 'a', 'b']]])('%j는 쓰는 법과 2', async args => {
+  it.each([[[]], [['nope']], [['migrate', 'x']], [['ingest']], [['ingest', 'a.json']], [['ingest', 'a.json', '--taxonomy']], [['ingest', 'a.json', 'b.json', '--taxonomy', 'custom']], [['account']], [['account', 'make', 'a@b.co']], [['account', 'delete', 'a@b.co', '--dept', 'x']], [['export-gold']], [['export-gold', 'a', 'b']], [['notify', 'x']], [['push-keys', 'x']]])('%j는 쓰는 법과 2', async args => {
     const { err } = quiet();
     expect(await main(args, { sql: db.sql })).toBe(2);
     expect(String(err.mock.calls[0][0])).toMatch(/^쓰는 법: /);
@@ -29,6 +29,17 @@ describe('cli (contracts/cli.md)', () => {
     expect(await main(['migrate'], { sql: db.sql })).toBe(0);
     expect(await main(['migrate', '--json'], { sql: db.sql })).toBe(0);
     expect(log.mock.calls.map(c => c[0])).toEqual(['적용할 스키마 바꾸기가 없어요', '{"applied":[]}']);
+  });
+
+  it('push-keys는 두 줄만 출력하고 DB에 닿지 않는다. notify는 키가 없으면 이유와 1, 시간 밖이면 0', async () => {
+    const { err, log } = quiet();
+    expect(await main(['push-keys'], { env: {} })).toBe(0);
+    expect(String(log.mock.calls[0][0])).toMatch(/^KINGO_PUSH_PUBLIC_KEY=[\w-]{87}\nKINGO_PUSH_PRIVATE_KEY=[\w-]{43}$/);
+    const n = { consentVersion: 'dev-1', now: () => new Date('2026-11-25T08:00:00+09:00') };
+    expect(await main(['notify'], { sql: db.sql, env: {}, notify: n })).toBe(1);
+    expect(String(err.mock.calls[0][0])).toContain('알림 키가 없어요');
+    expect(await main(['notify'], { sql: db.sql, env: { KINGO_PUSH_PUBLIC_KEY: 'a', KINGO_PUSH_PRIVATE_KEY: 'b', KINGO_PUBLIC_URL: 'https://x' }, notify: n })).toBe(0);
+    expect(log.mock.calls[1][0]).toBe('알림 보냄 0 · 실패 0 · 사라짐 0 · 건너뜀 0');
   });
 
   it('설정이 틀리면 이유를 내고 1', async () => {

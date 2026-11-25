@@ -91,22 +91,22 @@
 
 **Goal**: 설치하고 09:00 알림을 받는다. **Independent Test**: spec US5.
 
-- [ ] T040 [US5] `server/db/migrations/009_push.sql`(data-model)과 `server/limits.ts`의 새 값. `server/db/migrate.test.ts`가 통과하는지 본다
-- [ ] T041 [P] [US5] 시험과 구현: `server/push/endpoint.ts`(R5)와 시험(정한 네 host, `fcm.googleapis.com.evil.com`·IP·`http:`·포트·`user@` 거절, 키 길이)
-- [ ] T042 [P] [US5] 시험과 구현: `server/push/message.ts`(R8)와 시험(하나·둘·넷, 40자, 종류 차례, 4KB)
-- [ ] T043 [US5] 시험: `server/push/targets.test.ts` — 마감 오늘·3일·2일·없음, 사람 판정으로 바뀐 마감, 내려감·공지 아님·닫힘, 취소, 다시 볼 날 오늘·내일, 동의 판 옛것, 만료 세션, 100가지 경우표(SC-004)
-- [ ] T044 [US5] `server/push/targets.ts`(R7의 질의)
-- [ ] T045 [US5] 시험: `server/push/routes.test.ts` — 켜기·끄기, 로그아웃·계정 지우기로 사라짐, 같은 주소를 다른 학생이 켬, 11대째, 준비 전 404(공개 키나 `KINGO_PUBLIC_URL` 없음), 동의 전 403, 다른 학생 것에 닿지 못함
-- [ ] T046 [US5] `server/push/routes.ts`와 `server/app.ts`·`server/config.ts`(`pushPublicKey`, `publicUrl`) 잇기. `/api/me`의 `push`
-- [ ] T047 [US5] 의존성 `web-push@4.0.0`(정확한 판), `server/push/web-push.d.ts`
-- [ ] T048 [US5] 시험: `server/push/send.test.ts` — 보냄·410(구독 지움)·500 뒤 한 번 더·또 실패, 두 번 돌리면 0, `sending`으로 남은 것은 안 보냄, 08:59·21:00(다시 보낼 때도), 손으로 다시 돌려도 두 번까지, 기기 둘(통으로 셈), 키 없음은 끝 코드 1, TTL, 30일 지난 기록, 출력에 제목·주소 없음
-- [ ] T049 [US5] `server/push/send.ts`(R7)와 `server/cli.ts`의 `notify`·`push-keys`(contracts/cli.md, `server/cli.test.ts`)
-- [ ] T050 [US5] `server/outbound.test.ts`: `web-push`를 가져오는 파일은 `server/push/send.ts` 하나이고(`push-keys`가 쓰는 `generateVAPIDKeys`도 여기서 다시 내보낸다) api가 시작할 때 가져오는 파일 묶음(`server/main.ts`에서 따라간 import)에 없음을 본다
-- [ ] T051 [P] [US5] `web/app/public/sw.js`(R3), `web/app/public/manifest.webmanifest`, 아이콘(R3 (7), SVG 하나에서 192·512·maskable·apple-touch). `sw.js`의 알림 꼴 검사는 `web/app/src/sw.test.ts`에서 파일을 읽어 가짜 전역으로 돌린다
-- [ ] T052 [US5] 시험과 구현: `web/app/src/lib/push.ts`(상태: 지원 안 함·설치 필요·막힘·준비 중·꺼짐·켜짐, 켜기·끄기, app.md 9)와 시험
-- [ ] T053 [US5] `web/app/src/screens/Push.tsx`(FR-036·FR-039), `ActionBar`의 '마감 전에 알려 드릴까요?' 한 번, `Home`의 아이폰 안내 한 번, `main.tsx`의 서비스 워커 등록
-- [ ] T054 [P] [US5] `deploy/`: `kingo-notify.service`·`.timer`, `compose.yaml`(jobs에만 `kingo.push.env`), `kingo.env.example`, `kingo.push.env.example`, `.gitignore`와 `.dockerignore`에 `deploy/kingo.push.env`(이미지는 `COPY . .`라 빠지면 개인 키가 api에도 들어간다), `consent.dev.md`를 `dev-2`로(FR-040)
-- [ ] T055 [US5] `scripts/e2e-app/run.mjs`: 알림 칸의 상태(준비 중·꺼짐)와 오프라인 껍데기(처음 한 번 연 바로 뒤 `context.setOffline`하고 새로 고침), Cache Storage에 `/api` 없음. 실제 켜기는 quickstart 2를 손으로 하고 결과를 이 줄에 적는다
+- [X] T040 [US5] `server/db/migrations/009_push.sql`(data-model)과 `server/limits.ts`의 새 값. `server/db/migrate.test.ts`가 통과하는지 본다
+- [X] T041 [P] [US5] 시험과 구현: `server/push/endpoint.ts`(R5)와 시험(정한 네 host, `fcm.googleapis.com.evil.com`·IP·`http:`·포트·`user@` 거절, 키 길이)
+- [X] T042 [P] [US5] 시험과 구현: `server/push/message.ts`(R8)와 시험(하나·둘·넷, 40자, 종류 차례, 4KB)
+- [X] T043 [US5] 시험: `server/push/targets.test.ts` — 마감 오늘·3일·2일·없음, 사람 판정으로 바뀐 마감, 내려감·공지 아님·닫힘, 취소, 다시 볼 날 오늘·내일, 동의 판 옛것, 만료 세션, 100가지 경우표(SC-004)
+- [X] T044 [US5] `server/push/targets.ts`(R7의 질의)
+- [X] T045 [US5] 시험: `server/push/routes.test.ts` — 켜기·끄기, 로그아웃·계정 지우기로 사라짐, 같은 주소를 다른 학생이 켬, 11대째, 준비 전 404(공개 키나 `KINGO_PUBLIC_URL` 없음), 동의 전 403, 다른 학생 것에 닿지 못함
+- [X] T046 [US5] `server/push/routes.ts`와 `server/app.ts`·`server/config.ts`(`pushPublicKey`, `publicUrl`) 잇기. `/api/me`의 `push`
+- [X] T047 [US5] 의존성 `web-push@4.0.0`(정확한 판), `server/push/web-push.d.ts`
+- [X] T048 [US5] 시험: `server/push/send.test.ts` — 보냄·410(구독 지움)·500 뒤 한 번 더·또 실패, 두 번 돌리면 0, `sending`으로 남은 것은 안 보냄, 08:59·21:00(다시 보낼 때도), 손으로 다시 돌려도 두 번까지, 기기 둘(통으로 셈), 키 없음은 끝 코드 1, TTL, 30일 지난 기록, 출력에 제목·주소 없음
+- [X] T049 [US5] `server/push/send.ts`(R7)와 `server/cli.ts`의 `notify`·`push-keys`(contracts/cli.md, `server/cli.test.ts`)
+- [X] T050 [US5] `server/outbound.test.ts`: `web-push`를 가져오는 파일은 `server/push/send.ts` 하나이고(`push-keys`가 쓰는 `generateVAPIDKeys`도 여기서 다시 내보낸다) api가 시작할 때 가져오는 파일 묶음(`server/main.ts`에서 따라간 import)에 없음을 본다
+- [X] T051 [P] [US5] `web/app/public/sw.js`(R3), `web/app/public/manifest.webmanifest`, 아이콘(R3 (7), SVG 하나에서 192·512·maskable·apple-touch). `sw.js`의 알림 꼴 검사는 `web/app/src/sw.test.ts`에서 파일을 읽어 가짜 전역으로 돌린다
+- [X] T052 [US5] 시험과 구현: `web/app/src/lib/push.ts`(상태: 지원 안 함·설치 필요·막힘·준비 중·꺼짐·켜짐, 켜기·끄기, app.md 9)와 시험
+- [X] T053 [US5] `web/app/src/screens/Push.tsx`(FR-036·FR-039), `ActionBar`의 '마감 전에 알려 드릴까요?' 한 번, `Home`의 아이폰 안내 한 번, `main.tsx`의 서비스 워커 등록
+- [X] T054 [P] [US5] `deploy/`: `kingo-notify.service`·`.timer`, `compose.yaml`(jobs에만 `kingo.push.env`), `kingo.env.example`, `kingo.push.env.example`, `.gitignore`와 `.dockerignore`에 `deploy/kingo.push.env`(이미지는 `COPY . .`라 빠지면 개인 키가 api에도 들어간다), `consent.dev.md`를 `dev-2`로(FR-040)
+- [X] T055 [US5] `scripts/e2e-app/run.mjs`: 알림 칸의 상태(준비 중·꺼짐)와 오프라인 껍데기(처음 한 번 연 바로 뒤 `context.setOffline`하고 새로 고침), Cache Storage에 `/api` 없음. 실제 켜기는 이 맥의 크롬으로 확인했다(2026-11-25, 시험 DB와 새 키): 켜기 → `notify` 1통이 0.8초 안에 도착(제목·'오늘 마감'·`/notices/cse%3A1`) → 다시 돌리면 0통 → 로그아웃 뒤 구독 0. 아이폰·안드로이드는 HTTPS 주소 뒤(FR-070 (5))
 
 **Checkpoint**: PR E(`/security-review` 포함). 동의 문구 초안 문서(Claude Docs)에도 문장을 더한다.
 

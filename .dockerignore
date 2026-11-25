@@ -7,6 +7,7 @@ etl/out/fields-compare*.json
 .env
 .env.*
 deploy/kingo.env
+deploy/kingo.push.env
 deploy/.env
 deploy/config
 web/ops/dist

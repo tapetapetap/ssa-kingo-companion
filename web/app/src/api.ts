@@ -37,7 +37,7 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
 export const messageOf = (e: unknown) => (e instanceof ApiError ? e.message : '잠시 뒤에 다시 해 주세요');
 
 export type Next = 'consent' | 'answers' | 'fields' | 'home';
-export type Me = { dept: string; next: Next; analysisOff: boolean; tag: string };
+export type Me = { dept: string; next: Next; analysisOff: boolean; tag: string; push: { ready: boolean; on: boolean } };
 export type Answers = { grade: number; term: number; goal: string; answeredAt: string };
 export type FieldList = { groups: { id: string; name: string; parent: string | null }[]; fields: { id: string; name: string; group: string; desc: string }[] };
 type Named = { id: string; name: string };

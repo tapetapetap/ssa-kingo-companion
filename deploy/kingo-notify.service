@@ -1,0 +1,12 @@
+# 마감 알림 한 번(3단계 research R7). /etc/systemd/system/에 두고 kingo-notify.timer가 부른다
+[Unit]
+Description=킹고 마감 알림
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# 실패한 것은 10분 뒤 한 번 더 보낸다
+TimeoutStartSec=1h
+WorkingDirectory=/opt/kingo
+ExecStart=/usr/bin/docker compose -f deploy/compose.yaml run --rm jobs node server/cli.ts notify

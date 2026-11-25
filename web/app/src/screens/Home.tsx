@@ -17,6 +17,7 @@ import { homeEmpty } from '../lib/empty.ts';
 import { flag, setFlag } from '../lib/flags.ts';
 import { useLoad } from '../lib/load.ts';
 import { gradeText, kindName } from '../lib/notice.ts';
+import { isIos, isStandalone } from '../lib/push.ts';
 import { hidden, useActions, withCards } from '../lib/store.ts';
 import { HOME_REFRESH_MS, UNDO_MS } from '../lib/values.ts';
 import { ActionBar } from '../parts/ActionBar.tsx';
@@ -108,6 +109,20 @@ function NewTerm() {
   );
 }
 
+/** 아이폰에서 설치하지 않았으면 한 번 안내한다(FR-039) */
+function Install() {
+  const [closed, setClosed] = useState(() => !isIos() || isStandalone() || !!flag('install'));
+  if (closed) return null;
+  return (
+    <Card padding={4}>
+      <HStack justify="between" vAlign="start" gap={2}>
+        <VStack gap={1}><Text weight="semibold">홈 화면에 추가하면 마감 알림을 받아요</Text><Text color="secondary">Safari의 공유 버튼을 누르고 홈 화면에 추가를 골라 주세요.</Text></VStack>
+        <IconButton label="닫기" variant="ghost" size="lg" icon={<Icon icon="close" />} onClick={() => { setFlag('install'); setClosed(true); }} />
+      </HStack>
+    </Card>
+  );
+}
+
 export function Home() {
   const { data, error, reload, refresh, cancel } = useLoad(() => withCards<Data>('GET', '/api/home', cards), [], 'home');
   useActions();
@@ -134,6 +149,7 @@ export function Home() {
     <Page>
       <Text size="sm" color="secondary">{today()}</Text>
       <NewTerm />
+      <Install />
       {undo ? (
         <Card padding={4}>
           <HStack gap={2} justify="between" vAlign="center" wrap="wrap">

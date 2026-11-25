@@ -29,5 +29,6 @@ etl/out/fields-compare*.json
 
 # 학교 데스크톱 묶음의 설정과 비밀(research R20)
 deploy/kingo.env
+deploy/kingo.push.env
 deploy/.env
 deploy/config/

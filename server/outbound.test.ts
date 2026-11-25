@@ -16,6 +16,19 @@ describe('바깥으로 나가는 곳 (SC-009, FR-042)', () => {
     expect(open.every(p => ['server/model.ts', 'server/jobs/status.ts'].includes(p))).toBe(true);
   });
 
+  it('web-push를 가져오는 곳은 push/send.ts 하나이고, api(main.ts)가 시작할 때 가져오는 파일에는 없다(3단계 FR-037)', () => {
+    expect(src.filter(f => /from 'web-push'/.test(f.text)).map(f => f.path)).toEqual(['server/push/send.ts']);
+    const seen = new Set<string>();
+    const walk = (path: string) => {
+      if (seen.has(path)) return;
+      seen.add(path);
+      for (const m of readFileSync(join(ROOT, path), 'utf8').matchAll(/(?:from|import\()\s*'(\.[^']+\.ts)'/g)) walk(relative(ROOT, resolve(ROOT, path, '..', m[1])));
+    };
+    walk('server/main.ts');
+    expect(seen.has('server/push/routes.ts')).toBe(true);
+    expect([...seen].filter(p => p === 'server/push/send.ts' || p === 'server/cli.ts')).toEqual([]);
+  });
+
   it('server/가 가져오는 etl/ 파일은 정한 목록뿐이다', () => {
     const allowed = ['etl/taxonomy/taxonomy.ts', 'etl/notices/embed.ts', 'etl/notices/throttle.ts', 'etl/notices/sensors.ts', 'etl/notices/llm.ts',
       'etl/notices/fields.ts', 'etl/notices/cse.ts', 'etl/notices/gold.ts', 'etl/notices/classify.ts'];

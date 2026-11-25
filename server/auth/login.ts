@@ -5,6 +5,7 @@ import type { Sql } from '../db/sql.ts';
 import { HttpError, kstIso, type Req, type Res, type Route } from '../http.ts';
 import { LIMITS } from '../limits.ts';
 import type { Ctx } from '../app.ts';
+import { pushOn, pushReady } from '../push/routes.ts';
 import { verifyPassword } from './password.ts';
 import { COOKIE, createSession, deleteSession, findSession, sessionCookie } from './sessions.ts';
 
@@ -85,7 +86,7 @@ export function authRoutes(ctx: Ctx, next: (id: number) => Promise<string>): Rou
     ['GET', '/api/me', async req => {
       const s = await requireStudent(ctx, req);
       const [st] = await ctx.sql<{ dept: string; analysis_off: boolean }[]>`select dept, analysis_off from students where id = ${s.id}`;
-      return { body: { dept: st.dept, next: await next(s.id), analysisOff: st.analysis_off, tag: studentTag(s.id) }, headers: s.headers };
+      return { body: { dept: st.dept, next: await next(s.id), analysisOff: st.analysis_off, tag: studentTag(s.id), push: { ready: pushReady(ctx), on: await pushOn(ctx.sql, req) } }, headers: s.headers };
     }],
     ['DELETE', '/api/me', async req => {
       const s = await requireStudent(ctx, req);

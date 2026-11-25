@@ -5,7 +5,8 @@ import type { Sql } from '../db/sql.ts';
 import { LIMITS } from '../limits.ts';
 
 export const COOKIE = 'kingo_session';
-const digest = (token: string) => createHash('sha256').update(token).digest();
+/** 쿠키 토큰의 DB 쪽 모습 */
+export const digest = (token: string) => createHash('sha256').update(token).digest();
 
 export async function createSession(sql: Sql, studentId: number): Promise<string> {
   const token = randomBytes(32).toString('base64url');

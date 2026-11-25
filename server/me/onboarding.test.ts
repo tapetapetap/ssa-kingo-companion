@@ -84,6 +84,6 @@ describe('동의·처음 질문·분야 (US2, FR-015~018)', () => {
     expect(readConsent(join(dir, 'a.md'))).toEqual({ version: 'dev-1', text: '동의 문구예요.' });
     writeFileSync(join(dir, 'b.md'), '동의 문구');
     expect(() => readConsent(join(dir, 'b.md'))).toThrow("첫 줄이 'version: <판>'");
-    expect(readConsent(new URL('../../deploy/consent.dev.md', import.meta.url).pathname).version).toBe('dev-1');
+    expect(readConsent(new URL('../../deploy/consent.dev.md', import.meta.url).pathname).version).toBe('dev-2');
   });
 });

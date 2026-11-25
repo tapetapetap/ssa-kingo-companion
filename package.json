@@ -26,7 +26,8 @@
     "@astryxdesign/core": "^0.7.17",
     "postgres": "^3.4.9",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "web-push": "4.0.0"
   },
   "devDependencies": {
     "@astryxdesign/cli": "^0.7.17",
