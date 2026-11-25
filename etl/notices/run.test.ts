@@ -327,6 +327,17 @@ describe('judgeAll (스펙 2)', () => {
     expect(ask.mock.calls).toHaveLength(2); // 기본은 '모든 글' 방식이라 본문을 받은 두 글을 모두 묻는다
     expect(log.mock.calls).toEqual([['새 글 2 · 기회 2 · 기회 아님 0 · 확인 필요 0 · 합친 중복 0 · 마감 빈칸 0 · LLM 판정 2(보관 1 · 새로 1 · 실패 0)']]);
   });
+
+  it('json이면 끝에 숫자만 담은 요약JSON 한 줄을 더 낸다. 글이나 본문은 없다(3단계 R10)', async () => {
+    const { log } = quiet();
+    const dir = tmp();
+    const job: LlmOutcome = { answer: { verdict: 'O', kind: 'job', host: null, sure: true }, cached: false };
+    expect(await main(['2026-10-01'], fakeBoard([2, 1]).get, join(dir, 'out.json'), join(dir, 'cache'), fake({ 1: job, 2: 'fail' }), { json: true, field: { reason: '분야를 넣지 않았어요' } })).toBe(0);
+    const line = String(log.mock.calls.at(-1)![0]);
+    expect(line.startsWith('요약JSON: ')).toBe(true);
+    expect(JSON.parse(line.slice('요약JSON: '.length))).toMatchObject({ fetched: 2, new: { opportunity: 2, not: 0, review: 0 }, llm: { cached: 0, fresh: 1, failed: 1, skipped: 0 }, field: null, fieldReason: '분야를 넣지 않았어요' });
+    expect(line).not.toContain('title');
+  });
 });
 
 // 스펙 3: 부하 제한. 문(gate)과 부하 요약(load)은 가짜라 센서와 Ollama를 부르지 않는다

@@ -1,0 +1,12 @@
+# 운영자 요청 처리(3단계 research R9). /etc/systemd/system/에 두고 kingo-requests.timer가 10분마다 부른다. 도는 동안은 다시 시작되지 않는다
+[Unit]
+Description=킹고 운영자 요청(한 번 더 돌리기, 모델 재기)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# 모델 재기는 밤 시간(22:00~07:00 안) 동안 돈다
+TimeoutStartSec=9h
+WorkingDirectory=/opt/kingo
+ExecStart=/usr/bin/docker compose -f deploy/compose.yaml run --rm jobs node server/cli.ts requests

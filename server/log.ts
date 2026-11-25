@@ -16,3 +16,6 @@ export function logError(route: string, e: unknown, write: Write = stdout) {
   const message = e instanceof Error ? `${e.name}: ${e.message.split('\n')[0]}` : 'unknown';
   write(JSON.stringify({ at: new Date().toISOString(), kind: 'error', route, message }));
 }
+
+/** 오류 글에서 비밀이 든 주소(postgres://사용자:비밀번호@…)를 가린다. 자식 프로세스의 오류는 명령 인자를 그대로 싣는다 */
+export const hideSecrets = (text: string) => text.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s/@]+@\S*/gi, '(주소 가림)');
