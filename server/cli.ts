@@ -4,7 +4,7 @@ import { accountCommand } from './auth/accounts.ts';
 import { loadConfig, type Mode } from './config.ts';
 import { migrate } from './db/migrate.ts';
 import { connect, type Sql } from './db/sql.ts';
-import { openModel } from './model.ts';
+import { currentModel, openModel } from './model.ts';
 import { ingest, summaryLine, type IngestDeps } from './ingest/ingest.ts';
 import { runRequests } from './ops/requests.ts';
 import { exportGold } from './ops/export.ts';
@@ -124,7 +124,7 @@ async function runIngest(sql: Sql, a: NonNullable<ReturnType<typeof ingestArgs>>
     return 1;
   }
   // 넣기의 임베딩도 부하 제한 하나와 모델 잠금을 지난다(research R7, T054b)
-  const model = extra.embed ? null : openModel(sql, 'ingest');
+  const model = extra.embed ? null : openModel(sql, 'ingest', { model: await currentModel(sql) });
   try {
     const embed = extra.embed ?? model!.embed;
     const r = await ingest(input, a.taxonomy, { switch: a.switch, dryRun: a.dryRun }, { sql, mode, embed, ...extra });

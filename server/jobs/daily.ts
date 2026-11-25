@@ -13,7 +13,7 @@ import { rebuild } from '../analysis/store.ts';
 import type { Mode } from '../config.ts';
 import type { Sql } from '../db/sql.ts';
 import { ingest, type IngestResult } from '../ingest/ingest.ts';
-import { openModel, withModelLock, type Model } from '../model.ts';
+import { classifierEnv, currentModel, olderModels, openModel, withModelLock, type Model } from '../model.ts';
 import { enqueue } from '../pick/queue.ts';
 import { buildMap } from '../ops/map.ts';
 import { kstDay, saveCounts } from '../ops/counts.ts';
@@ -28,12 +28,12 @@ export type DailyDeps = {
   sql: Sql; mode: Mode; databaseUrl: string; backupDir: string | null; skipClassifier?: boolean;
   now?: () => Date;
   /** 분류기 자식 프로세스. 끝 코드와 표준 출력 */
-  classifier?: () => Promise<{ code: number; stdout: string }>;
+  classifier?: (env: Record<string, string>) => Promise<{ code: number; stdout: string }>;
   ingestFile?: (taxonomyId: string, model: Model) => Promise<IngestResult>;
   backup?: () => Promise<string>;
   model?: () => Model;
   /** 다시 판정할 글 번호의 분류기 보관 셋(research R11) */
-  cachePaths?: (no: number, model: string) => string[];
+  cachePaths?: (no: number, models: string[]) => string[];
   pollMs?: number;
   /** 지금 동의 문구의 판. 없으면 하루 숫자를 남기지 않는다 */
   consentVersion?: string;
@@ -48,10 +48,10 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const OUT_FILE = join(ROOT, 'etl/out/cse-notices.json');
 
 /** 분류기를 자식 프로세스로 돌린다. 표준 오류는 그대로 흘려 보낸다 */
-function runClassifier(): Promise<{ code: number; stdout: string }> {
+function runClassifier(env: Record<string, string>): Promise<{ code: number; stdout: string }> {
   return new Promise(ok => {
     // 멈춘 분류기가 모델 잠금을 붙들지 않게 4시간이 지나면 끝낸다
-    const p = spawn(process.execPath, ['etl/notices/run.ts'], { cwd: ROOT, env: { ...process.env, KINGO_RUN_JSON: '1' }, stdio: ['ignore', 'pipe', 'inherit'], timeout: 4 * 3600_000 });
+    const p = spawn(process.execPath, ['etl/notices/run.ts'], { cwd: ROOT, env: { ...process.env, ...env, KINGO_RUN_JSON: '1' }, stdio: ['ignore', 'pipe', 'inherit'], timeout: 4 * 3600_000 });
     let out = '';
     p.stdout.on('data', d => { out += String(d); });
     p.on('close', code => ok({ code: code ?? 1, stdout: out }));
@@ -60,9 +60,8 @@ function runClassifier(): Promise<{ code: number; stdout: string }> {
 }
 
 /** 본문 보관본, 기회 판정 보관 답, 분야 판정 보관 답(research R11). 분야 답은 분류기가 고른 목록(파일의 chosen)이 DB의 활성 목록과
- *  다를 수 있어 읽히는 목록마다 지운다 */
-export const rejudgePaths = (no: number, model: string) => [
-  join(CACHE_DIR, `${no}.html`),
+ *  다를 수 있어 읽히는 목록마다 지운다. 앞 모델의 답도 지운다(남으면 그것을 다시 읽어 다시 판정이 되지 않는다, 3단계 R14) */
+export const rejudgePaths = (no: number, models: string[]) => [join(CACHE_DIR, `${no}.html`), ...models.flatMap(model => [
   join(LLM_CACHE_DIR, modelDir(model), PROMPT_VERSION, `${no}.json`),
   ...TAXONOMY_IDS.flatMap(id => {
     try {
@@ -71,7 +70,7 @@ export const rejudgePaths = (no: number, model: string) => [
       return [];
     }
   })
-];
+])];
 
 /** 분류기가 끝에 낸 숫자. 없거나 읽지 못하면 비운다(단계는 실패가 아니다) */
 function classifierCounts(stdout: string): Record<string, unknown> {
@@ -132,7 +131,9 @@ async function run(d: DailyDeps): Promise<DailyRun> {
       steps[name] = { ok: false, skipped: false, seconds: (Date.now() - t0) / 1000, error: hideSecrets(e instanceof Error ? e.message : String(e)) };
     }
   };
-  const model = (d.model ?? (() => openModel(sql, 'daily')))();
+  const name = await currentModel(sql);
+  const models = [name, ...await olderModels(sql)];
+  const model = d.model?.() ?? openModel(sql, 'daily', { model: name });
   const active = async () => (await sql<{ id: string }[]>`select id from taxonomies where active`)[0]?.id ?? null;
   let classifierLine: string | null = null;
   let marks: string[] = [];
@@ -141,13 +142,14 @@ async function run(d: DailyDeps): Promise<DailyRun> {
     await step('rejudge', async () => {
       marks = (await sql<{ notice_id: string }[]>`select notice_id from rejudge_marks`).map(r => r.notice_id);
       if (!marks.length) return 'skipped';
-      for (const id of marks) for (const p of (d.cachePaths ?? rejudgePaths)(Number(id.split(':')[1]), model.name)) rmSync(p, { force: true });
+      for (const id of marks) for (const p of (d.cachePaths ?? rejudgePaths)(Number(id.split(':')[1]), models)) rmSync(p, { force: true });
       return { notices: marks.length };
     });
     await step('classifier', async () => {
       if (d.skipClassifier) return 'skipped';
       // 분류기의 모델 요청이 api의 다시 고르기와 함께 가지 않게 모델 잠금을 잡고 돌린다(research R7)
-      const r = await withModelLock(sql, () => (d.classifier ?? runClassifier)());
+      const env = await classifierEnv(sql);
+      const r = await withModelLock(sql, () => (d.classifier ?? runClassifier)(env));
       classifierLine = r.stdout.split('\n').find(l => l.startsWith('부하:')) ?? null;
       if (r.code !== 0) throw new Error(`분류기가 ${r.code}로 끝났어요`);
       return classifierCounts(r.stdout);

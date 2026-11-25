@@ -8,5 +8,6 @@ export const LIMITS = {
   bodyBytes: 64 * 1024, backupDays: 7, dailyHour: 3, dailyStopHour: 7, minFields: 3,
   pushDevices: 10, pushKeepDays: 30, pushTitleChars: 40, pushFrom: 9, pushUntil: 21, pushRetryMinutes: 10, endpointChars: 1000, pushTimeoutMs: 10_000,
   alertRuns: 2, alertFailPercent: 10, alertStaleHours: 36, monitorDays: 14, editRateDays: 30, dailyWaitMinutes: 30,
-  mapDays: 90, mapKeep: 7, mapPairs: 10, mapEmptyMin: 3, mapMinFields: 12
+  mapDays: 90, mapKeep: 7, mapPairs: 10, mapEmptyMin: 3, mapMinFields: 12,
+  trialOppSample: 120, trialFailPercent: 5, trialNightFrom: 22 * 60, trialNightTo: 2 * 60 + 50, trialMorningFrom: 3 * 60, trialMorningTo: 7 * 60
 } as const;

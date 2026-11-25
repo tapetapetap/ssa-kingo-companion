@@ -1,11 +1,11 @@
 // 모델 요청(research R7, contracts/llm.md): 부하 제한 하나와 chat·embed를 묶어 준다. 요청은 모델 잠금 안에서 한 번에 하나만 간다
 import { makeEmbed, type Embed } from '../etl/notices/embed.ts';
-import { DEFAULT_MODEL, fetchPost, ollamaBase, postOnce, type Post } from '../etl/notices/llm.ts';
+import { DEFAULT_MODEL, fetchPost, ollamaBase, postOnce, type Gate, type Post } from '../etl/notices/llm.ts';
 import { createThrottle, type LoadSummary, type ThrottleDeps } from '../etl/notices/throttle.ts';
 import type { Sql } from './db/sql.ts';
 
 export const MODEL_OPTIONS = { temperature: 0, num_ctx: 8192 };
-export type Who = 'api' | 'daily' | 'ingest';
+export type Who = 'api' | 'daily' | 'ingest' | 'trial';
 export type ChatOut = { text: string } | 'fail' | 'down';
 export type Chat = (system: string, user: string, schema: object) => Promise<ChatOut>;
 export type Model = { name: string; chat: Chat; embed: Embed; readonly noTemp: number; close: () => Promise<LoadSummary> };
@@ -35,9 +35,33 @@ export async function installedModels(host?: string): Promise<Installed[]> {
   return models.map(m => ({ name: m.name, size: m.size ?? 0, parameterSize: m.details?.parameter_size || null, family: m.details?.family ?? '' }));
 }
 
+/** 처음 모델: 바꾼 기록이 없을 때의 지금 모델 */
+export const firstModel = () => process.env.KINGO_LLM_MODEL || DEFAULT_MODEL;
+/** 지금 모델(3단계 research R14): 마지막으로 바꾼 모델, 없으면 처음 모델 */
+export async function currentModel(sql: Sql): Promise<string> {
+  const [c] = await sql<{ new_model: string }[]>`select new_model from model_changes order by id desc limit 1`;
+  return c?.new_model ?? firstModel();
+}
+/** 지금 모델 앞의 모델들(최근 것부터, 지금 모델은 뺀다). 이 모델들의 보관 답은 다시 묻지 않고 그대로 쓴다 */
+export async function olderModels(sql: Sql): Promise<string[]> {
+  const rows = await sql<{ old_model: string; new_model: string }[]>`select old_model, new_model from model_changes order by id desc`;
+  const now = rows[0]?.new_model ?? firstModel();
+  return [...new Set([...rows.flatMap(r => [r.new_model, r.old_model]), firstModel()])].filter(m => m !== now);
+}
+/** 분류기에 넘길 환경: 지금 모델, 앞 모델들, 지금 모델이 된 재기 결과(분야를 넣어도 되는 근거) */
+export async function classifierEnv(sql: Sql): Promise<Record<string, string>> {
+  const [c] = await sql<{ new_model: string; field_version: string | null; metrics: { corePrecision: { num: number; den: number } } | null }[]>`
+    select c.new_model, t.field_version, t.metrics from model_changes c left join model_trials t on t.id = c.trial_id order by c.id desc limit 1`;
+  const p = c?.metrics?.corePrecision;
+  return {
+    KINGO_LLM_MODEL: await currentModel(sql), KINGO_LLM_OLDER: (await olderModels(sql)).join(','),
+    ...(c?.field_version && p ? { KINGO_FIELD_MEASURED: JSON.stringify({ prompt: c.field_version, model: c.new_model, num: p.num, den: p.den }) } : {})
+  };
+}
+
 /** 부하 제한 하나를 연다. close()는 요약을 model_bursts에 한 줄 남긴다(요청이 0이면 남기지 않는다) */
 export function openModel(sql: Sql, who: Who, d: ModelDeps = {}): Model {
-  const name = d.model ?? (process.env.KINGO_LLM_MODEL || DEFAULT_MODEL);
+  const name = d.model ?? firstModel();
   const base = ollamaBase(d.host ?? process.env.OLLAMA_HOST);
   const post = d.post ?? fetchPost;
   const throttle = createThrottle(d.throttle);
@@ -66,12 +90,21 @@ export function openModel(sql: Sql, who: Who, d: ModelDeps = {}): Model {
   return {
     name, chat, embed,
     get noTemp() { return gate.noTemp; },
-    close: () => (closed ??= (async () => {
-      const s = throttle.stop();
-      if (!s.requests) return s;
-      await sql`insert into model_bursts (who, started_at, ended_at, requests, request_ms, gpu_avg, temp_max)
-        values (${who}, ${started}, ${new Date()}, ${s.requests}, ${s.requestMs}, ${s.gpuAvg}, ${s.tempMax})`;
-      return s;
-    })())
+    close: () => (closed ??= saveBurst(sql, who, started, throttle.stop()))
   };
+}
+async function saveBurst(sql: Sql, who: Who, started: Date, s: LoadSummary): Promise<LoadSummary> {
+  if (!s.requests) return s;
+  await sql`insert into model_bursts (who, started_at, ended_at, requests, request_ms, gpu_avg, temp_max)
+    values (${who}, ${started}, ${new Date()}, ${s.requests}, ${s.requestMs}, ${s.gpuAvg}, ${s.tempMax})`;
+  return s;
+}
+
+/** 모델 재기용: 부하 제한과 임베딩만 준다. 잠금을 잡지 않으니 부르는 쪽이 withModelLock 안에서 쓴다(안에서 또 잡으면 서로 기다린다) */
+export function openUnlocked(sql: Sql, who: Who, d: ModelDeps = {}): { embed: Embed; gate: Gate; close: () => Promise<LoadSummary> } {
+  const throttle = createThrottle(d.throttle);
+  const gate = throttle.gate();
+  const started = new Date();
+  let closed: Promise<LoadSummary> | null = null;
+  return { gate, embed: makeEmbed({ host: d.host, post: d.post ?? fetchPost, gate }), close: () => (closed ??= saveBurst(sql, who, started, throttle.stop())) };
 }
