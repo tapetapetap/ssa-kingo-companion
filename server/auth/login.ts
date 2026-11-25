@@ -1,5 +1,6 @@
 // 로그인(US2, research R5·R6): 로그인 방식은 { kind, verify }로 바꿔 끼운다. 2단계에 동작하는 방식은 개발 로그인(dev)이고 시험 안에만 test가 있다.
 // 학생 자료는 students.id에 붙고 login_methods가 그 학생을 가리킨다(FR-009)
+import { createHash } from 'node:crypto';
 import type { Sql } from '../db/sql.ts';
 import { HttpError, kstIso, type Req, type Res, type Route } from '../http.ts';
 import { LIMITS } from '../limits.ts';
@@ -55,9 +56,13 @@ export async function requireStudent(ctx: Ctx, req: Req): Promise<{ id: number; 
   return { id: s.studentId, headers: s.touched ? { 'set-cookie': sessionCookie(req.cookies[COOKIE], ctx.mode === 'prod') } : {} };
 }
 
+/** 앱이 '쓰던 글'을 다른 학생에게 보이지 않으려고 견주는 표시(3단계 R16). 화면에 보이지 않는다 */
+const studentTag = (id: number) => createHash('sha256').update(String(id)).digest('hex').slice(0, 8);
+
 export function authRoutes(ctx: Ctx, next: (id: number) => Promise<string>): Route[] {
   const secure = ctx.mode === 'prod';
   return [
+    ['GET', '/api/login/methods', () => ({ body: { methods: Object.keys(ctx.methods).filter(m => !(secure && m === 'dev')) } })],
     ['POST', '/api/login', async (req): Promise<Res> => {
       const body = req.body as Record<string, unknown>;
       const method = ctx.methods[String(body.method)];
@@ -67,6 +72,8 @@ export function authRoutes(ctx: Ctx, next: (id: number) => Promise<string>): Rou
       const id = await method.verify(ctx.sql, body);
       req.student = id;
       await ctx.sql`update students set last_seen_at = now() where id = ${id}`;
+      // 한 기기를 두 학생이 쓸 때 앞 학생의 로그인(과 그에 붙은 알림 구독)을 끝낸다(3단계 R6)
+      if (req.cookies[COOKIE]) await deleteSession(ctx.sql, req.cookies[COOKIE]);
       const token = await createSession(ctx.sql, id);
       return { body: { next: await next(id) }, headers: { 'set-cookie': sessionCookie(token, secure) } };
     }],
@@ -78,7 +85,7 @@ export function authRoutes(ctx: Ctx, next: (id: number) => Promise<string>): Rou
     ['GET', '/api/me', async req => {
       const s = await requireStudent(ctx, req);
       const [st] = await ctx.sql<{ dept: string; analysis_off: boolean }[]>`select dept, analysis_off from students where id = ${s.id}`;
-      return { body: { dept: st.dept, next: await next(s.id), analysisOff: st.analysis_off }, headers: s.headers };
+      return { body: { dept: st.dept, next: await next(s.id), analysisOff: st.analysis_off, tag: studentTag(s.id) }, headers: s.headers };
     }],
     ['DELETE', '/api/me', async req => {
       const s = await requireStudent(ctx, req);

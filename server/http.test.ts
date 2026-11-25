@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { connect } from 'node:net';
 import { join } from 'node:path';
 import { health, HttpError, kstIso, match, parseCookies, type Route } from './http.ts';
 import { testApp } from './test/app.ts';
@@ -87,6 +88,60 @@ describe('운영자 화면 파일 (contracts/api.md 정적 파일)', () => {
     await ops.close();
     const none = await testApp([], join(root, 'nope'));
     expect((await none.request('GET', '/ops/')).status).toBe(404);
+    await none.close();
+  });
+});
+
+describe('학생 앱 파일 (3단계 research R2)', () => {
+  let web: Awaited<ReturnType<typeof testApp>>;
+  let root: string;
+  beforeAll(async () => {
+    root = mkdtempSync(join(tmpdir(), 'app-'));
+    const dir = join(root, 'dist');
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    writeFileSync(join(dir, 'index.html'), '<!doctype html>킹고');
+    writeFileSync(join(dir, 'assets', 'x.js'), 'x=1');
+    writeFileSync(join(dir, 'manifest.webmanifest'), '{}');
+    writeFileSync(join(dir, 'sw.js'), '//');
+    writeFileSync(join(root, 'package.json'), '비밀');
+    writeFileSync(join(root, 'secret'), '비밀');
+    mkdirSync(join(root, 'ops'));
+    writeFileSync(join(root, 'ops', 'index.html'), '운영');
+    web = await testApp(routes, join(root, 'ops'), dir);
+  });
+  afterAll(async () => { await web.close(); });
+
+  it('/와 앱 안 주소는 index.html이고 CSP·no-cache, 모든 파일에 nosniff', async () => {
+    for (const p of ['/', '/notices/cse%3A1', '/me', '/assets', '/%E0%A4%A']) {
+      const r = await web.request('GET', p);
+      expect([p, r.status, r.body]).toEqual([p, 200, '<!doctype html>킹고']);
+      expect(r.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+      expect(r.headers.get('cache-control')).toBe('no-cache');
+      expect(r.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(r.headers.get('referrer-policy')).toBe('same-origin');
+    }
+  });
+
+  it('/assets는 오래 보관하고, 서비스 워커와 manifest는 보관하지 않는다', async () => {
+    const js = await web.request('GET', '/assets/x.js');
+    expect([js.status, js.headers.get('content-type'), js.headers.get('cache-control')]).toEqual([200, 'text/javascript; charset=utf-8', 'public, max-age=31536000, immutable']);
+    expect((await web.request('GET', '/sw.js')).headers.get('cache-control')).toBe('no-cache');
+    const m = await web.request('GET', '/manifest.webmanifest');
+    expect([m.headers.get('content-type'), m.headers.get('cache-control'), m.headers.get('x-content-type-options')]).toEqual(['application/manifest+json', 'no-cache', 'nosniff']);
+  });
+
+  it('없는 파일(확장자 있음)·폴더 밖·없는 API·GET이 아닌 것은 404, /ops/는 그대로', async () => {
+    for (const p of ['/assets/y.js', '/x.png', '/../package.json', '/%2e%2e/package.json', '/..%2fpackage.json', '/..%2fsecret', '/assets/..%2f..%2fsecret']) expect([p, (await web.request('GET', p)).status]).toEqual([p, 404]);
+    const raw = await new Promise<string>(ok => { const s = connect(Number(new URL(web.base).port), '127.0.0.1', () => s.end('GET // HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n')); s.on('data', d => ok(String(d))); });
+    expect(raw).toMatch(/^HTTP\/1\.1 404/); // 주소로 읽지 못해도 서버가 죽지 않는다
+    expect(await web.request('GET', '/api/nope')).toMatchObject({ status: 404, body: { error: { code: 'not_found' } } });
+    expect((await web.request('GET', '/api')).status).toBe(404);
+    expect((await web.request('POST', '/')).status).toBe(404);
+    expect((await web.request('GET', '/ops/')).body).toBe('운영');
+    expect((await web.request('GET', '/api/health')).status).toBe(200);
+    expect(web.lines.map(l => JSON.parse(l)).some(l => l.route === '/(앱)' && l.status === 200)).toBe(true);
+    const none = await testApp([], undefined, join(root, 'nope'));
+    expect((await none.request('GET', '/')).status).toBe(404);
     await none.close();
   });
 });

@@ -10,5 +10,6 @@ deploy/kingo.env
 deploy/.env
 deploy/config
 web/ops/dist
+web/app/dist
 dist
 .qa

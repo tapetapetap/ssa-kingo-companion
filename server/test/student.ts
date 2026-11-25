@@ -16,8 +16,7 @@ export async function createDevStudent(sql: Sql, email: string, password = PASSW
 }
 
 /** 활성 목록 하나(시험용 custom, 분야 80개)를 넣는다 */
-export async function seedTaxonomy(sql: Sql) {
-  const t = validList('custom');
+export async function seedTaxonomy(sql: Sql, t = validList('custom')) {
   await sql`insert into taxonomies (id, name, edition, active) values (${t.id}, ${t.name}, ${t.edition}, true)`;
   for (const [i, g] of t.groups.entries()) await sql`insert into field_groups (taxonomy_id, id, name, parent_id, ord) values (${t.id}, ${g.id}, ${g.name}, ${g.parent}, ${i})`;
   for (const [i, f] of t.fields.entries()) await sql`insert into fields (taxonomy_id, id, name, group_id, description, ord) values (${t.id}, ${f.id}, ${f.name}, ${f.group}, ${f.desc}, ${i})`;
