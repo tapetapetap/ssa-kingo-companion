@@ -86,28 +86,46 @@ function send(res: ServerResponse, status: number, body: unknown, headers: Recor
   else res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }).end(JSON.stringify(body));
 }
 
-/** 운영자 화면 빌드 파일(research R17). 자료가 없어 로그인 없이 준다. 폴더가 없거나 밖을 가리키면 null(404) */
+// 빌드 파일(2단계 research R17, 3단계 R2): 운영자 화면은 /ops/, 학생 앱은 그 밖의 주소. 자료가 없어 로그인 없이 준다
 export const OPS_DIR = fileURLToPath(new URL('../web/ops/dist', import.meta.url));
-const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
-async function opsFile(path: string, dir: string): Promise<{ type: string; body: Buffer } | null> {
-  let rel: string;
+export const APP_DIR = fileURLToPath(new URL('../web/app/dist', import.meta.url));
+const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
+// astryx가 인라인 style을 쓴다
+const CSP = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'";
+type File = { type: string; body: Buffer };
+/** 폴더 안의 파일. 없으면 null, 폴더 밖을 가리키면 'outside' */
+async function staticFile(dir: string, rel: string): Promise<File | 'outside' | null> {
+  let file: string;
   try {
-    rel = decodeURIComponent(path.replace(/^\/ops\/?/, '')) || 'index.html';
+    file = resolve(dir, decodeURIComponent(rel) || 'index.html');
   } catch {
     return null;
   }
-  const file = resolve(dir, rel);
-  if (!file.startsWith(resolve(dir) + sep)) return null;
+  if (!file.startsWith(resolve(dir) + sep)) return 'outside';
   try {
     return { type: TYPES[extname(file)] ?? 'application/octet-stream', body: await readFile(file) };
   } catch {
     return null;
   }
 }
+async function sendFile(res: ServerResponse, path: string, opsDir: string, appDir: string) {
+  const ops = path === '/ops' || path.startsWith('/ops/');
+  let f = ops ? await staticFile(opsDir, path.replace(/^\/ops\/?/, '')) : await staticFile(appDir, path.slice(1));
+  // 앱 안 주소(마지막 조각에 확장자가 없음)는 앱이 연다
+  if (!ops && f === null && !extname(path)) f = await staticFile(appDir, '');
+  if (f === null || f === 'outside') throw new HttpError(404, 'not_found', '찾을 수 없어요');
+  const html = !ops && f.type.startsWith('text/html');
+  res.writeHead(200, {
+    'content-type': f.type, 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin',
+    ...(ops ? {} : { 'cache-control': path.startsWith('/assets/') && !html ? 'public, max-age=31536000, immutable' : 'no-cache' }),
+    ...(html ? { 'content-security-policy': CSP } : {})
+  }).end(f.body);
+}
 
 export const health: Route = ['GET', '/api/health', () => ({ body: { ok: true } })];
 
-export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR): Server {
+export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR, appDir = APP_DIR): Server {
   return createHttp(async (req, res) => {
     const t0 = performance.now();
     const method = req.method ?? 'GET';
@@ -115,11 +133,9 @@ export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR): 
     let route = '(없음)';
     let r: Req | null = null;
     try {
-      if (method === 'GET' && (url.pathname === '/ops' || url.pathname.startsWith('/ops/'))) {
-        route = '/ops/';
-        const f = await opsFile(url.pathname, opsDir);
-        if (!f) throw new HttpError(404, 'not_found', '찾을 수 없어요');
-        res.writeHead(200, { 'content-type': f.type, 'x-content-type-options': 'nosniff' }).end(f.body);
+      if (method === 'GET' && url.pathname !== '/api' && !url.pathname.startsWith('/api/')) {
+        route = /^\/ops(\/|$)/.test(url.pathname) ? '/ops/' : '/(앱)';
+        await sendFile(res, url.pathname, opsDir, appDir);
         logRequest({ method, route, status: 200, ms: performance.now() - t0 }, write);
         return;
       }

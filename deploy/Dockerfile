@@ -13,6 +13,6 @@ COPY package.json package-lock.json ./
 # 분류기가 jsdom(dev 의존성)을 쓰므로 dev까지 받는다
 RUN npm ci --no-audit --no-fund
 COPY . .
-RUN npm run build:ops
+RUN npm run build:ops && npm run build:app
 ENV NODE_ENV=production
 CMD ["node", "server/main.ts"]

@@ -1,4 +1,7 @@
 # 문지기(research R16): 호스트의 8080을 열고 inner의 api로 넘긴다. 3단계에서 HTTPS도 여기서 맡는다
 :8080 {
+	# 앱 파일만 줄인다(API 답은 쿠키와 함께라 줄이지 않는다)
+	@files not path /api/*
+	encode @files zstd gzip
 	reverse_proxy api:8080
 }

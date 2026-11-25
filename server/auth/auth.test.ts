@@ -64,6 +64,36 @@ describe('로그인과 계정 (US2, contracts/api.md)', () => {
     expect((await app.request('GET', '/api/me')).body).toMatchObject({ dept: '지능형소프트웨어학과' });
   });
 
+  it('쓸 수 있는 로그인 방식은 로그인 없이 알려 주고, 운영에서는 개발 로그인을 뺀다(3단계 FR-010)', async () => {
+    expect(await app.request('GET', '/api/login/methods')).toMatchObject({ status: 200, body: { methods: ['dev', 'test'] } });
+    const prod = await studentApp(db.sql, { mode: 'prod' });
+    expect((await prod.request('GET', '/api/login/methods')).body).toEqual({ methods: ['test'] });
+    await prod.close();
+  });
+
+  it('로그인하면 그 기기의 앞 로그인은 끝난다. 틀린 로그인은 앞 로그인을 건드리지 않는다(3단계 R6)', async () => {
+    await createDevStudent(db.sql, 'a@example.com');
+    await createDevStudent(db.sql, 'b@example.com');
+    await login('a@example.com');
+    const old = [...app.jar].map(([k, v]) => `${k}=${v}`).join('');
+    await login('b@example.com', 'wrong pass');
+    expect((await app.request('GET', '/api/me')).status).toBe(200);
+    await login('b@example.com');
+    expect((await db.sql`select count(*)::int as n from sessions`)[0].n).toBe(1);
+    expect((await app.request('GET', '/api/me', undefined, { cookie: old })).status).toBe(401);
+  });
+
+  it('/api/me의 tag는 학생마다 다르고 번호를 드러내지 않는 8자다(3단계 R16)', async () => {
+    const tags: string[] = [];
+    for (const e of ['a@example.com', 'b@example.com']) {
+      await createDevStudent(db.sql, e);
+      await login(e);
+      tags.push(((await app.request('GET', '/api/me')).body as { tag: string }).tag);
+    }
+    expect(tags[0]).toMatch(/^[0-9a-f]{8}$/);
+    expect(tags[0]).not.toBe(tags[1]);
+  });
+
   it('계정을 지우면 자료와 로그인 수단이 모두 지워지고 그 계정으로 들어올 수 없다. 확인이 없으면 invalid', async () => {
     await createDevStudent(db.sql, 'dev1@example.com');
     await login('dev1@example.com');

@@ -12,23 +12,23 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 `web/app/vite.config.ts`, `web/app/index.html`(lang ko, viewport, manifest·아이콘 링크), `web/app/src/main.tsx`(빈 화면)를 만들고 `package.json`에 `build:app`(`vite build --config web/app/vite.config.ts`)을 더한다. 개발 서버는 `/api`를 `KINGO_API_URL`로 넘긴다
-- [ ] T002 [P] `.gitignore`에 `web/app/dist`가 빠지는지 보고(`web/ops/dist`와 같은 규칙) `tsconfig.json`의 include에 `web/app`이 드는지 확인한다
-- [ ] T003 `deploy/Dockerfile`에 `npm run build:app`, `.dockerignore`에 `web/app/dist`, `.github/workflows/ci.yml`의 빌드 줄에 `npm run build:app`을 더한다
-- [ ] T004 [P] dev 의존성 `axe-core`를 정확한 판으로 더한다(`package.json`, `package-lock.json`)
+- [X] T001 `web/app/vite.config.ts`, `web/app/index.html`(lang ko, viewport, manifest·아이콘 링크), `web/app/src/main.tsx`(빈 화면)를 만들고 `package.json`에 `build:app`(`vite build --config web/app/vite.config.ts`)을 더한다. 개발 서버는 `/api`를 `KINGO_API_URL`로 넘긴다
+- [X] T002 [P] `.gitignore`에 `web/app/dist`가 빠지는지 보고(`web/ops/dist`와 같은 규칙) `tsconfig.json`의 include에 `web/app`이 드는지 확인한다
+- [X] T003 `deploy/Dockerfile`에 `npm run build:app`, `.dockerignore`에 `web/app/dist`, `.github/workflows/ci.yml`의 빌드 줄에 `npm run build:app`을 더한다
+- [X] T004 [P] dev 의존성 `axe-core`를 정확한 판으로 더한다(`package.json`, `package-lock.json`)
 
 ## Phase 2: Foundational
 
 **목표**: 앱 파일이 `/`에서 열리고 화면을 짤 바탕(요청·주소·테마·상태 화면)이 있다. 여기까지 PR A의 앞부분이다.
 
-- [ ] T005 시험: `server/http.test.ts`에 R2의 경우를 더한다: `/`·`/notices/cse%3A1` → `index.html`과 CSP·`no-cache`, `/assets/x.js` → immutable, 없는 `/assets/y.js`·`/x.png` → 404, `/../package.json`과 `%2e%2e` → 404, `/api/없음` → JSON 404, `POST /` → 404, `/ops/` 그대로, 모든 파일에 `nosniff`
-- [ ] T006 `server/http.ts`: `opsFile`을 `staticFile(dir, rel)`로 바꾸고 앱 내주기를 더한다(R2). `createServer(routes, write, opsDir, appDir, onError)`로 넓히고 `server/test/app.ts`를 맞춘다. 요청 기록의 route는 `/(앱)`
-- [ ] T007 [P] 시험과 구현: `web/app/src/lib/date.ts`(`kstToday`, `dday(deadline, today)` → '오늘 마감'·'D-3'·'마감 지남'·'마감 없음', `termOf(day)`, `termSuggestion(answeredAt, answers, today)`)와 `date.test.ts`. 학기 경계(2/28~3/1, 8/31~9/1), 학년 올림(3월이 지난 횟수, 4 이하), 기기 시간대가 달라도 같은 값
-- [ ] T008 [P] `web/app/src/api.ts`: 요청·오류(`web/ops/src/api.ts`와 같은 꼴), 401·403 `consent_required`를 앱 사건(`app-auth`)으로 알린다. 시험 `web/app/src/api.test.ts`(HTML 오류 쪽, 네트워크 끊김은 `offline` 코드, 모르는 코드에 `message`가 없으면 '새로 고쳐 주세요')
-- [ ] T009 [P] 시험과 구현: `web/app/src/route.ts`(contracts/app.md 주소 표 읽기·만들기, `go`·`replace`·뒤로 가기, 자리 기억 Map, `safeTo(to)` 검사)와 `route.test.ts`(`//evil`, `/\evil`, `/login`, `/start` 거절, 거르기 주소 왕복)
-- [ ] T010 [P] `web/app/src/theme.ts`: contracts/design.md의 값으로 astryx 테마 `kingo`를 만든다(밝은·어두운 화면). `web/app/src/theme.test.ts`가 design.md의 대비 조건을 계산해 본다. `web/app/src/lib/values.ts`에 앱의 첫 값
-- [ ] T011 `web/app/src/parts/States.tsx`(불러오는 중·빈 상태·실패·오프라인)와 `web/app/src/main.tsx`의 틀(아래 메뉴 막대, 900px부터 왼쪽 메뉴)
-- [ ] T012 `scripts/e2e-app/run.mjs`와 `package.json`의 `e2e:app`: 시험 스키마(`server/test/db.ts`의 방법)에 공지 45개·분야 목록·개발 계정 둘(로그인 전, 분야까지 마친 것)을 넣고 서버를 임시 포트에 띄워 Playwright로 돈다. 걸음마다 320·390·768px 가로 넘침 0, axe 심각·중대 0, 화면 글자를 `scripts/audit-copy/rules.mjs`로 검사. 끝나면 스키마를 지운다. 서버가 준 글을 담은 `data-server-text` 요소는 문구 검사에서 뺀다. `.github/workflows/ci.yml`에 더한다
+- [X] T005 시험: `server/http.test.ts`에 R2의 경우를 더한다: `/`·`/notices/cse%3A1` → `index.html`과 CSP·`no-cache`, `/assets/x.js` → immutable, 없는 `/assets/y.js`·`/x.png` → 404, `/../package.json`과 `%2e%2e` → 404, `/api/없음` → JSON 404, `POST /` → 404, `/ops/` 그대로, 모든 파일에 `nosniff`
+- [X] T006 `server/http.ts`: `opsFile`을 `staticFile(dir, rel)`로 바꾸고 앱 내주기를 더한다(R2). `createServer(routes, write, opsDir, appDir)`로 넓히고(`onError`는 쓰는 T058에서) `server/test/app.ts`를 맞춘다. 요청 기록의 route는 `/(앱)`
+- [X] T007 [P] 시험과 구현: `web/app/src/lib/date.ts`(`kstToday`, `dday(deadline, today)` → '오늘 마감'·'D-3'·'마감 지남'·'마감 없음', `termOf(day)`, `termSuggestion(answeredAt, answers, today)`)와 `date.test.ts`. 학기 경계(2/28~3/1, 8/31~9/1), 학년 올림(3월이 지난 횟수, 4 이하), 기기 시간대가 달라도 같은 값
+- [X] T008 [P] `web/app/src/api.ts`: 요청·오류(`web/ops/src/api.ts`와 같은 꼴), 401·403 `consent_required`를 앱 사건(`app-auth`)으로 알린다. 시험 `web/app/src/api.test.ts`(HTML 오류 쪽, 네트워크 끊김은 `offline` 코드, 모르는 코드에 `message`가 없으면 '새로 고쳐 주세요')
+- [X] T009 [P] 시험과 구현: `web/app/src/route.ts`(contracts/app.md 주소 표 읽기·만들기, `go`·`replace`·뒤로 가기, `safeTo(to)` 검사, 들어올 때 규칙 `whereTo`. 자리 기억은 쓰는 T024에서)와 `route.test.ts`(`//evil`, `/\evil`, `/login`, `/start` 거절, 거르기 주소 왕복)
+- [X] T010 [P] `web/app/src/theme.ts`: contracts/design.md의 값으로 astryx 테마 `kingo`를 만든다(밝은·어두운 화면). `web/app/src/theme.test.ts`가 design.md의 대비 조건을 계산해 본다. `web/app/src/lib/values.ts`에 앱의 첫 값(쓰는 것부터)
+- [X] T011 `web/app/src/parts/States.tsx`(불러오는 중·빈 상태·실패·오프라인)와 `web/app/src/main.tsx`의 틀(아래 메뉴 막대, 900px부터 왼쪽 메뉴)
+- [X] T012 `scripts/e2e-app/run.mjs`와 `package.json`의 `e2e:app`: 시험 스키마(`server/test/db.ts`의 방법)에 공지 45개·분야 목록·개발 계정 둘(로그인 전, 분야까지 마친 것)을 넣고 서버를 임시 포트에 띄워 Playwright로 돈다. 걸음마다 320·390·768px 가로 넘침 0, axe 심각·중대 0, 화면 글자를 `scripts/audit-copy/rules.mjs`로 검사. 끝나면 스키마를 지운다. 서버가 준 글을 담은 `data-server-text` 요소는 문구 검사에서 뺀다. `.github/workflows/ci.yml`에 더한다
 
 **Checkpoint**: `npm run server`로 `/`를 열면 빈 틀이 뜨고 `e2e:app`이 빈 걸음으로 통과한다.
 
@@ -36,14 +36,14 @@
 
 **Goal**: 로그인 → 동의 → 처음 질문 → 분야 → 홈(빈 틀). **Independent Test**: spec US1.
 
-- [ ] T013 [P] [US1] 시험: `server/auth/auth.test.ts`에 `GET /api/login/methods`(로그인 없이, dev·prod), 로그인할 때 앞 세션이 지워짐, `/api/me`의 `tag`
-- [ ] T014 [US1] `server/auth/login.ts`: `GET /api/login/methods`, `POST /api/login`의 앞 세션 지우기(R6), `/api/me`에 `tag`(R16)
-- [ ] T015 [US1] 시험과 구현: `web/app/src/lib/entry.ts`(contracts/app.md 규칙 1의 순수 함수: `me` 답·오류·주소 → 갈 화면)와 `entry.test.ts`, `main.tsx`에 잇기
-- [ ] T016 [P] [US1] `web/app/src/screens/Login.tsx`: 방식 목록, '개발용 로그인' 표시, 잠김 시각(`until`을 한국 시각으로)
-- [ ] T017 [P] [US1] `web/app/src/screens/Consent.tsx`: 서버 문구 그대로(줄바꿈·목록), 동의하고 시작하기, 로그아웃. `invalid`(판이 바뀜)면 문구를 다시 받는다
-- [ ] T018 [P] [US1] `web/app/src/screens/Answers.tsx`: 학년·학기·진로 목표, 남은 것 표시
-- [ ] T019 [US1] `web/app/src/parts/FieldPicker.tsx`와 `web/app/src/screens/Fields.tsx`: 큰 묶음 펼치기, 설명, 찾기(띄어쓰기·대소문자 무시), 고른 것 위에, 3개 미만 막기. 찾기는 `web/app/src/lib/find.ts`와 시험
-- [ ] T020 [US1] `scripts/e2e-app/run.mjs`: US1 걸음(새로 고침해 같은 걸음, 잘못된 비밀번호 5번, `to`로 돌아오기, 동의 판 바뀜)
+- [X] T013 [P] [US1] 시험: `server/auth/auth.test.ts`에 `GET /api/login/methods`(로그인 없이, dev·prod), 로그인할 때 앞 세션이 지워짐, `/api/me`의 `tag`
+- [X] T014 [US1] `server/auth/login.ts`: `GET /api/login/methods`, `POST /api/login`의 앞 세션 지우기(R6), `/api/me`에 `tag`(R16)
+- [X] T015 [US1] 시험과 구현: contracts/app.md 규칙 1의 순수 함수(`route.ts`의 `whereTo`, `route.test.ts`)를 `main.tsx`에 잇기
+- [X] T016 [P] [US1] `web/app/src/screens/Login.tsx`: 방식 목록, '개발용 로그인' 표시, 잠김 시각(`until`을 한국 시각으로)
+- [X] T017 [P] [US1] `web/app/src/screens/Consent.tsx`: 서버 문구 그대로(줄바꿈·목록), 동의하고 시작하기, 로그아웃. `invalid`(판이 바뀜)면 문구를 다시 받는다
+- [X] T018 [P] [US1] `web/app/src/screens/Answers.tsx`: 학년·학기·진로 목표, 남은 것 표시
+- [X] T019 [US1] `web/app/src/parts/FieldPicker.tsx`와 `web/app/src/screens/Fields.tsx`: 큰 묶음 펼치기, 설명, 찾기(띄어쓰기·대소문자 무시), 고른 것 위에, 3개 미만 막기. 찾기는 `web/app/src/lib/find.ts`와 시험
+- [X] T020 [US1] `scripts/e2e-app/run.mjs`: US1 걸음(새로 고침해 같은 걸음, 잘못된 비밀번호 5번, `to`로 돌아오기, 동의 판 바뀜)
 
 **Checkpoint**: PR A.
 
@@ -116,7 +116,7 @@
 
 - [ ] T056 [US6] `server/db/migrations/010_ops.sql`(data-model, `model_bursts.who`에 `trial`)
 - [ ] T057 [P] [US6] 시험과 구현: `etl/notices/run.ts`의 `KINGO_RUN_JSON` 줄(R10)과 `etl/notices/run.test.ts`
-- [ ] T058 [P] [US6] 시험과 구현: `server/ops/counts.ts`(R12)와 시험, `server/main.ts`·`server/http.ts`의 `onError` → `server_error` 올리기
+- [ ] T058 [P] [US6] 시험과 구현: `server/ops/counts.ts`(R12)와 시험, `server/main.ts`·`server/http.ts`(`createServer`의 `onError`) → `server_error` 올리기
 - [ ] T059 [US6] 시험과 구현: `server/jobs/daily.ts` — `kingo:daily` 잠금(두 개가 함께 시작하면 차례로, 30분 넘으면 실패), `counts` 단계, 07:00 뒤 시작은 `daytime`, 분류기 숫자 담기(읽지 못하면 비움). `server/jobs/daily.test.ts`의 단계 순서 시험을 고친다(`map`은 US7)
 - [ ] T060 [P] [US6] 시험과 구현: `server/ops/alerts.ts`(R11)와 시험(둘 잇단 실패, 하나, 10% 경계, 분모 0, `field` null, 36시간 경계, 건너뜀, 첫날)
 - [ ] T061 [US6] 시험과 구현: `server/ops/requests.ts`와 `server/cli.ts requests`(R9: 열린 것 하나, 죽은 `running` 되돌림, 없음, 단계 실패가 있어도 `done`, 잠금을 못 얻으면 `waiting`, `op_state`의 정답셋 판). `kingo-requests.service`·`.timer`, `kingo-daily.service`의 `TimeoutStartSec=6h`

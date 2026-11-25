@@ -35,7 +35,7 @@ jobs:
       - run: npm ci
       - run: npm run check
       - id: build
-        run: npm run build && npm run build:ops
+        run: npm run build && npm run build:ops && npm run build:app
       - uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -62,6 +62,9 @@ jobs:
           done
       - run: fc-cache -f ~/.local/share/fonts >/dev/null && fc-list | grep -c "Noto Sans CJK KR"
       - run: npm run audit:layout -- --no-build
+      # 학생 앱(web/app) 화면 검사: 처음 흐름부터 끝까지, 가로 넘침·접근성·문구·누르는 자리(3단계 research R19)
+      - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run e2e:app -- --shots .qa/app
       # 문구 검사: 보이는 글자에서 기호·금지어·가운뎃점 사슬을 찾으면 막는다(규칙: scripts/audit-copy/rules.mjs).
       # 레이아웃 검사가 실패해도 빌드가 됐으면 문구 검사 결과까지 본다.
       - if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -71,6 +74,13 @@ jobs:
         with:
           name: layout-audit
           path: .qa/layout
+          retention-days: 7
+          if-no-files-found: ignore
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-shots
+          path: .qa/app
           retention-days: 7
           if-no-files-found: ignore
       - if: always()

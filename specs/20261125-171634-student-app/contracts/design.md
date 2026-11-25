@@ -20,6 +20,18 @@
 | `--color-success` / `--color-text-success` | `#198100` / `#2f7d33` | `#64af4c` / `#90ca90` |
 | `--color-warning` / `--color-text-warning` | `#ffce2f` / `#836700` | `#ffce2f` / `#eec448` |
 | `--color-error` / `--color-text-error` | `#c9303a` / `#c0262c` | `#ff705d` / `#ffaea7` |
+| `--color-neutral` | `#0000000f` | `#ffffff1a` |
+| `--color-overlay-hover` | `#0000000d` | `#ffffff0d` |
+| `--color-overlay-pressed` | `#0000001a` | `#ffffff1a` |
+| `--color-skeleton` | `#f1f1f1` | `#525252` |
+| `--color-icon-primary` | `#000000` | `#ffffff` |
+| `--color-icon-secondary` | `#6a6a6a` | `#9e9e9e` |
+| `--color-on-success` | `#ffffff` | `#111111` |
+| `--color-on-error` | `#ffffff` | `#111111` |
+| `--color-on-warning` | `#111111` | `#111111` |
+| `--color-success-muted` | `#bce0bb` | `#90ca903d` |
+| `--color-warning-muted` | `#fae19e` | `#e2b6233d` |
+| `--color-error-muted` | `#ffc4be` | `#ff98903d` |
 
 - 모서리: inner 0.375rem, element 0.625rem, container 0.75rem, page 1.75rem.
 - 글자 크기: sm 0.75, base 0.875, lg 1.125, xl 1.5, 2xl 1.9375, 3xl 2.5rem. 제목 자간 -0.02em.
