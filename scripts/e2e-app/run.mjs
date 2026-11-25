@@ -30,6 +30,7 @@ const server = createServer(routes(ctx), () => {});
 const browser = await chromium.launch();
 const problems = [];
 let checks = 0;
+let broken = false; // 일부러 끊은 걸음인가
 
 /** 가로로 넘치는 것, 44px보다 작은 누르는 자리, 앱이 쓴 글 */
 const probe = () => {
@@ -38,7 +39,7 @@ const probe = () => {
   const over = doc.scrollWidth - doc.clientWidth;
   const small = [...document.querySelectorAll('a, button, input, select, textarea, [role=radio], [role=tab], [role=switch]')].filter(e => e.matches('input[type=radio], input[type=checkbox]') ? e.closest('label, li') : visible(e)).map(e => {
     // 라디오·확인란은 줄 전체(label이나 목록 줄)를 누른다
-    const hit = e.matches('input[type=radio], input[type=checkbox]') ? e.closest('label, li, [role=listitem]') ?? e : e.matches('input, textarea') ? e.parentElement : e;
+    const hit = e.matches('input[type=radio], input[type=checkbox]') ? e.closest('label, li, [role=listitem]') ?? e : e.matches('input, textarea, [role=combobox]') ? e.parentElement : e;
     const r = hit.getBoundingClientRect();
     return { name: (e.getAttribute('aria-label') || e.innerText || e.getAttribute('name') || e.tagName).slice(0, 30), w: Math.round(r.width), h: Math.round(r.height) };
   }).filter(x => x.w > 1 && x.h > 1 && (x.h < 44 || x.w < 44));
@@ -81,10 +82,10 @@ const at = async (page, want) => {
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
 async function newPage(base) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ko-KR', timezoneId: 'America/New_York', hasTouch: true, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ko-KR', timezoneId: 'America/New_York', hasTouch: true, isMobile: true, reducedMotion: 'reduce' });
   const page = await context.newPage();
   page.on('pageerror', e => problems.push(`화면 오류: ${e.message}`));
-  page.on('console', m => { if (m.type() === 'error' && !/status of (401|403|404|422)/.test(m.text())) problems.push(`콘솔: ${m.text().slice(0, 200)}`); });
+  page.on('console', m => { if (m.type() === 'error' && !/status of (401|403|404|422)/.test(m.text()) && !(broken && /ERR_FAILED/.test(m.text()))) problems.push(`콘솔: ${m.text().slice(0, 200)}`); });
   return { page, open: path => page.goto(base + path) };
 }
 async function login(page, email, password = PASSWORD) {
@@ -185,15 +186,131 @@ async function us1(base) {
   await page.context().close();
 }
 
+/** 처음 흐름을 마친 학생으로 들어간다 */
+async function signIn(base, email, path = '/') {
+  const p = await newPage(base);
+  await p.open(`/login?to=${encodeURIComponent(path)}`);
+  await login(p.page, email);
+  await at(p.page, path);
+  return p;
+}
+async function doneStudent(email) {
+  const id = await createDevStudent(db.sql, email);
+  await db.sql`insert into consents (student_id, text_version) values (${id}, ${ctx.consent.version})`;
+  await db.sql`insert into answers (student_id, grade, term, goal) values (${id}, 3, 2, 'job')`;
+  for (const f of t.fields.slice(0, 5)) await db.sql`insert into student_fields (student_id, field_id) values (${id}, ${f.id})`;
+  return id;
+}
+
+async function us2(base) {
+  const id = await doneStudent('home@example.com');
+  const { page, open } = await signIn(base, 'home@example.com');
+  await page.getByText('규칙으로 골랐어요').waitFor();
+  await page.getByRole('heading', { name: '마감 임박' }).waitFor();
+  ok(await page.getByRole('heading', { name: '비슷한 공지' }).count() === 0, '홈: 빈 선반이 보인다');
+  await page.waitForTimeout(5500); // 처음 고른 뒤 다시 고르는 중이면 한 번 다시 부른다
+  await db.sql`delete from repick_queue`;
+  await open('/');
+  await page.getByText('규칙으로 골랐어요').waitFor();
+  ok(await page.getByText('이걸 보고 골랐어요').count() === 0, '홈: 참고한 줄이 없는데 펼치기가 있다');
+  await check(page, 'home');
+  // 참고한 줄과 LLM 표시, 다시 고르는 중 → 5초 뒤 한 번
+  await db.sql`insert into prompts (student_id, body) values (${id}, '서류 면제가 있으면 좋아요')`;
+  await db.sql`update picks set method = 'llm:gemma4:12b', cited = ${db.sql.json([{ key: 'prompt' }, { key: 'ans' }])}, reason = '고른 분야와 맞고 마감이 가까워요' where student_id = ${id}`;
+  await db.sql`insert into repick_queue (student_id, cause) values (${id}, 'answers')`;
+  await open('/');
+  await page.getByText('AI가 골랐어요').waitFor();
+  await page.getByText('다시 고르는 중이에요').first().waitFor();
+  await page.getByRole('button', { name: '이걸 보고 골랐어요' }).click();
+  await page.getByText('나에 대한 프롬프트').waitFor();
+  await check(page, 'home-cited');
+  await open('/');
+  await page.getByText('다시 고르는 중이에요').first().waitFor();
+  await db.sql`delete from repick_queue`;
+  await page.getByText('다시 고르는 중이에요').first().waitFor({ state: 'hidden', timeout: 8000 });
+
+  // 공지: 거르기·찾기·정렬·이어 불러오기·같은 자리
+  await page.getByRole('link', { name: '공지', exact: true }).click();
+  await at(page, '/notices');
+  await page.getByRole('link', { name: '공지 45', exact: true }).or(page.getByText('공지 1', { exact: true })).first().waitFor();
+  await check(page, 'notices');
+  const rows = page.locator('main li a, main [role=listitem] a');
+  for (let i = 0; i < 8 && await page.getByText('여기까지예요').count() === 0; i++) {
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(400);
+  }
+  await page.getByText('여기까지예요').waitFor();
+  const total = await rows.count();
+  ok(total === 43, `공지: 열린 것 43개(마감 없는 둘은 30일이 지나 닫힘)인데 ${total}개가 보인다`);
+  const target = rows.nth(30);
+  await target.scrollIntoViewIfNeeded();
+  const y = await page.evaluate(() => window.scrollY);
+  ok(y > 500, '공지: 아래로 내려가지 않았다');
+  await target.evaluate(e => e.click());
+  await page.getByRole('link', { name: '원문 열기' }).waitFor();
+  ok(await page.evaluate(() => window.scrollY) === 0, '자세히: 맨 위에서 시작하지 않는다');
+  ok(await page.getByRole('link', { name: '원문 열기' }).getAttribute('rel') === 'noopener noreferrer', '원문: rel이 다르다');
+  await check(page, 'notice');
+  await page.getByRole('button', { name: '뒤로' }).click();
+  await at(page, '/notices');
+  await page.waitForTimeout(300);
+  ok(await rows.count() === 43, '뒤로: 이어 받은 목록이 줄었다');
+  const back = await page.evaluate(() => window.scrollY);
+  ok(Math.abs(back - y) < 60, `뒤로: 자리가 ${y}에서 ${back}으로 바뀌었다`);
+
+  await page.getByRole('button', { name: '필터' }).click();
+  await page.getByRole('checkbox', { name: '해커톤' }).click();
+  await check(page, 'filter');
+  await page.getByRole('button', { name: '이대로 보기' }).click();
+  await at(page, '/notices?kind=hackathon');
+  await page.getByRole('button', { name: '해커톤 빼기' }).waitFor();
+  await page.getByRole('button', { name: '이대로 보기' }).waitFor({ state: 'hidden' });
+  await page.waitForTimeout(500);
+  await page.getByRole('searchbox', { name: '공지 찾기' }).fill('공지 3');
+  await at(page, '/notices?kind=hackathon&q=%EA%B3%B5%EC%A7%80%203');
+  await check(page, 'notices-filtered');
+  await page.reload();
+  await page.getByRole('button', { name: '해커톤 빼기' }).waitFor();
+  await page.getByRole('searchbox', { name: '공지 찾기' }).fill('없는 공지');
+  await page.getByRole('heading', { name: '찾는 말이나 거르기에 맞는 공지가 없어요' }).waitFor();
+  await check(page, 'notices-empty');
+  await page.getByRole('button', { name: '거르기 지우기' }).click();
+  await at(page, '/notices');
+  // 이어 불러오다 실패하면 그 자리에서 다시
+  broken = true;
+  await page.route('**/api/notices?cursor=*', r => r.abort());
+  await open('/notices');
+  await rows.first().waitFor();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.getByRole('button', { name: '다시 불러오기' }).waitFor();
+  await page.unroute('**/api/notices?cursor=*');
+  broken = false;
+  await page.getByRole('button', { name: '다시 불러오기' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('main li').length > 20);
+  // 닫힌 공지, 내려간 공지, 없는 공지, 주소로 바로 들어온 뒤로 가기
+  await open('/notices/cse%3A101');
+  await page.getByText('신청이 끝난 공지예요').waitFor();
+  await page.getByText('마감 지남').waitFor();
+  await page.getByRole('button', { name: '뒤로' }).click();
+  await at(page, '/notices');
+  await open('/notices/cse%3A102');
+  await page.getByText('내려간 글이에요').waitFor();
+  await open('/notices/cse%3A999');
+  await page.getByRole('heading', { name: '찾을 수 없는 공지예요' }).waitFor();
+  await page.context().close();
+}
+
+const t = loadTaxonomy('custom');
 let failed = null;
 try {
-  const t = loadTaxonomy('custom');
   await seedTaxonomy(db.sql, t);
   for (let i = 1; i <= 45; i++) await notice(db.sql, { no: i, title: `공지 ${i}`, kind: i % 3 ? 'job' : 'hackathon', posted: -i, deadline: i % 7 ? i : null, core: [t.fields[i % t.fields.length].id] });
+  await notice(db.sql, { no: 101, title: '닫힌 공지', deadline: -3, posted: -40 });
+  await notice(db.sql, { no: 102, title: '내려간 공지', down: true });
   for (const email of ['new@example.com', 'lock@example.com']) await createDevStudent(db.sql, email);
   await new Promise(done => { server.listen(0, '127.0.0.1', done); });
   const base = `http://127.0.0.1:${server.address().port}`;
-  for (const [name, run] of [['US1', us1]]) {
+  for (const [name, run] of [['US1', us1], ['US2', us2]]) {
     const t0 = Date.now();
     await run(base);
     console.log(`${name} ${((Date.now() - t0) / 1000).toFixed(1)}초`);

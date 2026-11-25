@@ -51,12 +51,12 @@
 
 **Goal**: 추천과 선반, 공지 거르기·찾기·자세히. **Independent Test**: spec US2.
 
-- [ ] T021 [P] [US2] `web/app/src/parts/NoticeCard.tsx`: FR-014의 칸, 두 줄 자르기, 분야 근거 표시(app.md 6), 행동 자리(눌리지 않음, US3에서 잇는다)
-- [ ] T022 [P] [US2] 시험과 구현: `web/app/src/lib/empty.ts`(app.md 7의 까닭 → 글·할 일)와 시험
-- [ ] T023 [US2] `web/app/src/screens/Home.tsx`: 가장 추천, '이걸 보고 골랐어요'(`cited`의 `prompt`는 '나에 대한 프롬프트'), 고른 방식, 다시 고르는 중 5초 뒤 한 번(가장 추천에 행동한 뒤의 5초 되돌리기와 다시 부르기는 T029에서 잇는다), 선반 가로 넘기기와 빈 선반 숨기기
-- [ ] T024 [US2] `web/app/src/screens/Notices.tsx`: 거르기(종류·분야 여럿)·찾기·정렬이 주소에, 칩으로 보이고 한 번에 지우기, 20개씩 이어 불러오기(끝 '여기까지예요', 실패 '다시 불러오기'), 자리 기억
-- [ ] T025 [US2] `web/app/src/screens/NoticeDetail.tsx`: 모든 칸, 닫힘·내려감 표시, 원문 열기(`target=_blank`, `rel="noopener noreferrer"`), `not_found`
-- [ ] T026 [US2] `scripts/e2e-app/run.mjs`: US2 걸음(거르기 → 자세히 → 뒤로 같은 자리, 45개 이어 불러오기, 빈 선반, 다시 고르는 중)
+- [X] T021 [P] [US2] `web/app/src/parts/NoticeCard.tsx`: FR-014의 칸, 두 줄 자르기, 분야 근거 표시(app.md 6), 행동 자리(눌리지 않음, US3에서 잇는다)
+- [X] T022 [P] [US2] 시험과 구현: `web/app/src/lib/empty.ts`(app.md 7의 까닭 → 글·할 일)와 시험
+- [X] T023 [US2] `web/app/src/screens/Home.tsx`: 가장 추천, '이걸 보고 골랐어요'(`cited`의 `prompt`는 '나에 대한 프롬프트'), 고른 방식, 다시 고르는 중 5초 뒤 한 번(가장 추천에 행동한 뒤의 5초 되돌리기와 다시 부르기는 T029에서 잇는다), 선반 가로 넘기기와 빈 선반 숨기기
+- [X] T024 [US2] `web/app/src/screens/Notices.tsx`: 거르기(종류·분야 여럿)·찾기·정렬이 주소에, 칩으로 보이고 한 번에 지우기, 20개씩 이어 불러오기(끝 '여기까지예요', 실패 '다시 불러오기'), 자리 기억
+- [X] T025 [US2] `web/app/src/screens/NoticeDetail.tsx`: 모든 칸, 닫힘·내려감 표시, 원문 열기(`target=_blank`, `rel="noopener noreferrer"`), `not_found`
+- [X] T026 [US2] `scripts/e2e-app/run.mjs`: US2 걸음(거르기 → 자세히 → 뒤로 같은 자리, 45개 이어 불러오기, 빈 선반, 다시 고르는 중)
 
 **Checkpoint**: PR B.
 

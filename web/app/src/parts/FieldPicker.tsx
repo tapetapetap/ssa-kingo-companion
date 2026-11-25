@@ -1,13 +1,12 @@
 // 분야 고르기(FR-011): 큰 묶음을 누르면 세부 분야와 한 줄 설명이 열린다. 찾으면 맞는 세부 분야만 보인다
 import { useMemo, useState } from 'react';
-import { Button } from '@astryxdesign/core/Button';
 import { CheckboxList, CheckboxListItem } from '@astryxdesign/core/CheckboxList';
 import { Collapsible } from '@astryxdesign/core/Collapsible';
-import { Icon } from '@astryxdesign/core/Icon';
 import { HStack, VStack } from '@astryxdesign/core/Layout';
 import { Text } from '@astryxdesign/core/Text';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import type { FieldList } from '../api.ts';
+import { Chip } from './Chip.tsx';
 import { findFields } from '../lib/find.ts';
 
 export function FieldPicker({ list, value, onChange }: { list: FieldList; value: string[]; onChange: (ids: string[]) => void }) {
@@ -31,10 +30,7 @@ export function FieldPicker({ list, value, onChange }: { list: FieldList; value:
       <TextInput label="분야 찾기" isLabelHidden placeholder="분야 이름으로 찾기" size="lg" type="search" startIcon="search" value={q} onChange={setQ} />
       {value.length > 0 && (
         <HStack gap={2} wrap="wrap" role="group" aria-label="고른 분야">
-          {value.map(id => {
-            const name = byId.get(id)?.name ?? id;
-            return <Button key={id} size="lg" label={`${name} 빼기`} endContent={<Icon icon="close" size="sm" />} onClick={() => onChange(value.filter(x => x !== id))}>{name}</Button>;
-          })}
+          {value.map(id => <Chip key={id} name={byId.get(id)?.name ?? id} onRemove={() => onChange(value.filter(x => x !== id))} />)}
         </HStack>
       )}
       {q.trim() ? (found.length ? rows(found, '찾은 분야') : <Text color="secondary">맞는 분야가 없어요. 다른 말로 찾아 보세요.</Text>) : groups.map(g => {

@@ -1,7 +1,7 @@
 // 학생 앱의 틀: 들어올 때 규칙(contracts/app.md 1·2), 네 메뉴, 화면 고르기
 import '@astryxdesign/core/reset.css';
 import '@astryxdesign/core/astryx.css';
-import { StrictMode, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { StrictMode, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button } from '@astryxdesign/core/Button';
 import { Icon } from '@astryxdesign/core/Icon';
@@ -13,13 +13,17 @@ import { useMediaQuery } from '@astryxdesign/core/hooks';
 import { Text } from '@astryxdesign/core/Text';
 import { Theme } from '@astryxdesign/core/theme';
 import { api, ApiError, type Me } from './api.ts';
+import { forget } from './lib/load.ts';
 import { HomeIcon, ListIcon, MeIcon, NoticeIcon } from './parts/icons.tsx';
 import { Empty, Failed, Loading } from './parts/States.tsx';
-import { go, onLinkClick, parse, useHref, whereTo, type Route } from './route.ts';
+import { cameBack, go, onLinkClick, parse, savedPlace, useHref, whereTo, type Route } from './route.ts';
 import { Answers } from './screens/Answers.tsx';
 import { Consent } from './screens/Consent.tsx';
 import { Fields } from './screens/Fields.tsx';
+import { Home } from './screens/Home.tsx';
 import { Login } from './screens/Login.tsx';
+import { NoticeDetail } from './screens/NoticeDetail.tsx';
+import { Notices } from './screens/Notices.tsx';
 import { kingo } from './theme.ts';
 
 const MENU = [
@@ -71,6 +75,9 @@ function screen(r: Route, done: () => Promise<void>): ReactNode {
     case 'answers': return <Answers onDone={done} />;
     case 'fields': return <Fields onDone={done} />;
     case 'none': return <Empty title="없는 화면이에요" action={<Button label="홈으로" size="lg" href="/" />} />;
+    case 'home': return <Home />;
+    case 'notices': return <Notices query={r} />;
+    case 'notice': return <NoticeDetail key={r.id} id={r.id} />;
     default: return <Empty title={TITLE[r.name]} description="준비하고 있어요." />; // 다음 PR들이 화면으로 바꾼다
   }
 }
@@ -82,11 +89,15 @@ function App() {
   const [error, setError] = useState<unknown>(null);
   const wide = useMediaQuery('(min-width: 900px)');
   const main = useRef<HTMLElement>(null);
+  const tag = useRef('');
 
   const check = useCallback(async () => {
     setError(null);
     try {
-      setMe(await api<Me>('GET', '/api/me'));
+      const now = await api<Me>('GET', '/api/me');
+      if (tag.current !== now.tag) forget();
+      tag.current = now.tag;
+      setMe(now);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'login_required') setMe(null);
       else setError(e);
@@ -112,6 +123,7 @@ function App() {
     document.title = `${TITLE[route.name]} · 킹고 컴패니언`;
     if (shown) main.current?.focus({ preventScroll: true });
   }, [place, shown, route.name]);
+  useLayoutEffect(() => { if (shown && cameBack()) window.scrollTo(0, savedPlace()); }, [href, shown]); // 뒤로 왔으면 떠날 때의 자리
 
   const menu = shown && !('to' in route);
   const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, check) : <Loading />;
