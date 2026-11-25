@@ -5,6 +5,8 @@ export type Mode = 'dev' | 'prod';
 export type Config = {
   mode: Mode; databaseUrl: string; port: number; ollamaHost: string; model: string;
   consentFile: string; operatorsFile: string | null; backupDir: string | null; apiUrl: string;
+  /** 알림의 공개 키와 서비스 주소. 개인 키는 jobs만 읽고(push/send.ts) api는 모른다 */
+  pushPublicKey: string | null; publicUrl: string | null;
 };
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
@@ -17,6 +19,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`PORT가 포트 번호가 아니에요: ${env.PORT}`);
   return {
     mode, databaseUrl: env.DATABASE_URL, port, ollamaHost: env.OLLAMA_HOST || '127.0.0.1:11434', model: env.KINGO_LLM_MODEL || DEFAULT_MODEL,
-    consentFile, operatorsFile: env.KINGO_OPERATORS_FILE || null, backupDir: env.KINGO_BACKUP_DIR || null, apiUrl: env.KINGO_API_URL || 'http://127.0.0.1:8080'
+    consentFile, operatorsFile: env.KINGO_OPERATORS_FILE || null, backupDir: env.KINGO_BACKUP_DIR || null, apiUrl: env.KINGO_API_URL || 'http://127.0.0.1:8080',
+    pushPublicKey: env.KINGO_PUSH_PUBLIC_KEY || null, publicUrl: env.KINGO_PUBLIC_URL || null
   };
 }

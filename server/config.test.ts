@@ -7,7 +7,7 @@ describe('loadConfig (research R20)', () => {
   it('기본값을 채운다', () => {
     expect(loadConfig(base)).toEqual({
       mode: 'dev', databaseUrl: 'postgres://a@b/c', port: 8080, ollamaHost: '127.0.0.1:11434', model: 'gemma4:12b',
-      consentFile: 'deploy/consent.dev.md', operatorsFile: null, backupDir: null, apiUrl: 'http://127.0.0.1:8080'
+      consentFile: 'deploy/consent.dev.md', operatorsFile: null, backupDir: null, apiUrl: 'http://127.0.0.1:8080', pushPublicKey: null, publicUrl: null
     });
   });
 

@@ -12,7 +12,7 @@ if (import.meta.main) {
   try {
     const c = loadConfig();
     const sql = connect(c.databaseUrl);
-    const ctx: Ctx = { sql, mode: c.mode, consent: readConsent(c.consentFile), methods: c.mode === 'prod' ? {} : defaultMethods(), operators: readOperators(c.operatorsFile) };
+    const ctx: Ctx = { sql, mode: c.mode, consent: readConsent(c.consentFile), methods: c.mode === 'prod' ? {} : defaultMethods(), operators: readOperators(c.operatorsFile), push: { publicKey: c.pushPublicKey, publicUrl: c.publicUrl } };
     checkStartup(ctx);
     const todo = await pending(sql);
     if (todo.length) throw new Error(`적용하지 않은 스키마 바꾸기가 있어요(${todo.join(', ')}). node server/cli.ts migrate를 먼저 돌려요`);

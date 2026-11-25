@@ -9,12 +9,14 @@ import { ingest, summaryLine, type IngestDeps } from './ingest/ingest.ts';
 import { exportGold } from './ops/export.ts';
 import { backup, restore } from './jobs/backup.ts';
 import { dailyLine, runDaily, type DailyDeps } from './jobs/daily.ts';
+import { generateVAPIDKeys, notify, notifyLine, pushKeysOf, type NotifyDeps } from './push/send.ts';
+import { readConsent } from './me/onboarding.ts';
 import { status, type StatusDeps } from './jobs/status.ts';
 
-const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] | account create <이메일> [--dept <학과>] | account password <이메일> | account delete <이메일> | export-gold <폴더> | daily [--skip-classifier] | backup | restore <백업 파일> | status (모두 --json)';
+const USAGE = '쓰는 법: node server/cli.ts migrate | ingest <결과 파일> --taxonomy <id> [--switch] [--dry-run] | account create <이메일> [--dept <학과>] | account password <이메일> | account delete <이메일> | export-gold <폴더> | daily [--skip-classifier] | backup | restore <백업 파일> | status | notify | push-keys (모두 --json)';
 
 /** stdin은 비밀번호를 받는 곳이다(시험은 글로 넣는다). 명령 기록에 남지 않게 인자로 받지 않는다 */
-type Deps = { sql?: Sql; env?: Record<string, string | undefined>; ingest?: Partial<IngestDeps>; stdin?: () => Promise<string>; repoRoot?: string; daily?: Partial<DailyDeps>; status?: Partial<StatusDeps>; run?: (cmd: string, args: string[]) => Promise<unknown> };
+type Deps = { sql?: Sql; env?: Record<string, string | undefined>; ingest?: Partial<IngestDeps>; stdin?: () => Promise<string>; repoRoot?: string; daily?: Partial<DailyDeps>; status?: Partial<StatusDeps>; notify?: Partial<NotifyDeps>; run?: (cmd: string, args: string[]) => Promise<unknown> };
 const readStdin = async () => { let s = ''; for await (const c of process.stdin) s += String(c); return s; };
 
 function accountArgs(rest: string[]): { action: string; email: string; dept?: string } | null {
@@ -42,10 +44,15 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
   const acc = cmd === 'account' ? accountArgs(rest) : null;
   const gold = cmd === 'export-gold' && rest.length === 1 && !rest[0].startsWith('--') ? rest[0] : null;
   const ops = (cmd === 'daily' && (rest.length === 0 || (rest.length === 1 && rest[0] === '--skip-classifier')))
-    || ((cmd === 'backup' || cmd === 'status') && rest.length === 0) || (cmd === 'restore' && rest.length === 1 && !rest[0].startsWith('--'));
-  if (!(cmd === 'migrate' && rest.length === 0) && !ing && !acc && !gold && !ops) {
+    || ((cmd === 'backup' || cmd === 'status' || cmd === 'notify') && rest.length === 0) || (cmd === 'restore' && rest.length === 1 && !rest[0].startsWith('--'));
+  if (!((cmd === 'migrate' || cmd === 'push-keys') && rest.length === 0) && !ing && !acc && !gold && !ops) {
     console.error(USAGE);
     return 2;
+  }
+  if (cmd === 'push-keys') {
+    const k = generateVAPIDKeys(); // 출력만 한다(파일에도 DB에도 쓰지 않는다)
+    console.log(json ? JSON.stringify(k) : `KINGO_PUSH_PUBLIC_KEY=${k.publicKey}\nKINGO_PUSH_PRIVATE_KEY=${k.privateKey}`);
+    return 0;
   }
   let sql = deps.sql;
   try {
@@ -58,6 +65,11 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
         const r = await status({ sql, ollamaHost: c.ollamaHost, apiUrl: c.apiUrl, ...deps.status });
         console.log(json ? JSON.stringify(r) : r.lines.join('\n'));
         return r.ok ? 0 : 1;
+      }
+      if (cmd === 'notify') {
+        const r = await notify({ sql, consentVersion: deps.notify?.consentVersion ?? readConsent(loadConfig(deps.env).consentFile).version, keys: pushKeysOf(deps.env ?? process.env), ...deps.notify });
+        console.log(json ? JSON.stringify(r) : notifyLine(r));
+        return 0;
       }
       if (cmd === 'daily') {
         const r = await runDaily({ sql, mode, databaseUrl: c.databaseUrl, backupDir: c.backupDir, skipClassifier: rest.includes('--skip-classifier'), ...deps.daily });
