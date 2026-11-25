@@ -14,20 +14,25 @@ import { useMediaQuery } from '@astryxdesign/core/hooks';
 import { Text } from '@astryxdesign/core/Text';
 import { Theme } from '@astryxdesign/core/theme';
 import { api, ApiError, type Me } from './api.ts';
+import { dropOther, stash } from './lib/draft.ts';
 import { forget } from './lib/load.ts';
 import { actions } from './lib/store.ts';
 import { ActionHost, closeSheets } from './parts/ActionHost.tsx';
 import { HomeIcon, ListIcon, MeIcon, NoticeIcon } from './parts/icons.tsx';
 import { Empty, Failed, Loading } from './parts/States.tsx';
-import { cameBack, go, onLinkClick, parse, savedPlace, useHref, whereTo, type Route } from './route.ts';
+import { back, cameBack, go, onLinkClick, parse, savedPlace, setGuard, useHref, whereTo, type Route } from './route.ts';
+import { Activity } from './screens/Activity.tsx';
+import { Analysis } from './screens/Analysis.tsx';
 import { Answers } from './screens/Answers.tsx';
 import { Consent } from './screens/Consent.tsx';
 import { Fields } from './screens/Fields.tsx';
 import { Home } from './screens/Home.tsx';
 import { MyList } from './screens/List.tsx';
 import { Login } from './screens/Login.tsx';
+import { Me as MeScreen } from './screens/Me.tsx';
 import { NoticeDetail } from './screens/NoticeDetail.tsx';
 import { Notices } from './screens/Notices.tsx';
+import { Prompt } from './screens/Prompt.tsx';
 import { kingo } from './theme.ts';
 
 const MENU = [
@@ -72,7 +77,8 @@ function Menu({ name, wide }: { name: Route['name']; wide: boolean }) {
   );
 }
 
-function screen(r: Route, done: () => Promise<void>): ReactNode {
+function screen(r: Route, me: Me, done: () => Promise<void>, out: () => void): ReactNode {
+  const saved = async () => back('/me');
   switch (r.name) {
     case 'login': return <Login onDone={done} />;
     case 'consent': return <Consent onDone={done} />;
@@ -82,6 +88,12 @@ function screen(r: Route, done: () => Promise<void>): ReactNode {
     case 'home': return <Home />;
     case 'notices': return <Notices query={r} />;
     case 'notice': return <NoticeDetail key={r.id} id={r.id} />;
+    case 'me': return <MeScreen me={me} onSignedOut={out} />;
+    case 'meFields': return <Fields parent="/me" onDone={saved} />;
+    case 'meAnswers': return <Answers parent="/me" onDone={saved} />;
+    case 'prompt': return <Prompt />;
+    case 'analysis': return <Analysis onChanged={done} />;
+    case 'activity': return <Activity key={r.id} id={r.id} />;
     case 'list': return <MyList tab={r.tab} />;
     default: return <Empty title={TITLE[r.name]} description="준비하고 있어요." />; // 다음 PR들이 화면으로 바꾼다
   }
@@ -104,6 +116,7 @@ function App() {
         forget();
         actions.forget();
       }
+      dropOther(now.tag);
       tag.current = now.tag;
       setMe(now);
     } catch (e) {
@@ -111,9 +124,13 @@ function App() {
       else setError(e);
     }
   }, []);
+  const signedOut = () => { setMe(null); go('/login', 'replace'); };
   useEffect(() => { void check(); }, [check]);
   useEffect(() => {
-    const on = (e: Event) => setMe(m => ((e as CustomEvent<string>).detail === 'login_required' ? null : m && { ...m, next: 'consent' }));
+    const on = (e: Event) => {
+      stash(tag.current);
+      setMe(m => ((e as CustomEvent<string>).detail === 'login_required' ? null : m && { ...m, next: 'consent' }));
+    };
     window.addEventListener('app-auth', on);
     document.addEventListener('click', onLinkClick);
     return () => {
@@ -123,7 +140,11 @@ function App() {
   }, []);
 
   const target = me === undefined ? href : whereTo(me?.next ?? null, href);
-  useEffect(() => { if (target !== href) go(target, 'replace'); }, [target, href]);
+  useEffect(() => {
+    if (target === href) return;
+    setGuard(null); // 로그인이 끊긴 것은 묻지 않고 간다(쓰던 글은 stash가 둔다)
+    go(target, 'replace');
+  }, [target, href]);
   const route = parse(href);
   const shown = me !== undefined && target === href;
   const place = `${route.name}${'id' in route ? route.id : ''}`; // 거르기처럼 같은 화면의 주소 바뀜은 세지 않는다
@@ -135,7 +156,7 @@ function App() {
   useLayoutEffect(() => { if (shown && cameBack()) window.scrollTo(0, savedPlace()); }, [href, shown]); // 뒤로 왔으면 떠날 때의 자리
 
   const menu = shown && !('to' in route);
-  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, check) : <Loading />;
+  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, me!, check, signedOut) : <Loading />;
   return (
     <HStack style={page} vAlign="stretch">
       {menu && wide && <Menu name={route.name} wide />}

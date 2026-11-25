@@ -55,3 +55,5 @@ export type Page = { items: NoticeCard[]; next: string | null; empty: string | n
 export type Draft = { name: string; term: string; kind: string | null; fieldIds: string[] };
 export type Activity = { id: number; name: string; term: string; kind: string; fieldIds: string[]; proofUrl: string | null };
 export type ListItem = { notice: NoticeCard; flags: ('revisit_due' | 'closed' | 'down')[] };
+export type AnalysisLine = { key: string; section: 'done' | 'interest' | 'flow'; text: string; source: string; proof: string | null; refs?: string[] };
+export type Analysis = { off: true } | { off: false; version: number; madeAt: string; md: string; lines: AnalysisLine[]; excluded: { key: string }[] };

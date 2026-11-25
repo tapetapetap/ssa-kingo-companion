@@ -62,36 +62,55 @@ export function whereTo(next: 'consent' | 'answers' | 'fields' | 'home' | null, 
   return to === '/' ? step : `${step}?to=${encodeURIComponent(to).replaceAll("'", '%27')}`; // 주소창이 '를 %27로 적는다
 }
 
+export const here = () => location.pathname + location.search;
 // 뒤로 가기가 앞 화면의 같은 자리로 돌아가게(FR-002) 떠날 때의 자리를 방문마다(같은 주소라도 따로) 메모리에 둔다
 type State = { app?: boolean; id?: number } | null;
 const places = new Map<number, number>();
 let popped = false;
 let entry = 0; // 지금 방문의 번호
+let lastHref = ''; // 지금 보이는 주소
 /** 지금 화면에 뒤로·앞으로 가기로 왔는가 */
 export const cameBack = () => popped;
 export const savedPlace = () => places.get(entry) ?? 0;
 if (typeof history !== 'undefined') {
   history.scrollRestoration = 'manual';
+  lastHref = here();
   entry = (history.state as State)?.id ?? Date.now();
   history.replaceState({ ...(history.state as State), id: entry }, '');
   window.addEventListener('popstate', e => {
+    // 이미 앞 자리로 왔으니 쓰던 화면을 다시 얹어 두고 묻는다
+    if (guard && lastHref !== here()) {
+      history.pushState({ app: true, id: entry }, '', lastHref);
+      guarded(() => history.back());
+      return;
+    }
+    lastHref = here();
     places.set(entry, window.scrollY);
     entry = (e.state as State)?.id ?? 0;
     popped = true;
   });
 }
 
+/** 쓰던 글이 있을 때 나가기 앞에 묻는다. 물어본 뒤 나가려면 받은 함수를 부른다 */
+let guard: ((leave: () => void) => void) | null = null;
+export const setGuard = (g: typeof guard) => { guard = g; };
+function guarded(leave: () => void): boolean {
+  if (!guard) return false;
+  guard(() => { guard = null; leave(); });
+  return true;
+}
+
 const subs = new Set<() => void>();
 const changed = () => subs.forEach(f => f());
-export const here = () => location.pathname + location.search;
 export function go(href: string, how: 'push' | 'replace' = 'push') {
-  if (href === here()) return;
+  if (href === here() || guarded(() => go(href, how))) return;
   if (how === 'push') places.set(entry, window.scrollY);
   const moved = new URL(href, location.href).pathname !== location.pathname;
   popped = false;
   // 앱 안에서 온 자리만 app을 단다. 처음 들어온 자리를 바꿔 적은 것은 그대로 둔다(back이 앱 밖으로 나가지 않게)
   if (how === 'push') history.pushState({ app: true, id: (entry = Date.now() + Math.random()) }, '', href);
   else history.replaceState(history.state, '', href);
+  lastHref = here();
   if (moved) window.scrollTo(0, 0);
   changed();
 }

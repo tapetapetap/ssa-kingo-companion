@@ -8,3 +8,5 @@ export const LATER_DAYS = 3;
 export const ACTIVITY_NAME_CHARS = 100;
 export const ACTIVITY_FIELDS = 2;
 export const PROOF_CHARS = 500;
+export const PROMPT_CHARS = 1000;
+export const ACTIVITY_COUNT = 100;

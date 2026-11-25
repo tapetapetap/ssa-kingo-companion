@@ -6,12 +6,17 @@ import { Card } from '@astryxdesign/core/Card';
 import { Carousel } from '@astryxdesign/core/Carousel';
 import { Collapsible } from '@astryxdesign/core/Collapsible';
 import { useMediaQuery } from '@astryxdesign/core/hooks';
+import { Icon } from '@astryxdesign/core/Icon';
+import { IconButton } from '@astryxdesign/core/IconButton';
 import { HStack, VStack } from '@astryxdesign/core/Layout';
 import { Heading, Text } from '@astryxdesign/core/Text';
-import { type Home as Data, type Shelf } from '../api.ts';
+import { useToast } from '@astryxdesign/core/Toast';
+import { api, messageOf, type Answers, type Home as Data, type Shelf } from '../api.ts';
+import { kstToday, termOf, termSuggestion } from '../lib/date.ts';
 import { homeEmpty } from '../lib/empty.ts';
+import { flag, setFlag } from '../lib/flags.ts';
 import { useLoad } from '../lib/load.ts';
-import { kindName } from '../lib/notice.ts';
+import { gradeText, kindName } from '../lib/notice.ts';
 import { hidden, useActions, withCards } from '../lib/store.ts';
 import { HOME_REFRESH_MS, UNDO_MS } from '../lib/values.ts';
 import { ActionBar } from '../parts/ActionBar.tsx';
@@ -73,6 +78,36 @@ function ShelfRow({ name, more, shelf }: { name: string; more: string | null; sh
   );
 }
 
+/** 새 학기에 학년·학기를 한 번 물어본다(FR-019). 닫으면 그 학기에는 다시 나오지 않는다 */
+function NewTerm() {
+  const term = termOf(kstToday());
+  const [closed, setClosed] = useState(() => flag('term') === term);
+  const { data } = useLoad(() => api<Answers>('GET', '/api/me/answers'), [], 'answers');
+  const toast = useToast();
+  const next = data && termSuggestion(data, kstToday());
+  if (closed || !data || !next) return null;
+  const close = () => { setFlag('term', term); setClosed(true); };
+  const change = async () => {
+    try {
+      await api('PUT', '/api/me/answers', { ...next, goal: data.goal });
+      close();
+    } catch (e) {
+      toast({ body: messageOf(e), type: 'error', isAutoHide: true });
+    }
+  };
+  return (
+    <Card padding={4}>
+      <VStack gap={3}>
+        <HStack justify="between" vAlign="start" gap={2}>
+          <VStack gap={1}><Text weight="semibold">새 학기예요</Text><Text color="secondary">{`처음 질문 답을 ${gradeText(next.grade)} ${next.term}학기로 바꿀까요?`}</Text></VStack>
+          <IconButton label="닫기" variant="ghost" size="lg" icon={<Icon icon="close" />} onClick={close} />
+        </HStack>
+        <HStack gap={2} wrap="wrap"><Button label={`${gradeText(next.grade)} ${next.term}학기로 바꾸기`} size="lg" clickAction={change} /><Button label="직접 고칠게요" variant="ghost" size="lg" href="/me/answers" /></HStack>
+      </VStack>
+    </Card>
+  );
+}
+
 export function Home() {
   const { data, error, reload, refresh, cancel } = useLoad(() => withCards<Data>('GET', '/api/home', cards), [], 'home');
   useActions();
@@ -98,6 +133,7 @@ export function Home() {
   return (
     <Page>
       <Text size="sm" color="secondary">{today()}</Text>
+      <NewTerm />
       {undo ? (
         <Card padding={4}>
           <HStack gap={2} justify="between" vAlign="center" wrap="wrap">

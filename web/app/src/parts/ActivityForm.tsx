@@ -1,5 +1,5 @@
 // 해 온 활동 칸(US3-4, US4-4): 이름 100자·학기·종류·분야 0~2·증빙 주소
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@astryxdesign/core/Button';
 import { VStack } from '@astryxdesign/core/Layout';
 import { MultiSelector } from '@astryxdesign/core/MultiSelector';
@@ -8,6 +8,7 @@ import { Text } from '@astryxdesign/core/Text';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { api, ApiError, messageOf, type Activity, type Draft, type FieldList } from '../api.ts';
 import { kstToday, termsBefore } from '../lib/date.ts';
+import { writingNow } from '../lib/draft.ts';
 import { useLoad } from '../lib/load.ts';
 import { KINDS } from '../lib/notice.ts';
 import { ACTIVITY_FIELDS, ACTIVITY_NAME_CHARS, PROOF_CHARS } from '../lib/values.ts';
@@ -15,17 +16,22 @@ import { Failed, Loading } from './States.tsx';
 
 const termName = (t: string) => `${t.slice(0, 4)}년 ${t.slice(5)}학기`;
 
-export function ActivityForm({ draft, id, onSaved, onChange }: { draft: Partial<Activity> | Draft; id?: number; onSaved: () => void; onChange?: (d: Partial<Activity>) => void }) {
+export function ActivityForm({ draft, id, path, onSaved }: { draft: Partial<Activity> | Draft; id?: number; path: string; onSaved: () => void }) {
   const fields = useLoad(() => api<FieldList>('GET', '/api/fields'), [], 'fields');
   const [d, setD] = useState<{ name: string; term: string; kind: string; fieldIds: string[]; proofUrl: string }>({
     name: draft.name ?? '', term: draft.term ?? '', kind: draft.kind ?? '', fieldIds: draft.fieldIds ?? [], proofUrl: ('proofUrl' in draft && draft.proofUrl) || ''
   });
+  const [dirty, setDirty] = useState(false);
+  // 로그인이 끊기면 쓰던 활동을 이 화면(path)에 되살린다(R17)
+  useEffect(() => {
+    writingNow(dirty ? path : null, d);
+    return () => writingNow(null);
+  }, [dirty, d, path]);
   const [error, setError] = useState<{ field?: string; message: string } | null>(null);
   const put = (p: Partial<typeof d>) => {
-    const next = { ...d, ...p };
-    setD(next);
+    setD(was => ({ ...was, ...p }));
     setError(null);
-    onChange?.(next);
+    setDirty(true);
   };
   if (fields.error) return <Failed error={fields.error} retry={fields.reload} />;
   if (!fields.data) return <Loading />;
