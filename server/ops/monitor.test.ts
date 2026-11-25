@@ -32,7 +32,7 @@ describe('모니터링 (contracts/api.md)', () => {
   });
 
   it('숫자가 기록과 같다: 오늘, 부하, 단계, 14일, 수정 비율, 지난 숫자', async () => {
-    await daily(0, { classifier: { ...ok, fetched: 5, opportunity: 2, not: 2, review: 1, llm: { cached: 400, fresh: 4, failed: 1, skipped: 0 }, field: { cached: 1, fresh: 1, failed: 0, notAsked: 0 } } });
+    await daily(0, { classifier: { ...ok, fetched: 5, opportunity: 120, not: 250, review: 30, new: { opportunity: 2, not: 2, review: 1 }, llm: { cached: 400, fresh: 4, failed: 1, skipped: 0 }, field: { cached: 1, fresh: 1, failed: 0, notAsked: 0 } } });
     await daily(20);
     for (const no of [1, 2]) await notice(db.sql, { no });
     await db.sql`insert into review_items (notice_id, reasons, checked_at) values ('cse:1', array['no_deadline'], null), ('cse:2', array['no_fields'], now())`;
@@ -68,6 +68,16 @@ describe('모니터링 (contracts/api.md)', () => {
     await down.request('POST', '/api/login', { method: 'dev', email: 'ops@example.com', password: PASSWORD });
     expect((await down.request('GET', '/api/ops/monitor')).body).toMatchObject({ health: { db: true, model: { ok: false, names: [] } } });
     await down.close();
+  });
+
+  it('오류 글의 DB 주소와 백업 경로는 주지 않는다', async () => {
+    const pw = 'postgres://kingo:s3cret@db:5432/kingo';
+    const fail = { ok: false, skipped: false, seconds: 1, error: `Command failed: pg_dump -Fc -f /backup/x.tmp ${pw}` };
+    await daily(1, { ingest: fail });
+    await daily(0, { ingest: fail, backup: { ...ok, file: '/backup/kingo.dump' } });
+    const text = JSON.stringify(await monitor());
+    expect(text).toContain('pg_dump');
+    for (const s of ['s3cret', 'kingo.dump']) expect([s, text.includes(s)]).toEqual([s, false]);
   });
 
   it('운영자만 부르고, 답의 어디에도 학생을 가리키는 값이 없다(SC-007)', async () => {

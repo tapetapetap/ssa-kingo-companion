@@ -3,5 +3,9 @@ const at = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', hou
 export const when = (iso: string) => at.format(new Date(iso));
 export const dayText = (day: string) => `${Number(day.slice(5, 7))}월 ${Number(day.slice(8, 10))}일`;
 export const num = (n: number | null | undefined) => (typeof n === 'number' ? n.toLocaleString('ko-KR') : '없음');
-export const took = (s: number) => (s < 60 ? `${Math.round(s)}초` : s < 3600 ? `${Math.round(s / 60)}분` : `${Math.floor(s / 3600)}시간 ${Math.round((s % 3600) / 60)}분`);
+export function took(s: number): string {
+  if (Math.round(s) < 60) return `${Math.round(s)}초`;
+  const m = Math.round(s / 60);
+  return m < 60 ? `${m}분` : `${Math.floor(m / 60)}시간 ${m % 60}분`;
+}
 export const percent = (num: number, den: number) => (den ? `${((num / den) * 100).toFixed(1)}%` : '없음');

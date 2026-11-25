@@ -156,7 +156,7 @@ export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR, a
       const known = e instanceof HttpError;
       if (!known) {
         logError(route, e, write);
-        onError?.();
+        if (!req.destroyed || req.complete) onError?.(); // 보내다 끊긴 요청은 서버 오류로 세지 않는다
       }
       const err = known ? e : new HttpError(500, 'server_error', '잠시 뒤에 다시 해 주세요');
       send(res, err.status, { error: { code: err.code, message: err.message, ...err.extra } });

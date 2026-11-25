@@ -45,7 +45,7 @@ function Again({ data, reload }: { data: Monitor; reload: () => Promise<void> })
           <Text color="secondary" role="status">
             {r ? `${REQUEST[r.status] ?? r.status}${r.error ? ` (${r.error})` : ''}. ${when(r.endedAt ?? r.startedAt ?? r.at)}, ${r.by}` : '아직 요청한 적이 없어요.'}
           </Text>
-          {data.dailyRunning && !open && <Text color="secondary">정해진 매일 작업이 도는 중이에요. 요청하면 그 작업이 끝난 뒤 돌아요.</Text>}
+          {data.dailyRunning && r?.status !== 'running' && <Text color="secondary">정해진 매일 작업이 도는 중이에요. 요청은 그 작업이 끝난 뒤 돌아요.</Text>}
         </VStack>
         <Button label="한 번 더 돌리기" variant="secondary" isDisabled={open} onClick={() => setAsking(true)} />
       </HStack>
@@ -110,7 +110,7 @@ export function Overview(p: PageProps) {
             <Card padding={4}>
               <VStack gap={2}>
                 <Text type="supporting" color="secondary">서버 상태</Text>
-                <HStack gap={2} vAlign="center"><Badge variant={d.health.db ? 'success' : 'error'} label={d.health.db ? 'DB 닿음' : 'DB 닿지 못함'} /></HStack>
+                <HStack gap={2} vAlign="center"><Badge variant={p.error ? 'error' : 'success'} label={p.error ? '서버나 DB에 닿지 못함' : 'DB 닿음'} /></HStack>
                 <HStack gap={2} vAlign="center" wrap="wrap"><Badge variant={d.health.model.ok ? 'success' : 'error'} label={d.health.model.ok ? '모델 서버 닿음' : '모델 서버 닿지 못함'} /><Text type="supporting" color="secondary">{d.health.model.names.join(', ')}</Text></HStack>
                 {d.health.lastDaily && <HStack gap={2}><Badge variant={d.health.lastDaily.failed.length ? 'warning' : 'success'} label={d.health.lastDaily.failed.length ? `실패한 단계 ${d.health.lastDaily.failed.map(stepName).join(', ')}` : '매일 작업 성공'} /></HStack>}
               </VStack>

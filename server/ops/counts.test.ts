@@ -26,8 +26,9 @@ describe('서비스 숫자 (R12)', () => {
     const got = await counts(db.sql, day(0), 'v2');
     expect(got).toEqual({ consented: 2, consented_new: 1, active7: 2, like: 1, later: 0, dislike: 1, push_sent: 1, push_failed: 1, push_devices: 1 });
     await saveCounts(db.sql, day(0), 'v2');
+    await db.sql`delete from actions`;
     await saveCounts(db.sql, day(0), 'v2');
-    expect((await db.sql`select n from daily_counts where name = 'like'`).map(r => r.n)).toEqual([1]);
+    expect((await db.sql`select n from daily_counts where name = 'like'`).map(r => r.n)).toEqual([1]); // 한 번 더 돌려도 처음 값
   });
 
   it('api의 500만 오늘 수에 오른다. 하루 숫자를 남겨도 지워지지 않는다', async () => {

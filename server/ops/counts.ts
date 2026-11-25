@@ -23,9 +23,10 @@ export async function counts(sql: Sql, day: string, consentVersion: string): Pro
   return r;
 }
 
+/** 그날 숫자를 남긴다. 낮에 한 번 더 돌려도 처음 남긴 것을 둔다(지금 상태로 센 값이 섞이지 않게) */
 export async function saveCounts(sql: Sql, day: string, consentVersion: string) {
   const c = await counts(sql, day, consentVersion);
-  for (const [name, n] of Object.entries(c)) await sql`insert into daily_counts (day, name, n) values (${day}, ${name}, ${n}) on conflict (day, name) do update set n = excluded.n`;
+  for (const [name, n] of Object.entries(c)) await sql`insert into daily_counts (day, name, n) values (${day}, ${name}, ${n}) on conflict (day, name) do nothing`;
 }
 
 /** api가 500을 낼 때마다 오늘 수를 1 올린다. 세지 못해도 답에는 영향이 없다 */

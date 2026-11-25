@@ -32,8 +32,8 @@ describe('운영자 요청 (R9)', () => {
     await openRequest(db.sql, 'daily', 'o');
     expect(await run(async () => { throw new DailyBusy('x'); })).toBe('매일 작업이 돌고 있어 기다려요');
     expect(await lastRequest(db.sql, 'daily')).toMatchObject({ status: 'waiting', startedAt: null });
-    await expect(run(async () => { throw new Error('DB에 닿지 못했어요'); })).rejects.toThrow();
-    expect(await lastRequest(db.sql, 'daily')).toMatchObject({ status: 'failed', error: 'DB에 닿지 못했어요' });
+    await expect(run(async () => { throw new Error('DB에 닿지 못했어요 postgres://a:b@db/x'); })).rejects.toThrow();
+    expect(await lastRequest(db.sql, 'daily')).toMatchObject({ status: 'failed', error: 'DB에 닿지 못했어요 (주소 가림)' });
   });
 
   it('도중에 죽은 매일 작업은 실패, 죽은 재기는 멈춤으로 되돌린다', async () => {

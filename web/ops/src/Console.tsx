@@ -165,7 +165,10 @@ export function Console({ first, onDirty }: { first: string | null; onDirty: (di
   const [selectedId, setSelectedId] = useState<string | null>(first);
   const [detail, setDetail] = useState<{ notice: OpsNotice; log: LogItem[] } | null>(null);
   const [dirty, setDirty] = useState(false);
-  useEffect(() => onDirty(dirty), [dirty, onDirty]);
+  useEffect(() => {
+    onDirty(dirty);
+    return () => onDirty(false);
+  }, [dirty, onDirty]);
   const [pending, setPending] = useState<string | null>(null);
   const panel = useResizable({ defaultSize: 520, minSize: 400, maxSize: 680 });
   /** 저장하지 않은 값이 있으면 묻고 고른다 */

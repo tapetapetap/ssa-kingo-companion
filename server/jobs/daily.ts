@@ -16,6 +16,7 @@ import { ingest, type IngestResult } from '../ingest/ingest.ts';
 import { openModel, withModelLock, type Model } from '../model.ts';
 import { enqueue } from '../pick/queue.ts';
 import { kstDay, saveCounts } from '../ops/counts.ts';
+import { hideSecrets } from '../log.ts';
 import { LIMITS } from '../limits.ts';
 import { backup } from './backup.ts';
 
@@ -127,7 +128,7 @@ async function run(d: DailyDeps): Promise<DailyRun> {
       const r = await fn();
       steps[name] = { ok: r !== 'skipped', skipped: r === 'skipped', seconds: (Date.now() - t0) / 1000, error: null, ...(typeof r === 'object' ? r : {}) };
     } catch (e) {
-      steps[name] = { ok: false, skipped: false, seconds: (Date.now() - t0) / 1000, error: e instanceof Error ? e.message : String(e) };
+      steps[name] = { ok: false, skipped: false, seconds: (Date.now() - t0) / 1000, error: hideSecrets(e instanceof Error ? e.message : String(e)) };
     }
   };
   const model = (d.model ?? (() => openModel(sql, 'daily')))();

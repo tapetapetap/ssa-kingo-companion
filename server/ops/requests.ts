@@ -1,6 +1,7 @@
 // 운영자 요청(FR-045, 3단계 research R9): api는 적어 두기만 하고, jobs의 'requests' 명령이 10분마다 가져가 한다(api가 컨테이너를 켤 수 없다)
 import type { Sql } from '../db/sql.ts';
 import { HttpError, kstIso } from '../http.ts';
+import { hideSecrets } from '../log.ts';
 import { DailyBusy, type DailyRun } from '../jobs/daily.ts';
 
 export type Kind = 'daily' | 'model_trial';
@@ -60,7 +61,7 @@ async function daily({ sql, daily }: RequestDeps): Promise<string | null> {
       await sql`update op_requests set status = 'waiting', started_at = null where id = ${r.id}`; // 다음 10분에 다시 본다
       return '매일 작업이 돌고 있어 기다려요';
     }
-    await end('failed', e instanceof Error ? e.message : String(e));
+    await end('failed', hideSecrets(e instanceof Error ? e.message : String(e)));
     throw e;
   }
 }

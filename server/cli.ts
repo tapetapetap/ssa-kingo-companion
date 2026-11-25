@@ -74,7 +74,7 @@ export async function main(args: string[], deps: Deps = {}): Promise<number> {
       }
       const daily = (): DailyDeps => ({ sql: sql!, mode, databaseUrl: c.databaseUrl, backupDir: c.backupDir, skipClassifier: rest.includes('--skip-classifier'), consentVersion: deps.sql ? undefined : readConsent(loadConfig(deps.env).consentFile).version, ...deps.daily });
       if (cmd === 'requests') {
-        const line = await runRequests({ sql, daily: () => runDaily(daily()) });
+        const line = await runRequests({ sql, daily: () => runDaily({ ...daily(), waitMs: 0 }) }); // 돌고 있으면 기다리지 않고 다음 10분에 본다
         console.log(json ? JSON.stringify({ result: line }) : line);
         return 0;
       }

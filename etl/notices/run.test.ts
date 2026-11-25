@@ -335,7 +335,7 @@ describe('judgeAll (스펙 2)', () => {
     expect(await main(['2026-10-01'], fakeBoard([2, 1]).get, join(dir, 'out.json'), join(dir, 'cache'), fake({ 1: job, 2: 'fail' }), { json: true, field: { reason: '분야를 넣지 않았어요' } })).toBe(0);
     const line = String(log.mock.calls.at(-1)![0]);
     expect(line.startsWith('요약JSON: ')).toBe(true);
-    expect(JSON.parse(line.slice('요약JSON: '.length))).toMatchObject({ fetched: 2, llm: { cached: 0, fresh: 1, failed: 1, skipped: 0 }, field: null, fieldReason: '분야를 넣지 않았어요' });
+    expect(JSON.parse(line.slice('요약JSON: '.length))).toMatchObject({ fetched: 2, new: { opportunity: 2, not: 0, review: 0 }, llm: { cached: 0, fresh: 1, failed: 1, skipped: 0 }, field: null, fieldReason: '분야를 넣지 않았어요' });
     expect(line).not.toContain('title');
   });
 });
