@@ -1,4 +1,4 @@
-// 운영자 화면 진입(ops-screen.md '상태별 화면'): 불러오는 중 → 로그인 칸 / 운영자 계정이 아니에요 / 오류 / 판정 검토
+// 운영자 화면 진입(ops-screen.md '상태별 화면'): 불러오는 중 → 로그인 칸 / 운영자 계정이 아니에요 / 오류 / 운영자 화면
 import '@astryxdesign/core/reset.css';
 import '@astryxdesign/core/astryx.css';
 import { StrictMode, useCallback, useEffect, useState, type CSSProperties } from 'react';
@@ -14,7 +14,7 @@ import { TextInput } from '@astryxdesign/core/TextInput';
 import { InternationalizationProvider } from '@astryxdesign/core/i18n';
 import koKR from '@astryxdesign/core/locales/ko-KR.generated.js';
 import { api, ApiError } from './api.ts';
-import { Console } from './Console.tsx';
+import { Shell } from './Shell.tsx';
 
 const page: CSSProperties = { minHeight: '100vh', backgroundColor: 'var(--color-background-body)' };
 const box: CSSProperties = { width: '100%', maxWidth: 400 };
@@ -38,7 +38,7 @@ function Login({ onDone }: { onDone: () => void }) {
     <Card padding={8} width="100%">
       <VStack gap={4} hAlign="stretch">
         <VStack gap={1} hAlign="center">
-          <Heading level={2} accessibilityLevel={1}>판정 검토</Heading>
+          <Heading level={2} accessibilityLevel={1}>킹고 운영</Heading>
           <Text type="body" color="secondary" size="sm">운영자 계정으로 들어가요</Text>
         </VStack>
         <VStack gap={2}>
@@ -75,7 +75,7 @@ function App() {
     setState('login');
   };
 
-  if (state === 'ready') return <Console onLogout={() => void logout()} />;
+  if (state === 'ready') return <Shell onLogout={() => void logout()} />;
   return (
     <Center role="main" axis="both" padding={6} style={page}>
       <VStack gap={4} hAlign="center" style={box}>

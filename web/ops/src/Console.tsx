@@ -155,15 +155,17 @@ function Inspector({ notice, log, fields, onDone, onDirty }: { notice: OpsNotice
   );
 }
 
-export function Console({ onLogout }: { onLogout: () => void }) {
+/** first는 열자마자 고를 공지(지도에서 왔을 때), onDirty는 저장하지 않은 값이 있는가 */
+export function Console({ first, onDirty }: { first: string | null; onDirty: (dirty: boolean) => void }) {
   const [reason, setReason] = useState('all');
   const [showChecked, setShowChecked] = useState(false);
   const [items, setItems] = useState<ReviewItem[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [fields, setFields] = useState<FieldList>({ groups: [], fields: [] });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(first);
   const [detail, setDetail] = useState<{ notice: OpsNotice; log: LogItem[] } | null>(null);
   const [dirty, setDirty] = useState(false);
+  useEffect(() => onDirty(dirty), [dirty, onDirty]);
   const [pending, setPending] = useState<string | null>(null);
   const panel = useResizable({ defaultSize: 520, minSize: 400, maxSize: 680 });
   /** 저장하지 않은 값이 있으면 묻고 고른다 */
@@ -242,12 +244,11 @@ export function Console({ onLogout }: { onLogout: () => void }) {
               <SegmentedControlItem label="분야 칸 빔" value="no_fields" />
             </SegmentedControl>
             <Switch label="확인한 것도 보기" value={showChecked} onChange={setShowChecked} size="sm" />
-            <Button label="나가기" variant="ghost" size="sm" onClick={onLogout} />
           </HStack>
         </LayoutHeader>
       }
       content={
-        <LayoutContent role="main" padding={0}>
+        <LayoutContent padding={0}>
           <VStack gap={0} style={styles.contentFill}>
             <StackItem size="fill" style={styles.rows}>{rows}</StackItem>
           </VStack>

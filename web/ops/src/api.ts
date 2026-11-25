@@ -38,3 +38,13 @@ export type OpsNotice = {
 export type ReviewItem = { notice: OpsNotice; reasons: string[]; checkedAt: string | null; checkedBy: string | null };
 export type LogItem = { noticeId: string; field: string | null; action: 'edit' | 'confirm' | 'rejudge'; old: unknown; new: unknown; by: string; at: string };
 export type FieldList = { groups: { id: string; name: string }[]; fields: { id: string; name: string; group: string }[] };
+export type Step = { ok: boolean; skipped: boolean; seconds: number; error: string | null } & Record<string, unknown>;
+export type OpRequest = { id: number; kind: string; model: string | null; by: string; at: string; status: string; done: number; total: number; startedAt: string | null; endedAt: string | null; error: string | null };
+export type Monitor = {
+  alerts: { kind: string; text: string; since: string; reason: string }[];
+  health: { db: boolean; model: { ok: boolean; names: string[] }; lastDaily: { startedAt: string; endedAt: string; failed: string[] } | null };
+  today: Record<'fetched' | 'opportunity' | 'not' | 'review' | 'failed', number | null> & { reviewOpen: number };
+  load: { gpuAvg: number | null; tempMax: number | null }; editRate: { num: number; den: number }; request: OpRequest | null; dailyRunning: boolean;
+  days: { day: string; startedAt: string; seconds: number; steps: Partial<Record<string, Step>>; load: { gpuAvg: number | null; tempMax: number | null; requests: number } }[];
+  counts: ({ day: string; server_error: number } & Record<'consented' | 'consented_new' | 'active7' | 'like' | 'later' | 'dislike' | 'push_sent' | 'push_failed' | 'push_devices', number | null>)[];
+};

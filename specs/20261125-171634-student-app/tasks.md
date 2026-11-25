@@ -114,14 +114,14 @@
 
 **Goal**: 숫자와 띠, 한 번 더 돌리기. **Independent Test**: spec US6.
 
-- [ ] T056 [US6] `server/db/migrations/010_ops.sql`(data-model, `model_bursts.who`에 `trial`)
-- [ ] T057 [P] [US6] 시험과 구현: `etl/notices/run.ts`의 `KINGO_RUN_JSON` 줄(R10)과 `etl/notices/run.test.ts`
-- [ ] T058 [P] [US6] 시험과 구현: `server/ops/counts.ts`(R12)와 시험, `server/main.ts`·`server/http.ts`(`createServer`의 `onError`) → `server_error` 올리기
-- [ ] T059 [US6] 시험과 구현: `server/jobs/daily.ts` — `kingo:daily` 잠금(두 개가 함께 시작하면 차례로, 30분 넘으면 실패), `counts` 단계, 07:00 뒤 시작은 `daytime`, 분류기 숫자 담기(읽지 못하면 비움). `server/jobs/daily.test.ts`의 단계 순서 시험을 고친다(`map`은 US7)
-- [ ] T060 [P] [US6] 시험과 구현: `server/ops/alerts.ts`(R11)와 시험(둘 잇단 실패, 하나, 10% 경계, 분모 0, `field` null, 36시간 경계, 건너뜀, 첫날)
-- [ ] T061 [US6] 시험과 구현: `server/ops/requests.ts`와 `server/cli.ts requests`(R9: 열린 것 하나, 죽은 `running` 되돌림, 없음, 단계 실패가 있어도 `done`, 잠금을 못 얻으면 `waiting`, `op_state`의 정답셋 판). `kingo-requests.service`·`.timer`, `kingo-daily.service`의 `TimeoutStartSec=6h`
-- [ ] T062 [US6] 시험과 구현: `server/ops/monitor.ts`의 `GET /api/ops/monitor`·`POST /api/ops/daily`(contracts/api.md, 운영자 아님 403, 답의 모든 글에 학생 번호·이메일·프롬프트 0, `dailyRunning`, 끝난 요청도 보임), `server/model.ts`의 `installedModels`(3초, `outbound.test.ts` 그대로 통과)
-- [ ] T063 [US6] `web/ops/src/Shell.tsx`(메뉴와 실패 띠)와 `Monitor.tsx`(개요·수집과 판정)·`Daily.tsx`·`Service.tsx`. `dataviz` 스킬을 읽고 7일 흐름을 그린다. `Console.tsx`는 메뉴 하나로 들어간다. `?notice=`로 판정 검토의 공지를 바로 연다(US7이 쓴다)
+- [X] T056 [US6] `server/db/migrations/010_ops.sql`(data-model, `model_bursts.who`에 `trial`)
+- [X] T057 [P] [US6] 시험과 구현: `etl/notices/run.ts`의 `KINGO_RUN_JSON` 줄(R10)과 `etl/notices/run.test.ts`
+- [X] T058 [P] [US6] 시험과 구현: `server/ops/counts.ts`(R12)와 시험, `server/main.ts`·`server/http.ts`(`createServer`의 `onError`) → `server_error` 올리기
+- [X] T059 [US6] 시험과 구현: `server/jobs/daily.ts` — `kingo:daily` 잠금(두 개가 함께 시작하면 차례로, 30분 넘으면 실패), `counts` 단계, 07:00 뒤 시작은 `daytime`, 분류기 숫자 담기(읽지 못하면 비움). `server/jobs/daily.test.ts`의 단계 순서 시험을 고친다(`map`은 US7)
+- [X] T060 [P] [US6] 시험과 구현: `server/ops/alerts.ts`(R11)와 시험(둘 잇단 실패, 하나, 10% 경계, 분모 0, `field` null, 36시간 경계, 건너뜀, 첫날)
+- [X] T061 [US6] 시험과 구현: `server/ops/requests.ts`와 `server/cli.ts requests`(R9: 열린 것 하나, 죽은 `running` 되돌림, 없음, 단계 실패가 있어도 `done`, 잠금을 못 얻으면 `waiting`). `op_state`의 정답셋 판은 정답셋을 읽는 T073·T074에서 적는다. `kingo-requests.service`·`.timer`, `kingo-daily.service`의 `TimeoutStartSec=6h`
+- [X] T062 [US6] 시험과 구현: `server/ops/monitor.ts`의 `GET /api/ops/monitor`·`POST /api/ops/daily`(contracts/api.md, 운영자 아님 403, 답의 모든 글에 학생 번호·이메일·프롬프트 0, `dailyRunning`, 끝난 요청도 보임), `server/model.ts`의 `installedModels`(3초, `outbound.test.ts` 그대로 통과)
+- [X] T063 [US6] `web/ops/src/Shell.tsx`(메뉴와 실패 띠)와 `Monitor.tsx`(개요·수집과 판정)·`Daily.tsx`·`Service.tsx`. `dataviz` 스킬을 읽고 7일 흐름을 그린다. `Console.tsx`는 메뉴 하나로 들어간다. `?notice=`로 판정 검토의 공지를 바로 연다(US7이 쓴다)
 
 **Checkpoint**: PR F.
 
