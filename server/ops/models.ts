@@ -43,13 +43,14 @@ export function modelRoutes(ctx: Ctx): Route[] {
       const installed = await list().catch(() => null);
       const { c, current } = await state(sql);
       const trials = await sql<Trial[]>`select * from model_trials order by id desc limit ${KEEP}`;
-      const changes = await sql<{ old_model: string; new_model: string; by_operator: string; at: Date }[]>`select old_model, new_model, by_operator, at from model_changes order by id desc limit ${KEEP}`;
+      const changes = await sql<{ old_model: string; new_model: string; by_operator: string; at: Date; core: Ratio | null }[]>`select c.old_model, c.new_model, c.by_operator, c.at, t.metrics->'corePrecision' as core
+        from model_changes c left join model_trials t on t.id = c.trial_id order by c.id desc limit ${KEEP}`;
       return {
         body: {
           current, initial: initialOf(c, installed?.map(m => m.name) ?? []), serverOk: installed !== null, goldReady: c?.goldVersion != null,
           installed: (installed ?? []).filter(isCandidate).map(({ name, size, parameterSize }) => ({ name, size, parameterSize })),
           request: await lastRequest(sql, 'model_trial'), trials: trials.map(t => view(t, c)),
-          changes: changes.map(x => ({ old: x.old_model, new: x.new_model, by: x.by_operator, at: kstIso(x.at) }))
+          changes: changes.map(x => ({ old: x.old_model, new: x.new_model, by: x.by_operator, at: kstIso(x.at), corePrecision: x.core }))
         },
         headers: o.headers
       };

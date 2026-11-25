@@ -140,16 +140,16 @@
 
 **Goal**: 재고, 85%를 넘으면 바꾸고, 앞 판정은 그대로. **Independent Test**: spec US8.
 
-- [ ] T068 [US8] 시험: `etl/notices/llm.test.ts`·`fields.test.ts` — `older: { dir, model }[]`가 있으면 앞 모델 답을 읽고 묻지 않음, 지금 모델 답이 먼저, 판이 다르면 안 읽음, 돌려준 `model`, 환경이 없으면 지금과 같음
-- [ ] T069 [US8] `etl/notices/llm.ts`(`makeChat`의 `older`, `Outcome.model`)와 `fields.ts`·`run.ts`(근거에 실제 모델 이름)
-- [ ] T070 [P] [US8] 시험과 구현: `etl/taxonomy/taxonomy.ts`의 `fieldGate(t, version, model, measured?)`(R14)와 `run.ts`의 `KINGO_FIELD_MEASURED` 읽기
-- [ ] T071 [US8] 시험과 구현: `server/model.ts`의 `currentModel`과 부르는 세 곳(`server/jobs/daily.ts`, `server/cli.ts`, `server/pick/repick.ts`), 분류기 환경 넘기기, `rejudgePaths(no, models)`가 앞 모델 답도 지움. `server/jobs/daily.test.ts`·`server/model.test.ts`를 고친다
-- [ ] T072 [US8] 시험: `server/jobs/swap.test.ts` — 가짜 모델 서버로 A로 판정 → B로 바꿈 → 매일 작업 → 앞 공지 근거 'LLM: A', 새 공지 'LLM: B', 다시 판정한 공지 'LLM: B', A로 되돌려도 B 판정 그대로, B로 바꾼 뒤 지금 모델 B를 다시 재도 분류기 보관 폴더에 새 파일이 0개이고 A가 판정한 공지가 그대로(SC-010)
-- [ ] T073 [US8] 시험과 구현: `server/ops/trial.ts`(R15): 정답셋·본문 없음 까닭, 이어 하기, 밤 시간 끝에 멈춤, 글마다 잠금을 놓음, 지표가 `scoreTaxonomy`·`eval.score`와 같음, 지금 모델이든 후보든 분류기 보관 폴더에 쓰지 않음, 조건 판, 지금 모델 먼저, `model_bursts`에 `trial`, 잠금 안에서 `openUnlocked`(교착 없음), fail 다시 묻기·5%·down·404, 누적과 null 시간, 기다리는 `daily`를 보면 물러남. `server/outbound.test.ts`의 `etl/` 허용 목록에 `score.ts`·`eval.ts`·`run.ts`를 더한다(수집 코드를 부르지 않는지 함께 본다)
-- [ ] T074 [US8] `server/ops/requests.ts`에 `model_trial`을 잇는다(R9의 밤 시간과 물러남: 물러난 뒤 같은 실행이 `daily`를 돌리고 시간이 남으면 잇는다). 시험: 02:49·02:50·22:00, 아침 조건 셋
-- [ ] T075 [US8] 시험과 구현: `server/ops/models.ts`의 경로 넷(contracts/api.md): 84.9%·85.0% 경계(분수), `trial_stale` 세 가지, 설치되지 않음, 이미 지금 모델, 열린 요청, 취소(`canceled`, 도는 중 409), 바꾼 사람, `op_state` 없음이면 모두 `stale`, `initial`로 되돌리기(판이 다르면 거절), 임베딩 모델 거르기
-- [ ] T076 [US8] `web/ops/src/Models.tsx`: 지금 모델·후보·진행·나란히 비교·경고·바꾸기 확인·기록
-- [ ] T077 [P] [US8] `deploy/compose.yaml`의 jobs에 `/gold` 읽기 전용과 `KINGO_GOLD_DIR`, `kingo.env.example`, `deploy/.env` 예시의 `KINGO_GOLD_HOST_DIR`, `.gitignore`·`.dockerignore`에 `deploy/gold/`, 2단계 quickstart의 설치 절에 정답셋·본문 보관본 옮기기와 급할 때 모델을 손으로 바꾸는 법
+- [X] T068 [US8] 시험: `etl/notices/llm.test.ts`·`fields.test.ts` — `older: { dir, model }[]`가 있으면 앞 모델 답을 읽고 묻지 않음, 지금 모델 답이 먼저, 판이 다르면 안 읽음, 돌려준 `model`, 환경이 없으면 지금과 같음
+- [X] T069 [US8] `etl/notices/llm.ts`(`makeChat`의 `older`, `Outcome.model`)와 `fields.ts`·`run.ts`(근거에 실제 모델 이름)
+- [X] T070 [P] [US8] 시험과 구현: `etl/taxonomy/taxonomy.ts`의 `fieldGate(t, version, model, measured?)`(R14)와 `run.ts`의 `KINGO_FIELD_MEASURED` 읽기
+- [X] T071 [US8] 시험과 구현: `server/model.ts`의 `currentModel`과 부르는 세 곳(`server/jobs/daily.ts`, `server/cli.ts`, `server/pick/repick.ts`), 분류기 환경 넘기기, `rejudgePaths(no, models)`가 앞 모델 답도 지움. `server/jobs/daily.test.ts`·`server/model.test.ts`를 고친다
+- [X] T072 [US8] 시험: `server/jobs/swap.test.ts` — 가짜 모델 서버로 A로 판정 → B로 바꿈 → 매일 작업 → 앞 공지 근거 'LLM: A', 새 공지 'LLM: B', 다시 판정한 공지 'LLM: B', A로 되돌려도 B 판정 그대로, B로 바꾼 뒤 지금 모델 B를 다시 재도 분류기 보관 폴더에 새 파일이 0개이고 A가 판정한 공지가 그대로(SC-010)
+- [X] T073 [US8] 시험과 구현: `server/ops/trial.ts`(R15): 정답셋·본문 없음 까닭, 이어 하기, 밤 시간 끝에 멈춤, 글마다 잠금을 놓음, 지표가 `scoreTaxonomy`·`eval.score`와 같음, 지금 모델이든 후보든 분류기 보관 폴더에 쓰지 않음, 조건 판, 지금 모델 먼저, `model_bursts`에 `trial`, 잠금 안에서 `openUnlocked`(교착 없음), fail 다시 묻기·5%·down·404, 누적과 null 시간, 기다리는 `daily`를 보면 물러남. `server/outbound.test.ts`의 `etl/` 허용 목록에 `score.ts`·`eval.ts`·`run.ts`를 더한다(수집 코드를 부르지 않는지 함께 본다)
+- [X] T074 [US8] `server/ops/requests.ts`에 `model_trial`을 잇는다(R9의 밤 시간과 물러남: 물러난 뒤 같은 실행이 `daily`를 돌리고 시간이 남으면 잇는다). 시험: 02:49·02:50·22:00, 아침 조건 셋
+- [X] T075 [US8] 시험과 구현: `server/ops/models.ts`의 경로 넷(contracts/api.md): 84.9%·85.0% 경계(분수), `trial_stale` 세 가지, 설치되지 않음, 이미 지금 모델, 열린 요청, 취소(`canceled`, 도는 중 409), 바꾼 사람, `op_state` 없음이면 모두 `stale`, `initial`로 되돌리기(판이 다르면 거절), 임베딩 모델 거르기
+- [X] T076 [US8] `web/ops/src/Models.tsx`: 지금 모델·후보·진행·나란히 비교·경고·바꾸기 확인·기록
+- [X] T077 [P] [US8] `deploy/compose.yaml`의 jobs에 `/gold` 읽기 전용과 `KINGO_GOLD_DIR`, `kingo.env.example`, `deploy/.env` 예시의 `KINGO_GOLD_HOST_DIR`, `.gitignore`·`.dockerignore`에 `deploy/gold/`, 2단계 quickstart의 설치 절에 정답셋·본문 보관본 옮기기와 급할 때 모델을 손으로 바꾸는 법
 - [ ] T078 [US8] 이 맥에서 실제로 한 번 잰다: 지금 모델의 핵심 정밀도가 27/31과 같은지(보관 답), 후보 하나(설치된 것)의 값. GPU 80%·80°C를 지키고 결과를 이 줄에 적는다
 
 **Checkpoint**: PR H(`/security-review` 포함).

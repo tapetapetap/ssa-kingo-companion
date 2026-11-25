@@ -59,7 +59,7 @@ describe('모델 (contracts/api.md)', () => {
     expect(await change(low)).toMatchObject({ status: 422, body: { error: { code: 'trial_low' } } });
     expect(await change(ok)).toMatchObject({ status: 200, body: { current: { model: 'b:1', by: 'ops@example.com', trial: { id: ok } } } });
     expect(await currentModel(db.sql)).toBe('b:1');
-    expect((await get()).changes).toMatchObject([{ old: FIRST, new: 'b:1', by: 'ops@example.com' }]);
+    expect((await get()).changes).toMatchObject([{ old: FIRST, new: 'b:1', by: 'ops@example.com', corePrecision: { num: 17, den: 20 } }]);
     expect(await change(ok)).toMatchObject({ status: 422, body: { error: { code: 'invalid', message: '이미 지금 모델이에요' } } });
     expect(await change(await trial(0, 0))).toMatchObject({ body: { error: { code: 'trial_low' } } });
   });
