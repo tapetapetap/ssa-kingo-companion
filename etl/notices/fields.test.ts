@@ -164,6 +164,16 @@ describe('makeFieldAsk', () => {
     expect(await ask()(row(3), BODY)).toEqual({ answer: settled, cached: true });
   });
 
+  it('앞 모델의 답도 같은 벡터로 굳혀 그 모델 이름과 함께 준다(3단계 R14)', async () => {
+    const [t, dir, embedDir] = [validList('custom'), tmp(), tmp()];
+    await makeFieldAsk({ taxonomy: t, embed: embedOf(), model: 'a', dir, embedDir, post: postOf(answer(['채움 1', '채움 5'], ['채움 7'])) })(row(3), BODY);
+    const post = postOf(answer(['채움 2']));
+    const ask = makeFieldAsk({ taxonomy: t, embed: embedOf(), model: 'b', dir, embedDir, post, older: [{ dir, model: 'a' }] });
+    expect(await ask(row(3), BODY)).toEqual({ answer: { core: ['fill-1'], related: ['fill-5', 'fill-7'] }, cached: true, model: 'a' });
+    expect(post).not.toHaveBeenCalled();
+    expect(await ask(row(4), BODY)).toEqual({ answer: { core: ['fill-2'], related: [] }, cached: false });
+  });
+
   it('핵심이 빈 보관 답은 벡터를 보지 않고 그대로 돌려준다(굳혀도 같다)', async () => {
     const [t, dir] = [validList('custom'), tmp()];
     await makeFieldAsk({ taxonomy: t, embed: embedOf(), dir, embedDir: tmp(), post: postOf(answer([], ['채움 9'])) })(row(5), BODY);

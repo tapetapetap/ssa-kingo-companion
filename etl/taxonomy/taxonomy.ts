@@ -188,10 +188,15 @@ export function findChosen(list: Taxonomy[]): ChosenTaxonomy | null {
   return picked[0] ?? null;
 }
 
+/** 지금 모델을 잰 값(모델을 바꿀 때 근거가 된 재기 결과, 3단계 research R14) */
+export type Measured = { prompt: string; model: string; num: number; den: number };
+
 /** 결과 파일에 분야를 넣어도 되는가. 판정 판 → 모델 → 정밀도 순으로 처음 걸린 이유 하나를 낸다(research R12) */
-export function fieldGate(t: ChosenTaxonomy, version: string, model: string): { ok: true } | { reason: string } {
+export function fieldGate(t: ChosenTaxonomy, version: string, model: string, measured?: Measured | null): { ok: true } | { reason: string } {
   const c = t.chosen;
   if (c.prompt !== version) return { reason: `고른 안 ${t.id}을 고른 뒤 판정 판이 바뀌어(${c.prompt} → ${version}) 분야를 넣지 않았어요. 다시 재고 고르세요` };
+  // 고른 뒤 모델을 바꿨으면 그 모델로 잰 값이 같은 판에서 85%를 넘어야 한다
+  if (c.model !== model && measured?.prompt === version && measured.model === model && passes({ num: measured.num, den: measured.den })) return { ok: true };
   if (c.model !== model) return { reason: `고른 안 ${t.id}은 ${c.model}로 쟀는데 지금 모델은 ${model}이라 분야를 넣지 않았어요` };
   if (!passes(c.corePrecision)) return { reason: `고른 안 ${t.id}의 핵심 정밀도 ${pct(c.corePrecision)} < 85%라 분야를 넣지 않았어요` };
   return { ok: true };

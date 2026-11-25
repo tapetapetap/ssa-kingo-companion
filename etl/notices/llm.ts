@@ -208,7 +208,10 @@ export async function postOnce(post: Post, url: string, body: string, gate?: Gat
   }
 }
 
-export type Outcome<T> = { answer: T; cached: boolean } | 'fail' | 'down';
+/** model은 앞 모델의 보관 답을 썼을 때만 온다(지금 모델이 답했으면 없다) */
+export type Outcome<T> = { answer: T; cached: boolean; model?: string } | 'fail' | 'down';
+/** 앞 모델의 보관 답을 읽는 자리(읽기만 한다). 모델을 바꿔도 앞서 판정한 글은 그대로다(3단계 research R14) */
+export type Older = { dir: string; model: string }[];
 /** 글 하나의 요청 내용. 분야 판정은 후보가 글마다 달라 지시문·스키마·답 검사도 글마다 다르다 */
 type ChatRequest<T> = { system: string; user: string; schema: object; parse: (text: string) => T | null };
 
@@ -216,7 +219,7 @@ type ChatRequest<T> = { system: string; user: string; schema: object; parse: (te
  *  순서: 보관 → 잠긴 down → request → gate.before → post → gate.after → 답 검사·잘림 막기 → 보관.
  *  서버에 닿지 못하거나 모델이 없으면(down) 그 뒤로 서버를 부르지 않는다. request·gate가 막은 down은 잠그지 않는다 */
 export function makeChat<T>(o: {
-  model: string; host?: string; dir: string; sub: string; meta: Record<string, string>; post?: Post;
+  older?: Older; model: string; host?: string; dir: string; sub: string; meta: Record<string, string>; post?: Post;
   options: { temperature: number; num_ctx: number }; isValid: (a: unknown) => a is T;
   request: (row: NoticeRow, lines: string[]) => Promise<ChatRequest<T> | 'fail' | 'down'>; gate?: Gate;
 }): (row: NoticeRow, lines: string[]) => Promise<Outcome<T>> {
@@ -228,6 +231,10 @@ export function makeChat<T>(o: {
     const file = join(dir, `${row.no}.json`);
     const kept = readKept(file, o.isValid);
     if (kept) return { answer: kept, cached: true };
+    for (const x of o.older ?? []) {
+      const was = readKept(join(x.dir, modelDir(x.model), o.sub, `${row.no}.json`), o.isValid);
+      if (was) return { answer: was, cached: true, model: x.model };
+    }
     if (down) return 'down';
     const req = await o.request(row, lines);
     if (req === 'fail' || req === 'down') return req;
@@ -255,11 +262,11 @@ export function makeChat<T>(o: {
 }
 
 /** 글 하나씩 묻는 기회 판정. 폴더와 파일의 prompt 칸은 같은 판(PROMPT_VERSION)이다 */
-export function makeAsk(o: { model?: string; host?: string; dir?: string; post?: Post; gate?: Gate } = {}): Ask {
+export function makeAsk(o: { older?: Older; model?: string; host?: string; dir?: string; post?: Post; gate?: Gate } = {}): Ask {
   const model = o.model ?? (process.env.KINGO_LLM_MODEL || DEFAULT_MODEL);
   const ask = makeChat<LlmAnswer>({
     model, host: o.host, dir: o.dir ?? LLM_CACHE_DIR, sub: PROMPT_VERSION, meta: { prompt: PROMPT_VERSION }, post: o.post,
-    options: OPTIONS, isValid: isAnswer, gate: o.gate,
+    options: OPTIONS, isValid: isAnswer, gate: o.gate, older: o.older,
     request: async (row, lines) => ({ system: SYSTEM, user: userMessage(row, lines), schema: SCHEMA, parse: parseAnswer })
   });
   return Object.assign(ask, { model });

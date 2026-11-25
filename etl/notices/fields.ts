@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { groupPath, labelsOf, type Taxonomy, type TaxonomyId } from '../taxonomy/taxonomy.ts';
 import type { NoticeRow } from './cse.ts';
 import { CANDIDATE_RULE, CORE_TOP, EMBED_K, fieldVectors, noticeVector, readNoticeVector, topCandidates, type Embed, type FieldVectors } from './embed.ts';
-import { DEFAULT_MODEL, jsonOf, makeChat, modelDir, PROMPT_PARTS, readKept, userMessage, versionOf, type Gate, type Outcome, type Post } from './llm.ts';
+import { DEFAULT_MODEL, jsonOf, makeChat, modelDir, PROMPT_PARTS, readKept, userMessage, versionOf, type Gate, type Older, type Outcome, type Post } from './llm.ts';
 
 /** core는 0~2개(가까운 순), related는 0~5개이고 둘은 겹치지 않는다. 둘 다 비면 '분야 없음'이다 */
 export type FieldAnswer = { core: string[]; related: string[] };
@@ -108,7 +108,7 @@ export const fieldFolder = (t: Taxonomy, model: string, dir = FIELD_CACHE_DIR) =
 export const readFieldAnswer = (t: Taxonomy, model: string, no: number, dir = FIELD_CACHE_DIR) =>
   readKept(join(fieldFolder(t, model, dir), `${no}.json`), isFieldAnswer(t));
 
-export function makeFieldAsk(o: { taxonomy: Taxonomy; embed: Embed; model?: string; host?: string; dir?: string; embedDir?: string; post?: Post; gate?: Gate }): FieldAsk {
+export function makeFieldAsk(o: { older?: Older; taxonomy: Taxonomy; embed: Embed; model?: string; host?: string; dir?: string; embedDir?: string; post?: Post; gate?: Gate }): FieldAsk {
   const t = o.taxonomy;
   const model = o.model ?? (process.env.KINGO_LLM_MODEL || DEFAULT_MODEL);
   const version = fieldVersion(t);
@@ -130,7 +130,7 @@ export function makeFieldAsk(o: { taxonomy: Taxonomy; embed: Embed; model?: stri
   };
   const chat = makeChat<FieldAnswer>({
     model, host: o.host, dir: o.dir ?? FIELD_CACHE_DIR, sub: `${t.id}-${version}`, meta: { taxonomy: t.id, prompt: version }, post: o.post,
-    options: FIELD_OPTIONS, isValid: isFieldAnswer(t), gate: o.gate,
+    options: FIELD_OPTIONS, isValid: isFieldAnswer(t), gate: o.gate, older: o.older,
     request: async (row, lines) => {
       const ids = small ? t.fields.map(f => f.id) : await near(row, lines, EMBED_K);
       if (ids === 'fail' || ids === 'down') return ids;

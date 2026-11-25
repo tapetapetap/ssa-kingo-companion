@@ -229,6 +229,23 @@ describe('makeChat (스펙 3)', () => {
     expect(readKept(join(dir, 'none.json'), isA)).toBeNull();
   });
 
+  it('앞 모델의 보관 답이 있으면 묻지 않고 그 모델 이름을 준다. 지금 모델 답이 먼저이고, 판이 다르면 읽지 않고, 어디에도 새로 쓰지 않는다(3단계 R14)', async () => {
+    const [dir, old] = [tmp(), tmp()];
+    await chat({ dir: old, model: 'a:1', post: fakePost(reply('ok')) })(row(7), []);
+    await chat({ dir: old, model: 'a:1', sub: 'custom-other', post: fakePost(reply('ok')) })(row(8), []);
+    const post = fakePost(reply('ok'));
+    const older = [{ dir: old, model: 'none' }, { dir: old, model: 'a:1' }];
+    const ask = chat({ dir, model: 'b:1', post, older });
+    expect(await ask(row(7), [])).toEqual({ answer: { v: 'ok' }, cached: true, model: 'a:1' });
+    expect(post).not.toHaveBeenCalled();
+    expect(existsSync(join(dir, modelDir('b:1')))).toBe(false);
+    expect(await ask(row(8), [])).toEqual({ answer: { v: 'ok' }, cached: false });
+    expect(await ask(row(8), [])).toEqual({ answer: { v: 'ok' }, cached: true }); // 지금 모델 답이 먼저
+    await chat({ dir, model: 'b:1', post: fakePost(reply('ok')) })(row(7), []);
+    expect(await ask(row(7), [])).toEqual({ answer: { v: 'ok' }, cached: true });
+    expect(readdirSync(join(old, modelDir('a:1'), 'custom-1a2b3c4d'))).toEqual(['7.json']);
+  });
+
   it('답에 prompt_eval_count가 없으면 promptTokens는 null이다', async () => {
     const dir = tmp();
     await chat({ dir })(row(7), []);
