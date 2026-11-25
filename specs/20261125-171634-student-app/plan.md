@@ -16,7 +16,7 @@
 
 **Primary Dependencies**: 새 실행 의존성 `web-push@4.0.0`(정확한 판). 새 dev 의존성 `axe-core`(접근성 자동 검사). 나머지는 있는 것(`@astryxdesign/core`, `postgres`, `playwright`)
 
-**Storage**: Postgres 17 + pgvector. 새 표 7개(마이그레이션 009·010, [data-model.md](data-model.md))
+**Storage**: Postgres 17 + pgvector. 새 표 8개(마이그레이션 009·010, [data-model.md](data-model.md))
 
 **Testing**: vitest(순수 함수·API·DB), Playwright 스크립트(`e2e:app`), 실제 기기는 손
 
@@ -57,7 +57,7 @@ specs/20261125-171634-student-app/
 ├── research.md          # R1~R20
 ├── data-model.md
 ├── quickstart.md
-├── contracts/{api.md, app.md, cli.md, design.md}
+├── contracts/{api.md, app.md, cli.md, design.md, screens.md}
 ├── stack-diagram.html
 └── tasks.md
 ```
@@ -82,7 +82,7 @@ server/
 ├── push/                   # web-push.d.ts, endpoint.ts(R5), routes.ts, targets.ts, message.ts, send.ts(notify)
 ├── ops/                    # monitor.ts, alerts.ts, counts.ts, requests.ts, map.ts, tsne.ts, models.ts, trial.ts
 ├── jobs/daily.ts           # map·counts 단계, kingo:daily 잠금, 분류기 환경
-├── model.ts                # currentModel, installedModels
+├── model.ts                # currentModel, installedModels, openUnlocked
 └── db/migrations/009_push.sql, 010_ops.sql
 etl/notices/{llm,fields,run}.ts, etl/taxonomy/taxonomy.ts   # 앞 모델 보관 답 읽기, 실제 판정한 모델 이름, 요약JSON, fieldGate
 scripts/e2e-app/run.mjs
@@ -111,7 +111,7 @@ PR마다: 시험 → 구현 → (화면이 바뀌면) `impeccable audit`·`polis
 
 ## 구현 전에 할 것
 
-- `/speckit-tasks` → goldfish 리뷰 → 구현 전 승인(2-1). 승인 때 실사용 변화와 전체 시스템 도식도를 함께 낸다.
+- `/speckit-tasks` → goldfish 리뷰 → 구현 전 승인(2-1): 2026-11-25에 사용자가 모두 추천안대로 승인했다.
 - 동의 문구 초안(Claude Docs)에 FR-040 문장을 더한다.
 - agent context 갱신은 없다(2단계와 같음).
 

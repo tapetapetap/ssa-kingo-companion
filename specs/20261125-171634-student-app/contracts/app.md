@@ -30,6 +30,6 @@
 5. **내 목록 순서**: `flags`에 `down`이나 `closed`가 있으면 먼저 맨 아래로 보낸다(서버의 `revisit_due`는 닫힌 공지에도 붙는다). 나머지는 다시 볼 날이 된 것(`revisit_due`) → 열린 것 중 마감 있는 것(마감 가까운 순) → 열린 것 중 마감 없는 것 → 그 아래 `closed` → `down`. 같은 자리 안은 서버가 준 순서다.
 6. **AI 표시**: 가장 추천 `method`가 'LLM: …'이면 'AI가 골랐어요', '규칙'이면 '규칙으로 골랐어요'. 분야 `by`가 'LLM: …'이면 'AI 추정', '운영자'면 '운영자 확인'.
 7. **빈 까닭**: `pickEmpty`·`empty` 값마다 글과 할 일을 하나씩 둔다: `fields_not_done` → 분야 고르기, `no_open_notices` → '지금 열린 공지가 없어요', 홈 `pickEmpty`의 `no_match` → '맞는 공지를 모두 봤어요'(공지 보러 가기), 공지 목록 `empty`의 `no_match` → '찾는 말이나 거르기에 맞는 공지가 없어요'(거르기 지우기). 선반의 `empty`는 글 없이 선반을 숨기고, 셋 다 비면 '지금 보여 줄 선반이 없어요' 한 줄이다.
-8. **행동**: 누르면 바로 바꾸고 저장이 실패하면 되돌린다. 같은 공지에 저장이 겹치면 앞 것이 끝난 뒤 마지막 것 하나만 보낸다.
+8. **행동**(홈의 가장 추천은 spec FR-012대로 5초 뒤 홈을 다시 부른다): 누르면 바로 바꾸고 저장이 실패하면 되돌린다. 같은 공지에 저장이 겹치면 앞 것이 끝난 뒤 마지막 것 하나만 보낸다.
 9. **푸시 켜기**: `serviceWorker`·`PushManager`·`Notification`이 있고 `push.ready`면 켤 수 있다. 순서는 설명 → `Notification.requestPermission()` → `pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })` → `PUT /api/me/push`. 저장이 실패하면 구독을 거둔다. 앱을 열 때 브라우저에 구독이 있고 `push.on`이 거짓이면 다시 저장하지 않고 '꺼짐'으로 보인다(로그아웃한 기기에서 조용히 다시 켜지지 않게).
 10. **아이폰 안내**: iOS Safari이고 `navigator.standalone`이 참이 아니면 한 번.

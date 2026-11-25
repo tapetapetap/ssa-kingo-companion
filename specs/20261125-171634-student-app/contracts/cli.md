@@ -5,11 +5,11 @@
 | 명령 | 하는 일 | 출력 한 줄 |
 |---|---|---|
 | `push-keys` | 알림 키 쌍을 만들어 출력만 한다(DB에 닿지 않음) | `KINGO_PUSH_PUBLIC_KEY=…` 줄과 `KINGO_PUSH_PRIVATE_KEY=…` 줄 |
-| `notify` | 그날 알림을 보낸다(R7). 09:00~21:00(한국) 밖이면 보내지 않고 0 | `알림 보냄 3 · 실패 0 · 사라짐 1 · 건너뜀 2` |
-| `requests` | 운영자 요청을 처리한다(R9) | `요청 없음` 또는 `매일 작업 끝` / `모델 재기 멈춤 60/240` |
+| `notify` | 그날 알림을 보낸다(R7). 09:00~21:00(한국) 밖이면 보내지 않고 0. 키나 `KINGO_PUBLIC_URL`이 없으면 '알림 키가 없어요'와 1 | `알림 보냄 3 · 실패 0 · 사라짐 1 · 건너뜀 2` |
+| `requests` | 운영자 요청을 처리하고 정답셋 판을 적는다(R9) | `요청 없음` 또는 `매일 작업 끝` / `모델 재기 멈춤 60/240` |
 
-설정(`deploy/kingo.env`): `KINGO_PUBLIC_URL`, `KINGO_PUSH_PUBLIC_KEY`. (`deploy/kingo.push.env`, jobs만): `KINGO_PUSH_PRIVATE_KEY`. (compose) `KINGO_GOLD_HOST_DIR` → `/gold`, `KINGO_GOLD_DIR=/gold`.
+설정(`deploy/kingo.env`): `KINGO_PUBLIC_URL`, `KINGO_PUSH_PUBLIC_KEY`. (`deploy/kingo.push.env`, jobs만): `KINGO_PUSH_PRIVATE_KEY`. (`deploy/.env`) `KINGO_GOLD_HOST_DIR`(기본 `./gold`) → `/gold` 읽기 전용, 컨테이너 환경 `KINGO_GOLD_DIR=/gold`. `deploy/gold/`는 `.gitignore`·`.dockerignore`로 뺀다.
 
-systemd: `kingo-notify.service`·`.timer`(09:00 Asia/Seoul, Persistent), `kingo-requests.service`·`.timer`(10분마다). `kingo-requests.service`의 `TimeoutStartSec`는 9시간이다.
+systemd: `kingo-notify.service`·`.timer`(09:00 Asia/Seoul, Persistent), `kingo-requests.service`·`.timer`(10분마다). `kingo-requests.service`의 `TimeoutStartSec`는 9시간이고, 있는 `kingo-daily.service`는 6시간으로 고친다.
 
 분류기(`etl/notices/run.ts`)가 읽는 새 환경: `KINGO_LLM_OLDER`, `KINGO_FIELD_MEASURED`, `KINGO_RUN_JSON`. 셋 다 없으면 지금과 같다(맥에서 손으로 돌릴 때).

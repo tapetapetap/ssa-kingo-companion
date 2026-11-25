@@ -16,14 +16,15 @@
 
 | 표 | 칸 | 규칙 |
 |---|---|---|
-| `op_requests` | `id` PK identity, `kind` text in (`daily`, `model_trial`), `model` text(`model_trial`만, 그 밖 null), `by_operator` text, `at`, `status` text in (`waiting`, `running`, `paused`, `done`, `failed`), `done` int 기본 0, `total` int 기본 0, `started_at`, `ended_at`, `error` text | 종류마다 열린 것(`waiting`·`running`·`paused`) 하나: 부분 unique 인덱스 `(kind) where status in (…)` |
-| `model_trials` | `id` PK identity, `request_id` → op_requests, `model` text, `taxonomy_id` text, `field_version` text, `prompt_version` text, `gold_version` text, `trial_version` int, `metrics` jsonb, `started_at`, `ended_at` | `metrics`: `{ corePrecision, coreRecall, relatedPrecision, oppRight, oppMissed }`(모두 `{num, den}`. `oppRight`는 '기회 여부', `oppMissed`는 '기회 놓침'), `fieldSample`, `oppSample`, `secPerAsk`, `gpuAvg`, `tempMax`. 라벨·제목·본문 없음 |
-| `model_changes` | `id` PK identity, `old_model` text, `new_model` text, `trial_id` → model_trials, `by_operator` text, `at` | 지금 모델은 마지막 행 |
+| `op_requests` | `id` PK identity, `kind` text in (`daily`, `model_trial`), `model` text(`model_trial`만, 그 밖 null), `by_operator` text, `at`, `status` text in (`waiting`, `running`, `paused`, `done`, `failed`, `canceled`), `done` int 기본 0, `total` int 기본 0, `requests` int 기본 0, `request_ms` bigint 기본 0, `gpu_ms` double 기본 0(GPU%×ms), `gpu_known_ms` bigint 기본 0, `temp_max` real null, `started_at`, `ended_at`, `error` text | 종류마다 열린 것(`waiting`·`running`·`paused`) 하나: 부분 unique 인덱스 `(kind) where status in (…)` |
+| `model_trials` | `id` PK identity, `request_id` → op_requests, `model` text, `taxonomy_id` text, `field_version` text, `prompt_version` text, `gold_version` text, `trial_version` int, `metrics` jsonb, `started_at`, `ended_at` | `metrics`: `{ corePrecision, coreRecall, relatedPrecision, oppRight, oppMissed }`(모두 `{num, den}`. `oppRight`는 '기회 여부', `oppMissed`는 '기회 놓침'), `fieldSample`, `oppSample`, `failed`, `secPerAsk`·`gpuAvg`·`tempMax`(새로 물은 글이 없으면 null). 라벨·제목·본문 없음 |
+| `model_changes` | `id` PK identity, `old_model` text, `new_model` text, `trial_id` → model_trials(처음 모델의 고른 기록으로 되돌린 것은 null), `by_operator` text, `at` | 지금 모델은 마지막 행 |
+| `op_state` | `key` text PK, `value` text, `at` timestamptz | 지금은 `gold_version` 하나. jobs가 10분마다 적고 api가 읽는다 |
 | `field_maps` | `id` PK identity, `at`, `taxonomy_id` text, `edition` text, `data` jsonb | 최근 7개 |
 
 `model_bursts.who` check에 `trial`을 더한다.
 
-`op_requests` 상태 변화: `waiting` → `running` → `done` | `failed`. `model_trial`은 `running` → `paused`(밤 시간 끝) → `running` …. 죽은 `running`은 다음 `requests`가 `daily`는 `failed`, `model_trial`은 `paused`로 되돌린다.
+`op_requests` 상태 변화: `waiting` → `running` → `done` | `failed`. `model_trial`은 `running` → `paused`(밤 시간 끝, 기다리는 `daily` 요청, 모델 서버에 닿지 못함) → `running` …, `waiting`·`paused` → `canceled`(운영자). 죽은 `running`은 다음 `requests`가 `daily`는 `failed`, `model_trial`은 `paused`로 되돌린다.
 
 ## `field_maps.data`
 
@@ -42,10 +43,10 @@
 
 ## 답에 더하는 칸(`GET /api/me`)
 
-`tag`(학생 번호의 SHA-256 앞 8자), `push`: `{ ready: boolean, on: boolean }`. `ready`는 공개 키가 있는가, `on`은 이 세션에 구독이 있는가.
+`tag`(학생 번호의 SHA-256 앞 8자), `push`: `{ ready: boolean, on: boolean }`. `ready`는 공개 키와 `KINGO_PUBLIC_URL`이 있는가, `on`은 이 세션에 구독이 있는가.
 
 ## 첫 숫자 값(`server/limits.ts`에 더함)
 
-`pushDevices 10`, `pushKeepDays 30`, `pushTitleChars 40`, `pushFrom 9`, `pushUntil 21`, `pushRetryMinutes 10`, `endpointChars 1000`, `alertRuns 2`, `alertFailPercent 10`, `alertStaleHours 36`, `monitorDays 14`, `editRateDays 30`, `mapDays 90`, `mapKeep 7`, `mapPairs 10`, `mapEmptyMin 3`, `mapMinFields 12`, `trialOppSample 120`, 밤 시간 `trialNight [22:00, 02:50]`, `trialMorningEnd 7`.
+`pushDevices 10`, `pushKeepDays 30`, `pushTitleChars 40`, `pushFrom 9`, `pushUntil 21`, `pushRetryMinutes 10`, `endpointChars 1000`, `alertRuns 2`, `alertFailPercent 10`, `alertStaleHours 36`, `monitorDays 14`, `editRateDays 30`, `mapDays 90`, `mapKeep 7`, `mapPairs 10`, `mapEmptyMin 3`, `mapMinFields 12`, `trialOppSample 120`, 밤 시간 `trialNight [22:00, 02:50]`, `trialMorningEnd 7`, `trialFailPercent 5`, `dailyWaitMinutes 30`.
 
 앱의 값(`web/app/src/lib/values.ts`): 홈 다시 부르기 5초, 되돌리기 5초, 나중에 보기 기본 3일.

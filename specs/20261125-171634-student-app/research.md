@@ -17,13 +17,13 @@
 
 ## R3. 서비스 워커: 직접 쓴 파일 하나
 
-- **정한 것**: `web/app/public/sw.js`. (1) 화면 이동 요청은 네트워크 먼저, 실패하면 보관한 `/index.html`. (2) `/assets/*`는 보관 먼저. (3) `/api/*`와 `/ops/*`는 건드리지 않는다(보관 0). (4) `push`: 받은 JSON `{ title, body, url, tag }`로 알림을 띄운다. 꼴이 틀리면 제목 '킹고 컴패니언', 글 '확인할 공지가 있어요', 주소 `/list`로 띄운다(iOS는 push마다 알림이 보여야 한다). (5) `notificationclick`: 열린 앱 창이 있으면 그 창을 `url`로 옮기고 앞으로, 없으면 새 창. `url`은 같은 출처의 경로만 따른다. (6) `install`에서 `/index.html`을 받아 담고 그 안의 `/assets/*` 주소(스크립트·스타일 태그)도 함께 담은 뒤 `skipWaiting`(처음 연 화면에서 바로 오프라인이 되어도 껍데기가 열린다), `activate`에서 앞 판 보관 지우기와 `clients.claim`. 보관 이름은 빌드 때 바뀌지 않는 고정 이름 `kingo-shell-1`이고 `index.html`은 이동 때마다 새로 담는다.
+- **정한 것**: `web/app/public/sw.js`. (1) 화면 이동 요청은 네트워크 먼저, 실패하면 보관한 `/index.html`. (2) `/assets/*`는 보관 먼저. (3) `/api/*`와 `/ops/*`는 건드리지 않는다(보관 0). (4) `push`: 받은 JSON `{ title, body, url, tag }`로 알림을 띄운다. 꼴이 틀리면 제목 '킹고 컴패니언', 글 '확인할 공지가 있어요', 주소 `/list`로 띄운다(iOS는 push마다 알림이 보여야 한다). (5) `notificationclick`: 열린 앱 창이 있으면 그 창을 `url`로 옮기고 앞으로, 없으면 새 창. `url`은 같은 출처의 경로만 따른다. (6) `install`에서 `/index.html`을 받아 담고 그 안의 `/assets/*` 주소(스크립트·스타일 태그)도 함께 담은 뒤 `skipWaiting`(처음 연 화면에서 바로 오프라인이 되어도 껍데기가 열린다), `activate`에서 앞 판 보관 지우기와 `clients.claim`. 보관 이름은 빌드 때 바뀌지 않는 고정 이름 `kingo-shell-1`이고 `index.html`은 이동 때마다 새로 담는다. 새 `index.html`을 담을 때 그것이 가리키는 `/assets/*`를 담고 가리키지 않는 `/assets/*` 보관은 지운다. (7) 아이콘은 SVG 하나(강조색 `#4e741b` 바탕, 흰 글자 '킹고', 학교 로고·상징물 없음)에서 192·512·maskable·apple-touch PNG를 만든다. manifest: `name` 킹고 컴패니언, `short_name` 킹고, `start_url` `/`, `display` standalone, `theme_color` `#4e741b`, `background_color` `#f1f1f1`, `lang` ko.
 - **버린 것**: `vite-plugin-pwa`(B안).
 
 ## R4. 웹 푸시: `web-push@4.0.0`(정확한 판), 보내기는 jobs
 
 - **정한 것**: `web-push` 4.0.0(2026-11-06, ESM, 의존성 넷)을 정확한 판으로 둔다. 타입이 없어 쓰는 것만 `server/push/web-push.d.ts`에 선언한다(`sendNotification`, `generateVAPIDKeys`, `WebPushError.statusCode`). 부르는 곳은 `server/push/send.ts` 하나다(`server/outbound.test.ts`가 지킨다). 제한 시간 10초, `TTL`은 그날 24:00까지 남은 초, `urgency: 'normal'`, 암호화 aes128gcm(기본). 다시 보내기·따라가기(redirect)는 없다(라이브러리가 따라가지 않는다).
-- 키: `KINGO_PUSH_PUBLIC_KEY`·`KINGO_PUSH_PRIVATE_KEY`(`node server/cli.ts push-keys`가 두 줄을 출력만 한다. 파일에 쓰지 않는다), `KINGO_PUBLIC_URL`(예: `https://kingo.example.ac.kr`). VAPID subject는 `KINGO_PUBLIC_URL`이다(개인 이메일을 쓰지 않는다). 셋 중 하나라도 없으면 알림이 '준비 중'이다. 공개 키만 api가 준다. 개인 키는 api에 주지 않는다: compose가 jobs에만 `kingo.push.env`를 더 읽게 하고(`env_file: [kingo.env, {path: kingo.push.env, required: false}]`), 공개 키와 `KINGO_PUBLIC_URL`은 `kingo.env`에 둔다.
+- 키: `KINGO_PUSH_PUBLIC_KEY`·`KINGO_PUSH_PRIVATE_KEY`(`node server/cli.ts push-keys`가 두 줄을 출력만 한다. 파일에 쓰지 않는다), `KINGO_PUBLIC_URL`(예: `https://kingo.example.ac.kr`). VAPID subject는 `KINGO_PUBLIC_URL`이다(개인 이메일을 쓰지 않는다). api의 준비(`ready`)는 공개 키와 `KINGO_PUBLIC_URL`이 있는가다(개인 키는 api가 모른다). `notify`는 셋 가운데 하나라도 없으면 보내지 않고 '알림 키가 없어요'와 끝 코드 1이다. 공개 키만 api가 준다. 개인 키는 api에 주지 않는다: compose가 jobs에만 `kingo.push.env`를 더 읽게 하고(`env_file: [kingo.env, {path: kingo.push.env, required: false}]`), 공개 키와 `KINGO_PUBLIC_URL`은 `kingo.env`에 둔다.
 - **까닭**: api는 inner에만 있어 바깥에 닿지 못하고(2단계 R16), jobs는 이미 inner·outer에 걸쳐 있다.
 
 ## R5. 받는 푸시 서버 목록
@@ -42,7 +42,8 @@
 - **정한 것**: `node server/cli.ts notify`. `kingo-notify.timer`가 09:00(Asia/Seoul, `Persistent=true`)에 부른다. 09:00 전이거나 21:00 뒤면 아무것도 보내지 않고 0으로 끝난다. 프로세스 사이 advisory 잠금 `kingo:notify` 하나.
 - 대상 질의 하나(한국 날짜 `today`): `actions.kind='like'`이고 `notices.deadline in (today, today+3)`, 또는 `kind='later'`이고 `revisit_on = today`. 공통: `is_notice and not down and closes_on >= today`. `notices.deadline`은 사람 판정이 반영된 보이는 값이다(2단계 R22).
 - 기기마다: (1) 대상을 다시 질의한다(보내기 직전), (2) `push_sent`에 공지마다 `sending`으로 넣는다(`on conflict do nothing`), 넣어진 것만 묶는다, 없으면 건너뛴다, (3) 보낸다, (4) 2xx면 `sent`, 404·410이면 구독을 지우고 `gone`, 그 밖과 시간 초과는 `failed`. 프로세스가 (3)에서 죽으면 `sending`으로 남고 다시 보내지 않는다(많아야 한 번).
-- 첫 바퀴가 끝나고 `failed`가 있으면 10분 뒤 한 번 더 보낸다(`failed` 행을 `sending`으로 바꾸고 같은 길). 그 뒤 그만둔다.
+- 첫 바퀴가 끝나고 오늘 `failed`이고 `attempts=1`인 행이 있으면 10분 뒤 한 번 더 보낸다(그 행을 `sending`, `attempts` 2로 바꾸고 같은 길). 보내기 전에 21:00을 다시 본다. `notify`를 손으로 다시 돌려도 처음에 같은 행을 보낸다(10분을 기다리지 않는다). `attempts=2`면 그만둔다.
+- 세는 단위는 통(학생·기기·날의 서로 다른 수)이다. '건너뜀'은 대상이 있지만 모두 이미 보낸 것이라 보내지 않은 기기 수다. 동의 판은 `cli.ts`가 `readConsent(consentFile)`로 읽어 `notify`와 `DailyDeps.consentVersion`에 넘긴다.
 - 끝에 30일 지난 `push_sent`를 지운다. 출력은 숫자 한 줄(보냄·실패·사라짐·건너뜀)이고 제목·주소를 남기지 않는다.
 
 ## R8. 알림 글
@@ -51,8 +52,10 @@
 
 ## R9. 운영자 요청과 10분 타이머
 
-- **정한 것**: 표 `op_requests`와 `node server/cli.ts requests`. `kingo-requests.timer`가 10분마다 부른다(`OnCalendar=*:0/10`). 한 번 부르면 (1) `daily`가 기다리면 `runDaily`를 돌린다, (2) `model_trial`이 기다리거나 멈춰 있고 밤 시간이면 `runTrial`을 밤 시간이 끝날 때까지 돌린다. 타이머 서비스는 `Type=oneshot`이라 도는 동안 다시 시작되지 않는다.
-- 매일 작업 하나만: `runDaily`의 처음에 advisory 잠금 `kingo:daily`를 세션으로 잡고(기다림), 끝나면 놓는다. 정해진 매일 작업과 한 번 더 돌리기가 겹치면 뒤의 것이 기다린다.
+- **정한 것**: 표 `op_requests`와 `node server/cli.ts requests`. `kingo-requests.timer`가 10분마다 부른다(`OnCalendar=*:0/10`). 한 번 부르면 (1) `daily`가 기다리면 `runDaily`를 돌린다(단계 실패가 있어도 `done`, 실패한 단계 이름을 `error`에 적는다. 잠금을 못 얻으면 `waiting`으로 되돌려 다음 10분에 다시 본다), (2) `model_trial`이 기다리거나 멈춰 있고 밤 시간이면 `runTrial`을 밤 시간이 끝날 때까지 돌린다. 타이머 서비스는 `Type=oneshot`이라 도는 동안 다시 시작되지 않는다. 그래서 재기가 글과 글 사이에서 기다리는 `daily` 요청을 보면 `paused`로 물러나고 같은 `requests`가 바로 `daily`를 돌린 뒤 밤 시간이 남았으면 재기를 잇는다.
+- 밤 시간: 22:00~02:50과 아침(오늘 03:00 이후에 시작해 끝난 `daily_runs`가 있고 `kingo:daily` 잠금이 비었을 때부터 07:00). 잠금이 비었는지는 `pg_try_advisory_lock`으로 잡아 보고 바로 놓는다.
+- 매일 작업 하나만: `runDaily`의 처음에 advisory 잠금 `kingo:daily`를 세션으로 잡고(30분까지 기다림. 안 되면 '다른 매일 작업이 돌고 있어요'로 끝), 끝나면 놓는다. 정해진 매일 작업과 한 번 더 돌리기가 겹치면 뒤의 것이 기다린다. `kingo-daily.service`의 `TimeoutStartSec`는 6h다. 07:00 뒤에 시작한 작업은 `steps.repick`에 `daytime: true`를 적고 LLM이 고른 수를 세지 않는다(`llm`·`rule`은 null).
+- 정답셋 판: `requests`가 부를 때마다 정답셋 판(R15)을 계산해 `op_state`의 `gold_version`에 적는다(정답셋이 없으면 행을 지운다). api는 이것만 읽는다.
 - `running`으로 남은 채 죽은 요청: `requests`가 시작할 때 자기 잠금(`kingo:requests`)을 잡은 뒤 남은 `running`을 `daily`는 `failed`('도중에 끝났어요'), `model_trial`은 `paused`로 되돌린다.
 - **버린 것**: api에서 컨테이너 켜기(docker 소켓은 루트 권한), 앱 안 스케줄러.
 
@@ -64,13 +67,13 @@
 
 ## R11. 운영자 숫자 `GET /api/ops/monitor` 하나
 
-- **정한 것**: 네 메뉴(개요, 수집·판정, 매일 작업, 서비스 지표)가 답 하나를 나눠 쓴다(계약은 contracts/api.md). 실패 띠는 순수 함수 `alerts(runs, now)`가 만든다: 최근 두 매일 작업에서 분류기(또는 넣기)가 실패 → 그 단계, 최근 두 번 `(llm.failed + llm.skipped + field.failed + field.notAsked) * 10 > 판정 수` → '판정 실패', 마지막 `ended_at`이 36시간보다 앞 → '매일 작업이 멈췄어요'. `since`는 잇단 실패의 첫 작업 때다. 건너뜀(skipped)은 실패로 세지 않되 앞 단계 실패로 건너뛴 넣기는 분류기 실패로 센다. 작업이 한 번도 없으면 띠 없이 '아직 없음'.
+- **정한 것**: 네 메뉴(개요, 수집·판정, 매일 작업, 서비스 지표)가 답 하나를 나눠 쓴다(계약은 contracts/api.md). 실패 띠는 순수 함수 `alerts(runs, now)`가 만든다: 최근 두 매일 작업에서 분류기(또는 넣기)가 실패 → 그 단계, 최근 두 번 `(llm.failed + llm.skipped + field.failed + field.notAsked) * 10 > llm.fresh + llm.failed + llm.skipped + field.fresh + field.failed + field.notAsked` → '판정 실패'(분모가 0이거나 숫자가 없는 작업은 세지 않는다. `field`가 null이면 `llm`만 센다. 화면의 `today.failed`는 이 식의 왼쪽 합이다), 마지막 `ended_at`이 36시간보다 앞 → '매일 작업이 멈췄어요'. `since`는 잇단 실패의 첫 작업 때다. 건너뜀(skipped)은 실패로 세지 않되 앞 단계 실패로 건너뛴 넣기는 분류기 실패로 센다. 작업이 한 번도 없으면 띠 없이 '아직 없음'.
 - 수정 비율: `verdict_log` 최근 30일의 `edit`·`confirm` 공지(겹치지 않게) 가운데 `edit`이 있는 공지.
-- 모델 서버 상태: api가 Ollama `/api/tags`를 부른다(`server/model.ts`에 `installedModels`를 둬 바깥 연결 시험을 지킨다), 3초.
+- 모델 서버 상태: api가 Ollama `/api/tags`를 부른다(`server/model.ts`에 `installedModels`를 둬 바깥 연결 시험을 지킨다), 3초. 후보에서 빼는 것: `details.family`에 `bert`가 들었거나 이름이 `EMBED_MODEL`로 시작하거나 `details.parameter_size`가 없는 것.
 
 ## R12. 서비스 숫자
 
-- **정한 것**: 표 `daily_counts(day, name, n)`. `counts(sql, day, now)`가 계산하는 이름: `consented`(지금 판 동의를 마친 학생 누적), `consented_new`(그날 `students.created_at`이고 동의한 학생), `active7`(그날 끝에서 7일 안에 쓴 세션의 학생 수), `like`·`later`·`dislike`(그날 `actions.at`), `push_sent`·`push_failed`(`push_sent`의 날짜), `push_devices`(구독 수). `server_error`는 500을 낼 때 api가 그날 행을 1 올린다(`createServer`에 `onError` 고리, 실패는 무시). 오늘 값은 답할 때 그 자리에서 계산하고 지난 날은 남긴 값을 준다.
+- **정한 것**: 표 `daily_counts(day, name, n)`. `counts(sql, day, now)`가 계산하는 이름: `consented`(지금 판 동의를 마친 학생 누적), `consented_new`(그날 `students.created_at`이고 동의한 학생), `active7`(그날 끝에서 7일 안에 쓴 세션의 학생 수), `like`·`later`·`dislike`(그날 `actions.at`), `push_sent`·`push_failed`(`push_sent`의 날짜, 통 = 서로 다른 `student_id`·`endpoint_hash`), `push_devices`(구독 수). `server_error`는 500을 낼 때 api가 그날 행을 1 올린다(`createServer`에 `onError` 고리, 실패는 무시). 오늘 값은 답할 때 그 자리에서 계산하고 지난 날은 남긴 값을 준다. 매일 작업이 돌지 않은 날은 값이 없다(null).
 - 관심 행동은 '지금 상태'만 있어 되돌린 것은 세지 않는다(2단계 결정).
 
 ## R13. 임베딩 지도
@@ -86,20 +89,23 @@
 
 - **정한 것**: 지금 모델 = `model_changes` 마지막 줄의 `new_model`, 없으면 `KINGO_LLM_MODEL || DEFAULT_MODEL`. `server/model.ts`에 `currentModel(sql)`. `openModel`을 부르는 세 곳(daily, ingest, repick 일꾼)이 열 때마다 읽는다.
 - 분류기 자식 프로세스에 넘기는 환경: `KINGO_LLM_MODEL=<지금 모델>`, `KINGO_LLM_OLDER=<앞 모델들, 최근 것부터 쉼표>`(기록에 나온 모델 모두 + 첫 기본 모델), `KINGO_FIELD_MEASURED=<{prompt, model, num, den}>`(지금 모델이 된 재기 결과. 없으면 주지 않음).
-- `etl/notices/llm.ts`의 `makeChat`: 지금 모델의 보관 답이 없으면 `older` 모델의 보관 답을 차례로 읽는다(같은 판·같은 꼴 검사). 찾으면 다시 묻지 않고 `{ answer, cached: true, model: <그 모델> }`을 준다. `Outcome`에 `model`을 더하고, 기회 판정 근거(`rule`)와 분야 근거(`fieldRule`)는 이 이름을 쓴다.
+- `etl/notices/llm.ts`의 `makeChat`: 지금 모델의 보관 답이 없으면 `older: { dir, model }[]`의 보관 답을 차례로 읽는다(환경 `KINGO_LLM_OLDER`는 `run.ts`만 읽어 폴더와 이름으로 풀어 넘긴다)(같은 판·같은 꼴 검사). 찾으면 다시 묻지 않고 `{ answer, cached: true, model: <그 모델> }`을 준다. `Outcome`에 `model`을 더하고, 기회 판정 근거(`rule`)와 분야 근거(`fieldRule`)는 이 이름을 쓴다.
 - `fieldGate`: `chosen.model`이 다르면 `KINGO_FIELD_MEASURED`가 같은 판·같은 모델이고 85% 이상일 때 통과한다(없으면 지금처럼 이유).
 - `rejudgePaths(no, models)`: 지금 모델과 앞 모델 모두의 보관 답을 지운다(아니면 앞 모델 답을 다시 읽어 '다시 판정'이 되지 않는다).
 - 재기 답은 `etl/.cache/trial/` 아래 따로 둔다. 바꾼 뒤 첫 매일 작업에서 앞 공지가 새 모델 답을 읽지 않는다.
+- 되돌리기: 통과한 결과를 다시 고르는 것과 같다. 처음 모델(기록이 없을 때의 지금 모델)은 분야 목록의 `chosen` 기록(27/31)을 결과로 친다. 이것은 `POST /api/ops/models/current`의 `{ trialId: 'initial' }`이고, `chosen`의 판이 지금 `fieldVersion`과 같고 85% 이상이며 모델이 설치돼 있을 때만 받는다. 급할 때는 서버 컴퓨터에서 `model_changes`에 손으로 한 줄을 넣는다(2단계 quickstart의 설치 절에 적는다, T077).
 - **버린 것**: 지금 모델 하나의 보관만 읽기(바꾸는 날 공지 전부를 다시 판정해 FR-055를 어김).
 
 ## R15. 모델 재기
 
-- **정한 것**: `server/ops/trial.ts`. 정답셋 폴더 `KINGO_GOLD_DIR`(컨테이너 `/gold`, `${KINGO_GOLD_HOST_DIR}`를 읽기 전용으로 붙임, 기본 `etl/gold`). 분야 표본은 활성 목록의 정답 파일이 있는 가장 큰 회차(`readSample`·`readGoldFile`, 1단계), 기회 표본은 `dev-501.csv`에서 `sampleBySha1`로 고른 120건. 본문 보관본(`etl/.cache`)이 없는 글이 있으면 '본문 보관본이 n건 없어요'로 실패한다.
-- 재는 방법: 분야는 `makeFieldAsk({ dir: trial, model })`가 준 굳힌 답을 `scoreTaxonomy`에 표본만 넣어 핵심 정밀도·핵심 재현율·관련 정밀도를 쓴다. 기회는 `makeAsk({ dir: trial, model })`와 `judge`로 판정하고 있는 `eval.score`의 '기회 여부'(확인 필요를 뺀 글 가운데 맞은 비율)와 '기회 놓침'(정답이 기회인 글 가운데 기회 아님으로 판정한 비율)의 `num`·`den`을 쓴다(`etl/notices/eval.ts`의 `DEFS`). LLM이 실패한 글은 `eval.ts`처럼 규칙 판정으로 센다. 글 하나마다 `withModelLock`을 잡고 놓는다. 부하 제한은 프로세스의 `createThrottle` 하나.
+- **정한 것**: `server/ops/trial.ts`. 정답셋 폴더 `KINGO_GOLD_DIR`(컨테이너는 늘 `/gold`이고 `deploy/.env`의 `KINGO_GOLD_HOST_DIR`를 읽기 전용으로 붙인다. 호스트 기본은 `./gold`. 맥에서는 `KINGO_GOLD_DIR`가 없으면 `etl/gold`). 분야 표본은 활성 목록의 정답 파일이 있는 가장 큰 회차(`readSample`·`readGoldFile`, 1단계), 기회 표본은 `dev-501.csv`에서 `sampleBySha1`로 고른 120건. 본문 보관본(`etl/.cache`)이 없는 글이 있으면 '본문 보관본이 n건 없어요'로 실패한다.
+- 재는 방법: 분야는 `makeFieldAsk({ dir: trial, model })`가 준 굳힌 답을 `scoreTaxonomy`에 표본만 넣어 핵심 정밀도·핵심 재현율·관련 정밀도를 쓴다. 기회는 `makeAsk({ dir: trial, model })`와 `judge`로 판정하고 있는 `eval.score`의 '기회 여부'(확인 필요를 뺀 글 가운데 맞은 비율)와 '기회 놓침'(정답이 기회인 글 가운데 기회 아님으로 판정한 비율)의 `num`·`den`을 쓴다(`etl/notices/eval.ts`의 `DEFS`). LLM이 실패한 글은 `eval.ts`처럼 규칙 판정으로 센다. 글 하나마다 `withModelLock`을 잡고 놓는다. 부하 제한은 프로세스의 `createThrottle` 하나. `server/model.ts`에 `openUnlocked(sql, who, model)` → `{ embed, gate, close }`를 둔다: 잠금을 잡지 않고(부르는 쪽이 `withModelLock` 안에서 쓴다, 안에서 또 잡으면 교착) 닫을 때 `model_bursts`에 적는다. 임베딩은 분류기 보관 벡터를 읽고 없을 때만 trial 폴더에 쓴다.
+- 실패: 답 꼴이 틀림(fail)은 그 밤 끝에 한 번 더 묻고, 남으면 결과의 `failed`에 적는다(분야는 빈 답, 기회는 규칙). 실패가 물은 글의 5%를 넘으면 결과를 내지 않고 요청을 `failed`로. 모델 서버에 닿지 못함(down)은 `paused`, 모델 없음(404)은 `failed`.
+- 누적: `op_requests`에 요청 수·걸린 시간·GPU 시간 무게 합·최고 온도를 밤마다 더하고 끝날 때 `model_trials` 행을 넣는다. `total`은 이번 요청에서 물을 글 수(지금 모델을 함께 재면 합)다. 새로 물은 글이 없으면 `secPerAsk`·`gpuAvg`·`tempMax`는 null이다.
 - 이어 하기: 답이 trial 폴더에 남아 다시 묻지 않는다. 멈추는 때는 밤 시간 끝(글과 글 사이에서 본다). 진행 `done/total`을 요청 행에 적는다.
-- 조건 판: 분야 목록은 `fieldVersion(t)`(목록·지시문·후보 규칙이 다 들어감), 기회는 `PROMPT_VERSION`, 정답셋은 쓴 파일 셋(`dev-501.csv`, 마지막 회차의 `sample-N.csv`와 `<목록>-N.csv`)을 이 순서로 이은 바이트의 sha1 앞 8자. 지금 값과 하나라도 다르면 낡은 결과다. `TRIAL_VERSION` 상수로 재는 방법의 판도 함께 둔다.
+- 조건 판: 분야 목록은 `fieldVersion(t)`(목록·지시문·후보 규칙이 다 들어감), 기회는 `PROMPT_VERSION`, 정답셋은 쓴 파일 셋(`dev-501.csv`, 마지막 회차의 `sample-N.csv`와 `<목록>-N.csv`)을 이 순서로 이은 바이트의 sha1 앞 8자. 지금 값과 하나라도 다르면 낡은 결과다. api는 정답셋 판을 `op_state`에서 읽고(R9), 없으면 모든 결과가 낡은 것이다. `TRIAL_VERSION` 상수로 재는 방법의 판도 함께 둔다.
 - 85%는 있는 `passes`(정수 비교)를 쓴다.
-- 지금 모델의 결과가 같은 조건으로 없으면 먼저 지금 모델을 잰다(같은 요청 안에서). 지금 모델도 후보와 같이 새 답은 trial 폴더에만 쓴다. 지금 모델은 분류기 보관 폴더를 먼저 **읽기만** 하고 없을 때 물어 trial 폴더에 둔다(`makeChat`은 새 답을 언제나 `dir`에 쓰므로 `dir`은 늘 trial이고, 분류기 폴더는 R14의 `older`처럼 읽기 자리로 준다). 분류기 폴더에는 어떤 재기도 쓰지 않는다. 바꾼 뒤 지금 모델을 다시 재도 앞 판정이 뒤집히지 않아야 한다(FR-052, SC-010).
+- 지금 모델의 결과가 같은 조건으로 없으면 먼저 지금 모델을 잰다(같은 요청 안에서). 지금 모델도 후보와 같이 새 답은 trial 폴더에만 쓴다. 지금 모델은 분류기 보관 폴더를 먼저 **읽기만** 하고 없을 때 물어 trial 폴더에 둔다(`makeChat`은 새 답을 언제나 `dir`에 쓰므로 `dir`은 늘 trial이고, 분류기 폴더는 R14의 `older`로 준다). 분류기 폴더에는 어떤 재기도 쓰지 않는다. 바꾼 뒤 지금 모델을 다시 재도 앞 판정이 뒤집히지 않아야 한다(FR-052, SC-010).
 
 ## R16. 로그인 방식 알려 주기와 학생 표시
 
@@ -111,14 +117,15 @@
 
 ## R18. 화면 기준과 디자인 단계
 
-- **정한 것**: astryx 컴포넌트로 바로 코드로 쓴다(2026-11-18 결정). 색·글꼴은 디자인 후보 추천안의 테마 `kingo`(은행잎 초록 `#4e741b`)를 astryx 테마로 옮긴다. 시안의 원본 파일은 지워져 아티팩트에서 값을 뽑아 [contracts/design.md](contracts/design.md)에 옮겼다. 화면 배치는 아티팩트의 추천안(갤러리 첫째 탭)을 보며 맞춘다. 구현 뒤 `impeccable audit`·`critique`·`polish`와 `kingo-toss-ux`·`kingo-ux-writing` 점검을 한다(메모리 '화면 작업 디자인 단계 생략 금지').
+- **정한 것**: astryx 컴포넌트로 바로 코드로 쓴다(2026-11-18 결정). 색·글꼴은 디자인 후보 추천안의 테마 `kingo`(은행잎 초록 `#4e741b`)를 astryx 테마로 옮긴다. 시안의 원본 파일은 지워져 아티팩트에서 값을 뽑아 [contracts/design.md](contracts/design.md)에 옮겼다. 화면 배치는 추천안 캡처와 화면마다의 영역·부품 목록인 [contracts/screens.md](contracts/screens.md)를 보며 맞춘다. 구현 뒤 `impeccable audit`·`critique`·`polish`와 `kingo-toss-ux`·`kingo-ux-writing` 점검을 한다(메모리 '화면 작업 디자인 단계 생략 금지').
 - 휴대폰은 아래 메뉴 막대, 너비 900px부터는 왼쪽 메뉴와 가운데 600px 본문.
 
 ## R19. 시험
 
 - **정한 것**: 순수 함수(D-n, 학기 제안, 내 목록 순서, 알림 글, 띠, 지도)와 API는 vitest. 앱 화면은 Playwright 스크립트 `scripts/e2e-app/run.mjs`(있는 `playwright` 의존성): 시험 DB 스키마에 공지·분야·개발 계정을 넣고 서버를 띄워 처음 흐름부터 '나'까지 돌린다. 접근성은 dev 의존성 `axe-core`를 페이지에 넣어 심각·중대 위반 0을 본다. 너비 320·390·768에서 가로 넘침 0. CI에 `build:app`과 `e2e:app`을 더한다.
 - 푸시는 `sendNotification`을 주입해 시험하고, 실제 전송은 개발 컴퓨터 크롬과 실제 기기에서 손으로 확인한다(quickstart).
-- 옛 `src/`의 `audit:layout`·`audit:copy`는 그대로 두고, 문구 검사는 `web/app`의 글도 보게 규칙만 같이 쓴다(`e2e-app`이 화면 글자를 모아 `scripts/audit-copy/rules.mjs`로 본다).
+- 옛 `src/`의 `audit:layout`·`audit:copy`는 그대로 두고, 문구 검사는 `web/app`의 글도 보게 규칙만 같이 쓴다(`e2e-app`이 화면 글자를 모아 `scripts/audit-copy/rules.mjs`로 본다). 서버가 준 글(공지 제목·주최, 이유, 분석 줄, 동의 문구)을 담는 요소에는 `data-server-text`를 달아 검사에서 뺀다.
+- 성능(SC-002): 크롬 CDP로 내려받기 1.6Mbps·왕복 150ms·CPU 4배 느림, 보관 없이 5번 열어 가운데 값. 첫 화면은 첫 공지 제목이 보일 때까지, 행동은 누른 때부터 표시가 바뀔 때까지다.
 
 ## R20. 하지 않는 것
 
