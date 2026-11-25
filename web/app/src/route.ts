@@ -1,5 +1,6 @@
 // 주소 ↔ 화면(contracts/app.md 주소 표). History API로 다루는 작은 모듈이다(research R1)
 import { useSyncExternalStore } from 'react';
+import { QUERY_CHARS } from './lib/values.ts';
 
 export type Route =
   | { name: 'login' | 'consent' | 'answers' | 'fields'; to: string | null }
@@ -15,13 +16,16 @@ const PLAIN: Record<string, 'home' | 'me' | 'meFields' | 'meAnswers' | 'prompt' 
 const START: Record<string, 'login' | 'consent' | 'answers' | 'fields'> = { '/login': 'login', '/start/consent': 'consent', '/start/answers': 'answers', '/start/fields': 'fields' };
 const many = (v: string | null) => (v ? v.split(',').filter(Boolean) : []);
 
+/** 찾는 말은 50자까지. 반쪽 글자(이모지 앞쪽)로 끊기면 주소에 적을 수 없어 뺀다 */
+export const cut = (s: string) => s.slice(0, QUERY_CHARS).replace(/[\uD800-\uDBFF]$/, '');
+
 export function parse(href: string): Route {
   const u = new URL(href, 'http://app');
   const p = u.pathname.length > 1 ? u.pathname.replace(/\/$/, '') : u.pathname;
   const q = u.searchParams;
   if (START[p]) return { name: START[p], to: q.get('to') };
   if (PLAIN[p]) return { name: PLAIN[p] };
-  if (p === '/notices') return { name: 'notices', kind: many(q.get('kind')), field: many(q.get('field')), q: q.get('q') ?? '', sort: q.get('sort') ?? '' };
+  if (p === '/notices') return { name: 'notices', kind: many(q.get('kind')), field: many(q.get('field')), q: cut(q.get('q') ?? ''), sort: q.get('sort') === 'due' ? 'due' : '' };
   if (p === '/list') return { name: 'list', tab: q.get('tab') === 'later' ? 'later' : 'like' };
   const m = /^\/(notices|me\/activities)\/([^/]+)$/.exec(p);
   if (!m) return { name: 'none' };
@@ -58,15 +62,23 @@ export function whereTo(next: 'consent' | 'answers' | 'fields' | 'home' | null, 
   return to === '/' ? step : `${step}?to=${encodeURIComponent(to).replaceAll("'", '%27')}`; // 주소창이 '를 %27로 적는다
 }
 
-// 뒤로 가기가 앞 화면의 같은 자리로 돌아가게(FR-002) 떠날 때의 자리를 주소마다 메모리에 둔다
-const places = new Map<string, number>();
+// 뒤로 가기가 앞 화면의 같은 자리로 돌아가게(FR-002) 떠날 때의 자리를 방문마다(같은 주소라도 따로) 메모리에 둔다
+type State = { app?: boolean; id?: number } | null;
+const places = new Map<number, number>();
 let popped = false;
+let entry = 0; // 지금 방문의 번호
 /** 지금 화면에 뒤로·앞으로 가기로 왔는가 */
 export const cameBack = () => popped;
-export const placeOf = (href: string) => (popped ? places.get(href) ?? 0 : 0);
+export const savedPlace = () => places.get(entry) ?? 0;
 if (typeof history !== 'undefined') {
   history.scrollRestoration = 'manual';
-  window.addEventListener('popstate', () => { popped = true; });
+  entry = (history.state as State)?.id ?? Date.now();
+  history.replaceState({ ...(history.state as State), id: entry }, '');
+  window.addEventListener('popstate', e => {
+    places.set(entry, window.scrollY);
+    entry = (e.state as State)?.id ?? 0;
+    popped = true;
+  });
 }
 
 const subs = new Set<() => void>();
@@ -74,18 +86,18 @@ const changed = () => subs.forEach(f => f());
 export const here = () => location.pathname + location.search;
 export function go(href: string, how: 'push' | 'replace' = 'push') {
   if (href === here()) return;
-  if (how === 'push') places.set(here(), window.scrollY);
+  if (how === 'push') places.set(entry, window.scrollY);
   const moved = new URL(href, location.href).pathname !== location.pathname;
   popped = false;
   // 앱 안에서 온 자리만 app을 단다. 처음 들어온 자리를 바꿔 적은 것은 그대로 둔다(back이 앱 밖으로 나가지 않게)
-  if (how === 'push') history.pushState({ app: true }, '', href);
+  if (how === 'push') history.pushState({ app: true, id: (entry = Date.now() + Math.random()) }, '', href);
   else history.replaceState(history.state, '', href);
   if (moved) window.scrollTo(0, 0);
   changed();
 }
 /** 앱 안에서 온 화면이면 뒤로, 주소로 바로 들어왔으면 윗 화면으로 */
 export function back(parent: string) {
-  if ((history.state as { app?: boolean } | null)?.app) history.back();
+  if ((history.state as State)?.app) history.back();
   else go(parent, 'replace');
 }
 export function useHref(): string {

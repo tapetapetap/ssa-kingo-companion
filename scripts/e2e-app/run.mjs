@@ -30,6 +30,7 @@ const server = createServer(routes(ctx), () => {});
 const browser = await chromium.launch();
 const problems = [];
 let checks = 0;
+let broken = false; // 일부러 끊은 걸음인가
 
 /** 가로로 넘치는 것, 44px보다 작은 누르는 자리, 앱이 쓴 글 */
 const probe = () => {
@@ -84,7 +85,7 @@ async function newPage(base) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ko-KR', timezoneId: 'America/New_York', hasTouch: true, isMobile: true, reducedMotion: 'reduce' });
   const page = await context.newPage();
   page.on('pageerror', e => problems.push(`화면 오류: ${e.message}`));
-  page.on('console', m => { if (m.type() === 'error' && !/status of (401|403|404|422)/.test(m.text()) && !/ERR_FAILED/.test(m.text())) problems.push(`콘솔: ${m.text().slice(0, 200)}`); });
+  page.on('console', m => { if (m.type() === 'error' && !/status of (401|403|404|422)/.test(m.text()) && !(broken && /ERR_FAILED/.test(m.text()))) problems.push(`콘솔: ${m.text().slice(0, 200)}`); });
   return { page, open: path => page.goto(base + path) };
 }
 async function login(page, email, password = PASSWORD) {
@@ -276,12 +277,14 @@ async function us2(base) {
   await page.getByRole('button', { name: '거르기 지우기' }).click();
   await at(page, '/notices');
   // 이어 불러오다 실패하면 그 자리에서 다시
+  broken = true;
   await page.route('**/api/notices?cursor=*', r => r.abort());
   await open('/notices');
   await rows.first().waitFor();
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.getByRole('button', { name: '다시 불러오기' }).waitFor();
   await page.unroute('**/api/notices?cursor=*');
+  broken = false;
   await page.getByRole('button', { name: '다시 불러오기' }).click();
   await page.waitForFunction(() => document.querySelectorAll('main li').length > 20);
   // 닫힌 공지, 내려간 공지, 없는 공지, 주소로 바로 들어온 뒤로 가기

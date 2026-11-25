@@ -16,7 +16,7 @@ import { api, ApiError, type Me } from './api.ts';
 import { forget } from './lib/load.ts';
 import { HomeIcon, ListIcon, MeIcon, NoticeIcon } from './parts/icons.tsx';
 import { Empty, Failed, Loading } from './parts/States.tsx';
-import { go, onLinkClick, parse, placeOf, useHref, whereTo, type Route } from './route.ts';
+import { cameBack, go, onLinkClick, parse, savedPlace, useHref, whereTo, type Route } from './route.ts';
 import { Answers } from './screens/Answers.tsx';
 import { Consent } from './screens/Consent.tsx';
 import { Fields } from './screens/Fields.tsx';
@@ -68,7 +68,7 @@ function Menu({ name, wide }: { name: Route['name']; wide: boolean }) {
   );
 }
 
-function screen(r: Route, href: string, done: () => Promise<void>): ReactNode {
+function screen(r: Route, done: () => Promise<void>): ReactNode {
   switch (r.name) {
     case 'login': return <Login onDone={done} />;
     case 'consent': return <Consent onDone={done} />;
@@ -76,7 +76,7 @@ function screen(r: Route, href: string, done: () => Promise<void>): ReactNode {
     case 'fields': return <Fields onDone={done} />;
     case 'none': return <Empty title="없는 화면이에요" action={<Button label="홈으로" size="lg" href="/" />} />;
     case 'home': return <Home />;
-    case 'notices': return <Notices query={r} href={href} />;
+    case 'notices': return <Notices query={r} />;
     case 'notice': return <NoticeDetail key={r.id} id={r.id} />;
     default: return <Empty title={TITLE[r.name]} description="준비하고 있어요." />; // 다음 PR들이 화면으로 바꾼다
   }
@@ -123,10 +123,10 @@ function App() {
     document.title = `${TITLE[route.name]} · 킹고 컴패니언`;
     if (shown) main.current?.focus({ preventScroll: true });
   }, [place, shown, route.name]);
-  useLayoutEffect(() => { if (shown) window.scrollTo(0, placeOf(href)); }, [place, shown]); // 뒤로 왔으면 떠날 때의 자리
+  useLayoutEffect(() => { if (shown && cameBack()) window.scrollTo(0, savedPlace()); }, [href, shown]); // 뒤로 왔으면 떠날 때의 자리
 
   const menu = shown && !('to' in route);
-  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, href, check) : <Loading />;
+  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, check) : <Loading />;
   return (
     <HStack style={page} vAlign="stretch">
       {menu && wide && <Menu name={route.name} wide />}

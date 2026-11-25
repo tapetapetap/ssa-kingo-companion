@@ -8,7 +8,8 @@ const HOME: Record<string, EmptyText> = {
 };
 const LIST: Record<string, EmptyText> = {
   no_open_notices: { title: '지금 열린 공지가 없어요', description: '새 공지가 올라오면 여기에 보여요.' },
-  no_match: { title: '찾는 말이나 거르기에 맞는 공지가 없어요', clear: true }
+  no_match: { title: '찾는 말이나 거르기에 맞는 공지가 없어요', clear: true },
+  all_seen: { title: '열린 공지를 모두 봤어요', description: '새 공지가 올라오면 여기에 보여요.' }
 };
 const UNKNOWN: EmptyText = { title: '지금 보여 줄 공지가 없어요' };
 const pick = (t: Record<string, EmptyText>, reason: string | null) => (reason && Object.hasOwn(t, reason) ? t[reason] : UNKNOWN);

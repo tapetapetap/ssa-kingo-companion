@@ -2,6 +2,7 @@
 // key를 주면 뒤로 가기로 돌아왔을 때 앞 자료를 바로 보이고(같은 자리로 돌아가게) 조용히 새로 고친다.
 // keep이면 새로 고치지도 않는다(이어 받은 쪽이 줄지 않게)
 import { useCallback, useEffect, useRef, useState, type DependencyList } from 'react';
+import { ApiError } from '../api.ts';
 import { cameBack } from '../route.ts';
 
 const kept = new Map<string, unknown>();
@@ -20,7 +21,11 @@ export function useLoad<T>(fn: () => Promise<T>, deps: DependencyList, key?: str
       if (key) kept.set(key, data);
       set({ data, error: null });
     } catch (error) {
-      if (mine === live.current && !quiet) set({ data: null, error });
+      if (mine !== live.current) return;
+      // 조용히 새로 고칠 때 끊김은 앞 자료를 두고, 없어진 자료는 없어졌다고 보인다
+      const gone = error instanceof ApiError && error.code === 'not_found';
+      if (gone && key) kept.delete(key);
+      if (!quiet || gone) set({ data: null, error });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 무엇이 바뀌면 다시 부를지는 부르는 쪽이 정한다
   }, deps);

@@ -13,20 +13,20 @@ import { api, messageOf, type FieldList, type NoticeCard, type Page as Data } fr
 import { listEmpty } from '../lib/empty.ts';
 import { useLoad } from '../lib/load.ts';
 import { kindName, KINDS } from '../lib/notice.ts';
-import { QUERY_CHARS, SEARCH_WAIT_MS } from '../lib/values.ts';
+import { SEARCH_WAIT_MS } from '../lib/values.ts';
 import { Chip } from '../parts/Chip.tsx';
 import { FieldPicker } from '../parts/FieldPicker.tsx';
 import { NoticeRow } from '../parts/NoticeCard.tsx';
 import { Page } from '../parts/Page.tsx';
 import { Empty, Failed, Loading } from '../parts/States.tsx';
-import { go, noticesHref, type Route } from '../route.ts';
+import { cut, go, noticesHref, type Route } from '../route.ts';
 
 type Query = Extract<Route, { name: 'notices' }>;
 const SORTS = [{ value: 'new', label: '새로 올라온 순' }, { value: 'due', label: '마감 가까운 순' }];
 const show = (q: Partial<Query>) => go(noticesHref(q), 'replace');
 
-function Results({ href, onClear }: { href: string; onClear: () => void }) {
-  const url = href.replace('/notices', '/api/notices');
+function Results({ href, plain, onClear }: { href: string; plain: boolean; onClear: () => void }) {
+  const url = `/api${href}`;
   const { data, error, reload, set } = useLoad(() => api<Data>('GET', url), [url], url, true);
   const [more, setMore] = useState<'idle' | 'loading' | unknown>('idle');
   const busy = useRef(false);
@@ -57,7 +57,7 @@ function Results({ href, onClear }: { href: string; onClear: () => void }) {
   if (error) return <Failed error={error} retry={reload} />;
   if (!data) return <Loading />;
   if (!data.items.length) {
-    const none = listEmpty(data.empty);
+    const none = listEmpty(data.empty === 'no_match' && plain ? 'all_seen' : data.empty);
     return <Empty title={none.title} description={none.description} action={none.clear && <Button label="거르기 지우기" size="lg" onClick={onClear} />} />;
   }
   return (
@@ -72,7 +72,7 @@ function Results({ href, onClear }: { href: string; onClear: () => void }) {
   );
 }
 
-function Filter({ query, list, onClose }: { query: Query; list: FieldList | null; onClose: () => void }) {
+function Filter({ query, fields, onClose }: { query: Query; fields: ReturnType<typeof useLoad<FieldList>>; onClose: () => void }) {
   const [kind, setKind] = useState(query.kind);
   const [field, setField] = useState(query.field);
   return (
@@ -81,7 +81,10 @@ function Filter({ query, list, onClose }: { query: Query; list: FieldList | null
       <CheckboxList label="종류" value={kind} onChange={setKind} density="spacious">
         {KINDS.map(([id, name]) => <CheckboxListItem key={id} value={id} label={name} />)}
       </CheckboxList>
-      {list && <VStack gap={3}><Heading level={3}>분야</Heading><FieldPicker list={list} value={field} onChange={setField} /></VStack>}
+      <VStack gap={3}>
+        <Heading level={3}>분야</Heading>
+        {fields.error ? <Failed error={fields.error} retry={fields.reload} /> : fields.data ? <FieldPicker list={fields.data} value={field} onChange={setField} /> : <Loading />}
+      </VStack>
       <HStack gap={2} style={{ position: 'sticky', bottom: 0, backgroundColor: 'var(--color-background-surface)', paddingBlock: 'var(--spacing-3)' }}>
         <StackItem size="fill"><Button label="이대로 보기" variant="primary" size="lg" width="100%" onClick={() => { show({ ...query, kind, field }); onClose(); }} /></StackItem>
         <Button label="모두 지우기" variant="ghost" size="lg" onClick={() => { setKind([]); setField([]); }} />
@@ -90,7 +93,8 @@ function Filter({ query, list, onClose }: { query: Query; list: FieldList | null
   );
 }
 
-export function Notices({ query, href }: { query: Query; href: string }) {
+export function Notices({ query }: { query: Query }) {
+  const href = noticesHref(query); // 주소를 다듬은 것
   const fields = useLoad(() => api<FieldList>('GET', '/api/fields'), [], 'fields');
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState(query.q);
@@ -104,13 +108,13 @@ export function Notices({ query, href }: { query: Query; href: string }) {
   }, [q]);
   const n = query.kind.length + query.field.length;
   const clear = () => { setQ(''); show({ sort: query.sort }); };
-  const fieldName = (id: string) => fields.data?.fields.find(f => f.id === id)?.name ?? id;
+  const fieldName = (id: string) => fields.data?.fields.find(f => f.id === id)?.name ?? '고른 분야';
   return (
     <Page>
       <Heading level={1}>공지</Heading>
       <VStack gap={3}>
         <HStack gap={2} vAlign="center" wrap="wrap">
-          <StackItem size="fill" style={{ minWidth: '12rem' }}><TextInput label="공지 찾기" isLabelHidden placeholder="제목이나 주최로 찾기" type="search" startIcon="search" size="lg" value={q} onChange={v => setQ(v.slice(0, QUERY_CHARS))} /></StackItem>
+          <StackItem size="fill" style={{ minWidth: 'min(12rem, 100%)' }}><TextInput label="공지 찾기" isLabelHidden placeholder="제목이나 주최로 찾기" type="search" startIcon="search" size="lg" value={q} onChange={v => setQ(cut(v))} /></StackItem>
           <Button label={n ? `필터 ${n}` : '필터'} size="lg" icon={<Icon icon="funnel" />} onClick={() => setOpen(true)} />
         </HStack>
         <HStack gap={2} wrap="wrap" vAlign="center">
@@ -120,9 +124,9 @@ export function Notices({ query, href }: { query: Query; href: string }) {
           <Selector label="정렬" isLabelHidden size="lg" options={SORTS} value={query.sort === 'due' ? 'due' : 'new'} onChange={v => show({ ...query, sort: v === 'due' ? 'due' : '' })} containerStyle={{ marginInlineStart: 'auto' }} />
         </HStack>
       </VStack>
-      <Results key={href} href={href} onClear={clear} />
+      <Results key={href} href={href} plain={!n && !query.q} onClear={clear} />
       <BottomSheet label="필터" isOpen={open} onOpenChange={setOpen} height="tall" padding={5}>
-        {open && <Filter query={query} list={fields.data} onClose={() => setOpen(false)} />}
+        {open && <Filter query={query} fields={fields} onClose={() => setOpen(false)} />}
       </BottomSheet>
     </Page>
   );

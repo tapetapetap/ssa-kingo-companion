@@ -62,7 +62,7 @@ function ShelfRow({ name, more, shelf }: { name: string; more: string | null; sh
     <VStack gap={3} as="section" aria-label={name}>
       <HStack justify="between" vAlign="center"><Heading level={2}>{name}</Heading>{more && <Button label="더 보기" variant="ghost" size="lg" href={more} />}</HStack>
       {/* 좌우 여백까지 써서 넘길 것이 더 있음을 보인다 */}
-      <Carousel aria-label={name} gap={3} hasButtons={mouse} padding={5} style={{ marginInline: 'calc(-1 * var(--spacing-5))', width: 'calc(100% + 2 * var(--spacing-5))' }}>
+      <Carousel aria-label={name} gap={3} hasEdgeFade={false} hasButtons={mouse} padding={5} style={{ marginInline: 'calc(-1 * var(--spacing-5))', width: 'calc(100% + 2 * var(--spacing-5))', maxWidth: 'none' }}>
         {shelf.items.map(n => <ShelfCard key={n.id} notice={n} />)}
       </Carousel>
     </VStack>

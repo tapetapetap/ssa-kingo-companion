@@ -39,7 +39,7 @@ export function NoticeDetail({ id }: { id: string }) {
         <MetadataListItem label="게시">{dots(n.postedOn)}</MetadataListItem>
         {n.fields && n.fields.core.length > 0 && <MetadataListItem label="핵심 분야">{names(n.fields.core)}</MetadataListItem>}
         {n.fields && n.fields.related.length > 0 && <MetadataListItem label="관련 분야">{names(n.fields.related)}</MetadataListItem>}
-        <MetadataListItem label="분야 근거">{n.fields ? <Badge label={byText(n.fields.by)} /> : '아직 분야를 붙이지 않았어요'}</MetadataListItem>
+        <MetadataListItem label="분야 근거">{n.fields && !n.fields.core.length && !n.fields.related.length ? '맞는 분야가 없어요' : n.fields ? <Badge label={byText(n.fields.by)} /> : '아직 분야를 붙이지 않았어요'}</MetadataListItem>
       </MetadataList>
       <Text size="sm" color="secondary">자세한 내용과 신청은 원문에서 확인해 주세요.</Text>
       {/^https?:\/\//.test(n.url) && <Button label="원문 열기" variant="primary" size="lg" width="100%" icon={<Icon icon="externalLink" />} href={n.url} target="_blank" rel="noopener noreferrer" />}

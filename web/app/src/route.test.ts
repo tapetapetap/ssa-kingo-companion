@@ -14,10 +14,14 @@ describe('주소 → 화면', () => {
     for (const p of ['/없음', '/notices/a/b', '/notices/%E0%A4%A', '/me/x', '/constructor']) expect(parse(p)).toEqual({ name: 'none' });
   });
   it('거르기 주소는 왕복해도 같다', () => {
-    const r = { kind: ['job', 'hackathon'], field: ['llm'], q: '해커톤 & 2,0', sort: 'deadline' };
+    const r = { kind: ['job', 'hackathon'], field: ['llm'], q: '해커톤 & 2,0', sort: 'due' };
     expect(noticesHref(r)).toMatch(/^\/notices\?kind=job,hackathon&field=llm&q=/);
     expect(parse(noticesHref(r))).toEqual({ name: 'notices', ...r });
     expect(noticesHref({})).toBe('/notices');
+    expect(parse('/notices/?kind=job,&sort=x')).toEqual({ name: 'notices', kind: ['job'], field: [], q: '', sort: '' });
+    const long = parse(`/notices?q=${encodeURIComponent('가'.repeat(49) + '😀')}`) as { q: string };
+    expect(long.q).toBe('가'.repeat(49));
+    expect(() => noticesHref(long)).not.toThrow();
   });
 });
 
