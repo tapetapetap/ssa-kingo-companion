@@ -28,7 +28,7 @@ function status(r: NonNullable<Data['request']>): string {
   if (r.status === 'waiting') return `${r.model}: 오늘 밤에 재요.`;
   if (r.status === 'running') return `${r.model}: 재는 중이에요.${at}`;
   if (r.status === 'paused') return `${r.model}: 멈춰 있어요.${at}${why}`;
-  if (r.status === 'done') return `${r.model}: 다 쟀어요. ${when(r.endedAt!)}`;
+  if (r.status === 'done') return `${r.model}: 다 쟀어요. ${when(r.endedAt!)}.${why}`;
   if (r.status === 'canceled') return `${r.model}: 취소했어요.`;
   return `${r.model}: 재지 못했어요.${why}`;
 }
@@ -42,9 +42,9 @@ function blocked(t: ModelTrial, d: Data): string | null {
   return null;
 }
 
-/** 기회 판정이 지금 모델보다 나빠지는가(FR-054). 지금 모델의 같은 조건 값이 없으면 비교하지 못한다 */
-function warning(t: ModelTrial, now: ModelTrial | undefined): string {
-  if (!now) return '지금 모델의 값이 같은 조건으로 없어 기회 판정을 비교하지 못했어요. ';
+/** 기회 판정이 지금 모델보다 나빠지는가(FR-054). 같은 조건으로 잰 값이 없으면 비교하지 못한다 */
+function warning(t: ModelTrial | undefined, now: ModelTrial | undefined): string {
+  if (!t || !now) return '같은 조건으로 잰 값이 없어 기회 판정을 비교하지 못했어요. ';
   const bad = [
     ...(less(t.metrics.oppRight, now.metrics.oppRight) ? [`맞은 비율이 ${percent(now.metrics.oppRight.num, now.metrics.oppRight.den)}에서 ${percent(t.metrics.oppRight.num, t.metrics.oppRight.den)}로 낮아져요.`] : []),
     ...(less(now.metrics.oppMissed, t.metrics.oppMissed) ? [`놓친 비율이 ${percent(now.metrics.oppMissed.num, now.metrics.oppMissed.den)}에서 ${percent(t.metrics.oppMissed.num, t.metrics.oppMissed.den)}로 높아져요.`] : [])
@@ -107,7 +107,7 @@ export function Models() {
                 </VStack>
                 {initial && (
                   <VStack gap={1} hAlign="end">
-                    <Button label="처음 모델로 되돌리기" variant="secondary" isDisabled={!initial.usable || busy} onClick={() => setChange({ id: 'initial', model: initial.model, note: '' })} />
+                    <Button label="처음 모델로 되돌리기" variant="secondary" isDisabled={!initial.usable || busy} onClick={() => setChange({ id: 'initial', model: initial.model, note: warning(d.trials.find(t => t.model === initial.model && !t.stale), now) })} />
                     <Text type="supporting" color="secondary">{initial.usable ? `${initial.model}, 고를 때 ${ratio(initial)}` : '조건이 바뀌었거나 설치돼 있지 않아요'}</Text>
                   </VStack>
                 )}

@@ -22,6 +22,7 @@ export function modelRoutes(ctx: Ctx): Route[] {
   const sql = ctx.sql;
   const now = () => conditions(sql, ctx.taxonomyDir);
   const list = () => (ctx.models ?? installedModels)();
+  const listed = () => list().catch(() => { throw invalid('model', '모델 서버에 닿지 못했어요. 잠시 뒤에 다시 해 주세요'); });
   const invalid = (field: string, message: string) => new HttpError(422, 'invalid', message, { field });
   const view = (t: Trial, c: Conditions | null) => ({ id: Number(t.id), model: t.model, at: kstIso(t.ended_at), stale: isStale(t, c), passes: passes(t.metrics.corePrecision), metrics: t.metrics });
 
@@ -42,7 +43,8 @@ export function modelRoutes(ctx: Ctx): Route[] {
       const o = await requireOperator(ctx, req);
       const installed = await list().catch(() => null);
       const { c, current } = await state(sql);
-      const trials = await sql<Trial[]>`select * from model_trials order by id desc limit ${KEEP}`;
+      const trials = await sql<Trial[]>`select * from model_trials
+        where id in (select id from model_trials order by id desc limit ${KEEP}) or id in (select max(id) from model_trials group by model) order by id desc`;
       const changes = await sql<{ old_model: string; new_model: string; by_operator: string; at: Date; core: Ratio | null }[]>`select c.old_model, c.new_model, c.by_operator, c.at, t.metrics->'corePrecision' as core
         from model_changes c left join model_trials t on t.id = c.trial_id order by c.id desc limit ${KEEP}`;
       return {
@@ -58,7 +60,7 @@ export function modelRoutes(ctx: Ctx): Route[] {
     ['POST', '/api/ops/models/trial', async req => {
       const o = await requireOperator(ctx, req);
       const model = (req.body as Record<string, unknown>).model;
-      if (typeof model !== 'string' || !(await list()).some(m => m.name === model && isCandidate(m))) throw invalid('model', '모델 서버에 설치된 모델이 아니에요');
+      if (typeof model !== 'string' || !(await listed()).some(m => m.name === model && isCandidate(m))) throw invalid('model', '모델 서버에 설치된 모델이 아니에요');
       return { status: 202, body: { request: await openRequest(sql, 'model_trial', o.by, model) }, headers: o.headers };
     }],
     ['POST', '/api/ops/models/trial/cancel', async req => {
@@ -73,7 +75,7 @@ export function modelRoutes(ctx: Ctx): Route[] {
     ['POST', '/api/ops/models/current', async req => {
       const o = await requireOperator(ctx, req);
       const trialId = (req.body as Record<string, unknown>).trialId;
-      const names = (await list()).filter(isCandidate).map(m => m.name);
+      const names = (await listed()).filter(isCandidate).map(m => m.name);
       const c = await now();
       let model: string;
       let trial: string | null = null;

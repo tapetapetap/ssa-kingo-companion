@@ -84,7 +84,8 @@ docker compose -f deploy/compose.yaml run --rm jobs node server/cli.ts status   
   ```sh
   docker compose -f deploy/compose.yaml run --rm -v <본문 폴더>:/from:ro jobs sh -c 'mkdir -p etl/.cache/cse && cp -n /from/*.html etl/.cache/cse/'
   ```
-- 급할 때 모델 바꾸기: 지금 모델은 `model_changes`의 마지막 줄이다. 재지 않고 바꿔야 하면 한 줄을 넣는다(다음 매일 작업부터). 처음 모델이 아니면 잰 값이 없어 새 판정에 분야가 붙지 않으니, 되도록 `/ops/`의 '모델'에서 바꾼다.
+- 급할 때 모델 바꾸기: 지금 모델은 `model_changes`의 마지막 줄이다. 재지 않고 바꿔야 하면 한 줄을 넣는다(다음 매일 작업부터). 그 모델을 같은 판으로 재어 85%를 넘은 결과가 없으면(처음 모델은 빼고) 결과 파일 전체에서 분야가 빠져 앞 공지의 분야까지 내려가니, 되도록 `/ops/`의 '모델'에서 바꾼다.
+- 서버 컴퓨터에서 `eval.ts`·`compare.ts`를 손으로 돌리지 않는다. 다른 모델의 답이 분류기 보관 폴더에 남으면 그 모델로 바꿨을 때 앞 판정이 바뀐다. 재기는 `/ops/`의 '모델'이 따로 둔 폴더로 한다.
   ```sh
   docker compose -f deploy/compose.yaml exec db psql -U kingo -c "insert into model_changes (old_model, new_model, by_operator) values ('<지금 모델>', '<새 모델>', '<바꾼 사람>')"
   ```

@@ -51,6 +51,7 @@ services:
   jobs:
     <<: *app
     env_file: [kingo.env, { path: kingo.push.env, required: false }]
+    environment: { KINGO_GOLD_DIR: /gold }
     profiles: [jobs]
     command: ["node", "server/cli.ts", "status"]
     volumes:

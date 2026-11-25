@@ -14,6 +14,7 @@ import { scoreTaxonomy, type Ratio } from '../../etl/notices/score.ts';
 import type { Taxonomy } from '../../etl/taxonomy/taxonomy.ts';
 import type { Sql } from '../db/sql.ts';
 import { LIMITS } from '../limits.ts';
+import { hideSecrets } from '../log.ts';
 import { currentModel, installedModels, openUnlocked, withModelLock, type Installed, type ModelDeps } from '../model.ts';
 import { activeTaxonomy, goldVersion, latestRound, TRIAL_VERSION } from './conditions.ts';
 
@@ -111,6 +112,7 @@ async function measure(d: TrialDeps, g: Gold, requestId: string, model: string, 
       const o = await withModelLock(sql, j.run); // 글 하나마다 놓아 학생의 다시 고르기를 막지 않는다
       if (o === 'down') {
         const names = await (d.installed ?? (() => installedModels(d.model?.host)))().then(ms => ms.map(x => x.name), () => null);
+        if (names && !names.some(n => n.split(':')[0] === EMBED_MODEL)) throw new Error(`${EMBED_MODEL} 임베딩 모델이 모델 서버에 없어요`);
         if (names && !names.includes(model)) throw new Error(`${model} 모델이 모델 서버에 없어요`);
         throw new Pause('down', '모델 서버에 닿지 못했거나 온도를 읽지 못했어요. 다음에 이어서 재요');
       }
@@ -187,7 +189,14 @@ export async function runTrial(d: TrialDeps, request: { id: string; model: strin
   try {
     for (const model of todo) {
       await sql`update op_requests set done = ${before + todo.indexOf(model) * each} where id = ${request.id}`;
-      await measure(d, g, request.id, model, model === now, async () => { await sql`update op_requests set done = done + 1 where id = ${request.id}`; });
+      try {
+        await measure(d, g, request.id, model, model === now, async () => { await sql`update op_requests set done = done + 1 where id = ${request.id}`; });
+      } catch (e) {
+        // 지금 모델을 재지 못해도(지워짐, 답이 자꾸 틀림) 후보는 잰다. 바꿀 모델이 가장 필요한 때다
+        if (e instanceof Pause || model === request.model) throw e;
+        await sql`update op_requests set done = ${before + (todo.indexOf(model) + 1) * each}, error = ${`지금 모델은 재지 못했어요(${hideSecrets((e as Error).message)})`},
+          requests = 0, request_ms = 0, gpu_ms = 0, gpu_known_ms = 0, temp_max = null where id = ${request.id}`;
+      }
     }
     return 'done';
   } catch (e) {

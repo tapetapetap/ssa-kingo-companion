@@ -1,4 +1,5 @@
 // 모델 요청(research R7, contracts/llm.md): 부하 제한 하나와 chat·embed를 묶어 준다. 요청은 모델 잠금 안에서 한 번에 하나만 간다
+import { passes, type Ratio } from '../etl/notices/score.ts';
 import { makeEmbed, type Embed } from '../etl/notices/embed.ts';
 import { DEFAULT_MODEL, fetchPost, ollamaBase, postOnce, type Gate, type Post } from '../etl/notices/llm.ts';
 import { createThrottle, type LoadSummary, type ThrottleDeps } from '../etl/notices/throttle.ts';
@@ -48,14 +49,14 @@ export async function olderModels(sql: Sql): Promise<string[]> {
   const now = rows[0]?.new_model ?? firstModel();
   return [...new Set([...rows.flatMap(r => [r.new_model, r.old_model]), firstModel()])].filter(m => m !== now);
 }
-/** 분류기에 넘길 환경: 지금 모델, 앞 모델들, 지금 모델이 된 재기 결과(분야를 넣어도 되는 근거) */
+/** 분류기에 넘길 환경: 지금 모델, 앞 모델들, 지금 모델의 마지막 통과한 재기(분야를 넣어도 되는 근거. 판이 바뀌면 다시 잰 값이 이것을 대신한다) */
 export async function classifierEnv(sql: Sql): Promise<Record<string, string>> {
-  const [c] = await sql<{ new_model: string; field_version: string | null; metrics: { corePrecision: { num: number; den: number } } | null }[]>`
-    select c.new_model, t.field_version, t.metrics from model_changes c left join model_trials t on t.id = c.trial_id order by c.id desc limit 1`;
-  const p = c?.metrics?.corePrecision;
+  const model = await currentModel(sql);
+  const trials = await sql<{ field_version: string; core: Ratio }[]>`select field_version, metrics->'corePrecision' as core from model_trials where model = ${model} order by id desc`;
+  const t = trials.find(x => passes(x.core));
   return {
-    KINGO_LLM_MODEL: await currentModel(sql), KINGO_LLM_OLDER: (await olderModels(sql)).join(','),
-    ...(c?.field_version && p ? { KINGO_FIELD_MEASURED: JSON.stringify({ prompt: c.field_version, model: c.new_model, num: p.num, den: p.den }) } : {})
+    KINGO_LLM_MODEL: model, KINGO_LLM_OLDER: (await olderModels(sql)).join(','),
+    ...(t ? { KINGO_FIELD_MEASURED: JSON.stringify({ prompt: t.field_version, model, num: t.core.num, den: t.core.den }) } : {})
   };
 }
 

@@ -50,6 +50,7 @@ describe('모델 (contracts/api.md)', () => {
     expect([model('x', { family: 'xlm-roberta-bert' }), model('bge-m3'), model('x', { parameterSize: null })].map(isCandidate)).toEqual([false, false, false]);
     installed = async () => { throw new Error('닿지 못함'); };
     expect(await get()).toMatchObject({ serverOk: false, installed: [], current: { model: FIRST }, initial: { usable: false } });
+    for (const p of ['trial', 'current']) expect(await app.request('POST', `/api/ops/models/${p}`, { model: 'b:1', trialId: 1 })).toMatchObject({ status: 422, body: { error: { message: '모델 서버에 닿지 못했어요. 잠시 뒤에 다시 해 주세요' } } });
   });
 
   it('85%는 분수로 본다: 84.9%는 trial_low, 85.0%는 바뀐다(SC-010). 바꾼 사람과 때가 남는다', async () => {
@@ -83,6 +84,10 @@ describe('모델 (contracts/api.md)', () => {
     expect(await classifierEnv(db.sql)).toEqual({ KINGO_LLM_MODEL: FIRST, KINGO_LLM_OLDER: 'b:1' });
     await change(await trial(30, 34, { model: 'b:1' }));
     expect(await classifierEnv(db.sql)).toEqual({ KINGO_LLM_MODEL: 'b:1', KINGO_LLM_OLDER: FIRST, KINGO_FIELD_MEASURED: JSON.stringify({ prompt: fieldVersion(t), model: 'b:1', num: 30, den: 34 }) });
+    // 판이 바뀌어 지금 모델을 다시 재면 그 값이 근거가 된다. 통과하지 못한 값은 근거가 되지 않는다
+    await trial(32, 34, { field_version: 'v2' });
+    await trial(10, 34, { field_version: 'v2' });
+    expect(JSON.parse((await classifierEnv(db.sql)).KINGO_FIELD_MEASURED)).toEqual({ prompt: 'v2', model: 'b:1', num: 32, den: 34 });
     saveTaxonomy({ ...t, chosen: chosen({ prompt: '00000000' }) }, dir);
     expect((await change('initial')).body).toMatchObject({ error: { code: 'trial_stale' } });
     saveTaxonomy({ ...t, chosen: null }, dir);
@@ -108,6 +113,14 @@ describe('모델 (contracts/api.md)', () => {
     expect(await get()).toMatchObject({ request: { status: 'canceled' } });
     expect((await cancel()).status).toBe(422);
     expect((await ask(FIRST)).status).toBe(202); // 지금 모델도 다시 잴 수 있다
+  });
+
+  it('최근 20개 밖이라도 모델마다 마지막 결과는 보인다(지금 모델의 값과 되돌릴 값)', async () => {
+    const first = await trial(27, 31, { model: FIRST });
+    for (let i = 0; i < 25; i++) await trial(1, 2);
+    const { trials } = await get();
+    expect(trials).toHaveLength(21);
+    expect(trials.at(-1)).toMatchObject({ id: first, stale: false });
   });
 
   it('운영자만 부른다', async () => {

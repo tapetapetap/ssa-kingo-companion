@@ -66,7 +66,7 @@ beforeEach(async () => {
   reply = right;
   d = {
     sql: db.sql, goldDir: join(root, 'gold'), taxonomyDir: join(root, 'tax'), cacheDir: join(root, 'cse'), trialDir: join(root, 'trial'), llmDir: at('llm'), fieldDir: at('llm-fields'), embedDir: at('embed'),
-    stop: async () => null, model: { post, throttle }, installed: async () => ['gemma4:12b', 'b:1'].map(n => ({ name: n, size: 1, parameterSize: '1B', family: 'x' }))
+    stop: async () => null, model: { post, throttle }, installed: async () => ['gemma4:12b', 'b:1', 'bge-m3:latest'].map(n => ({ name: n, size: 1, parameterSize: '1B', family: 'x' }))
   };
 });
 const request = async (model = 'b:1') => { const r = await openRequest(db.sql, 'model_trial', 'o', model); return { id: String(r.id), model }; };
@@ -155,7 +155,17 @@ describe('모델 재기 (R15)', () => {
     const r = await request('gemma4:12b');
     expect(await runTrial(d, r)).toBe('down');
     expect(await runTrial({ ...d, installed: async () => { throw new Error('닿지 못함'); } }, r)).toBe('down');
-    await expect(runTrial({ ...d, installed: async () => [] }, r)).rejects.toThrow('gemma4:12b 모델이 모델 서버에 없어요');
+    const only = (...ns: string[]) => ({ ...d, installed: async () => ns.map(n => ({ name: n, size: 1, parameterSize: '1B', family: 'x' })) });
+    await expect(runTrial(only('bge-m3:latest'), r)).rejects.toThrow('gemma4:12b 모델이 모델 서버에 없어요');
+    await expect(runTrial(only('gemma4:12b'), r)).rejects.toThrow('bge-m3 임베딩 모델이 모델 서버에 없어요');
+  });
+
+  it('지금 모델을 재지 못해도 후보는 재고, 까닭이 남는다', async () => {
+    reply = a => (a.model === 'b:1' ? right(a) : 'down');
+    const r = await request();
+    expect(await runTrial({ ...d, installed: async () => ['b:1', 'bge-m3:latest'].map(n => ({ name: n, size: 1, parameterSize: '1B', family: 'x' })) }, r)).toBe('done');
+    expect((await trials()).map(t => t.model)).toEqual(['b:1']);
+    expect(await state()).toMatchObject({ done: 16, total: 16, error: '지금 모델은 재지 못했어요(gemma4:12b 모델이 모델 서버에 없어요)' });
   });
 
   it('글 하나마다 모델 잠금을 놓는다(잠금 안에서 잠그지 않아 멈추지 않는다)', async () => {
@@ -193,6 +203,9 @@ describe('모델 재기 (R15)', () => {
     expect(e).not.toContain('비밀');
     rmSync(dev);
     // 다음 회차의 정답이 생기면 그것을 쓴다
+    mkdirSync(dev); // 읽지 못하는 파일이 있어도 던지지 않는다(한 번 더 돌리기를 막지 않게)
+    await saveGoldVersion(db.sql, d.goldDir, d.taxonomyDir);
+    rmSync(dev, { recursive: true });
     cpSync(file, join(d.goldDir, 'fields', 'custom-2.csv'));
     expect(goldVersion(d.goldDir, 'custom')).toBeNull();
   });

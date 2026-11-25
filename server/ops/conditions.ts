@@ -51,7 +51,10 @@ export function goldVersion(goldDir: string, id: TaxonomyId): string | null {
 /** jobs가 정답셋 판을 적는다 */
 export async function saveGoldVersion(sql: Sql, goldDir: string, dir?: string) {
   const t = await activeTaxonomy(sql, dir);
-  const v = t && goldVersion(goldDir, t.id);
+  let v: string | null = null;
+  try {
+    v = t && goldVersion(goldDir, t.id);
+  } catch { /* 읽지 못하는 파일이 있으면 정답셋이 없는 것과 같다. 다른 운영자 요청은 막지 않는다 */ }
   if (v) await sql`insert into op_state (key, value) values ('gold_version', ${v}) on conflict (key) do update set value = excluded.value, at = now()`;
   else await sql`delete from op_state where key = 'gold_version'`;
 }
