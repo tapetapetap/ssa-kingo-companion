@@ -276,9 +276,9 @@ async function us2(base) {
   await page.reload();
   await page.getByRole('button', { name: '해커톤 빼기' }).waitFor();
   await page.getByRole('searchbox', { name: '공지 찾기' }).fill('없는 공지');
-  await page.getByRole('heading', { name: '찾는 말이나 거르기에 맞는 공지가 없어요' }).waitFor();
+  await page.getByRole('heading', { name: '찾는 말이나 필터에 맞는 공지가 없어요' }).waitFor();
   await check(page, 'notices-empty');
-  await page.getByRole('button', { name: '거르기 지우기' }).click();
+  await page.getByRole('button', { name: '필터 지우기' }).click();
   await at(page, '/notices');
   // 이어 불러오다 실패하면 그 자리에서 다시
   broken = true;

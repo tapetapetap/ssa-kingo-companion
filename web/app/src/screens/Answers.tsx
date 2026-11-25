@@ -14,6 +14,8 @@ import { Step } from '../parts/Step.tsx';
 
 // 글자를 키우면 줄을 바꾼다(SegmentedControl은 글자를 자른다)
 const wrap: CSSProperties = { flexWrap: 'wrap', gap: 'var(--spacing-2)' };
+/** 고르기 전에도 누를 것으로 보이게 테두리를 두고, 고르면 분야 고르기와 같은 색으로 채운다 */
+const choice = (on: boolean): CSSProperties => ({ backgroundColor: on ? 'var(--color-accent-muted)' : 'var(--color-background-surface)', boxShadow: `inset 0 0 0 1px ${on ? 'var(--color-accent)' : 'var(--color-border-emphasized)'}` });
 const GRADES = [1, 2, 3, 4].map(gradeText);
 const saved = () => api<Saved>('GET', '/api/me/answers').catch((e: unknown) => {
   if (e instanceof ApiError && e.code === 'not_found') return 'none' as const; // 아직 답하지 않음
@@ -51,11 +53,11 @@ export function Answers({ onDone, parent }: { onDone: () => Promise<void>; paren
       <VStack gap={3}>
         <Heading level={2}>지금 몇 학년인가요?</Heading>
         <ToggleButtonGroup label="학년" size="lg" type="single" value={grade || null} onChange={v => { if (v) setGrade(v as string); }} style={wrap}>
-          {GRADES.map((g, i) => <ToggleButton key={g} value={String(i + 1)} label={g}>{g}</ToggleButton>)}
+          {GRADES.map((g, i) => <ToggleButton key={g} value={String(i + 1)} label={g} style={choice(grade === String(i + 1))}>{g}</ToggleButton>)}
         </ToggleButtonGroup>
         <ToggleButtonGroup label="학기" size="lg" type="single" value={term || null} onChange={v => { if (v) setTerm(v as string); }} style={wrap}>
-          <ToggleButton value="1" label="1학기">1학기</ToggleButton>
-          <ToggleButton value="2" label="2학기">2학기</ToggleButton>
+          <ToggleButton value="1" label="1학기" style={choice(term === '1')}>1학기</ToggleButton>
+          <ToggleButton value="2" label="2학기" style={choice(term === '2')}>2학기</ToggleButton>
         </ToggleButtonGroup>
       </VStack>
       <VStack gap={3}>

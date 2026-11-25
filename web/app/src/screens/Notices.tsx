@@ -57,7 +57,7 @@ function Results({ href, plain, onClear }: { href: string; plain: boolean; onCle
   if (!data) return <Loading />;
   if (!data.items.length) {
     const none = listEmpty(data.empty === 'no_match' && plain ? 'all_seen' : data.empty);
-    return <Empty title={none.title} description={none.description} action={none.clear && <Button label="거르기 지우기" size="lg" onClick={onClear} />} />;
+    return <Empty title={none.title} description={none.description} action={none.clear && <Button label="필터 지우기" size="lg" onClick={onClear} />} />;
   }
   return (
     <VStack gap={3}>
