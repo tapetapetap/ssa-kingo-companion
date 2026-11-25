@@ -83,7 +83,7 @@ describe('로그인과 계정 (US2, contracts/api.md)', () => {
     expect((await app.request('GET', '/api/me', undefined, { cookie: old })).status).toBe(401);
   });
 
-  it('/api/me의 tag는 학생마다 다르고 번호를 드러내지 않는 8자다(3단계 R16)', async () => {
+  it('/api/me의 tag는 학생마다 다른 8자다(3단계 R16)', async () => {
     const tags: string[] = [];
     for (const e of ['a@example.com', 'b@example.com']) {
       await createDevStudent(db.sql, e);

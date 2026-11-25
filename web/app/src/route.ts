@@ -44,7 +44,7 @@ export function noticesHref(r: { kind?: string[]; field?: string[]; q?: string; 
 export function safeTo(to: string | null): string {
   if (!to || !/^\/(?![/\\])/.test(to) || /[\\\u0000-\u001f]/.test(to)) return '/';
   const u = new URL(to, 'http://app');
-  if (u.origin !== 'http://app' || /^\/(login|start|api|ops)(\/|$)/.test(u.pathname)) return '/';
+  if (u.origin !== 'http://app' || u.pathname.startsWith('//') || /^\/(login|start|api|ops)(\/|$)/.test(u.pathname)) return '/';
   return u.pathname + u.search;
 }
 
@@ -55,7 +55,7 @@ export function whereTo(next: 'consent' | 'answers' | 'fields' | 'home' | null, 
   const to = safeTo(starting ? r.to : href);
   if (next === 'home') return starting ? to : href;
   const step = next === null ? '/login' : `/start/${next}`;
-  return to === '/' ? step : `${step}?to=${encodeURIComponent(to)}`;
+  return to === '/' ? step : `${step}?to=${encodeURIComponent(to).replaceAll("'", '%27')}`; // 주소창이 '를 %27로 적는다
 }
 
 const subs = new Set<() => void>();
@@ -63,7 +63,11 @@ const changed = () => subs.forEach(f => f());
 export const here = () => location.pathname + location.search;
 export function go(href: string, how: 'push' | 'replace' = 'push') {
   if (href === here()) return;
-  history[how === 'push' ? 'pushState' : 'replaceState']({ app: true }, '', href);
+  const moved = new URL(href, location.href).pathname !== location.pathname;
+  // 앱 안에서 온 자리만 app을 단다. 처음 들어온 자리를 바꿔 적은 것은 그대로 둔다(back이 앱 밖으로 나가지 않게)
+  if (how === 'push') history.pushState({ app: true }, '', href);
+  else history.replaceState(history.state, '', href);
+  if (moved) window.scrollTo(0, 0); // 뒤로 가기는 브라우저가 자리를 되살린다
   changed();
 }
 /** 앱 안에서 온 화면이면 뒤로, 주소로 바로 들어왔으면 윗 화면으로 */

@@ -40,7 +40,7 @@ export const COLORS = {
 export const kingo = defineTheme({
   name: 'kingo',
   typography: { scale: { base: 14, ratio: 1.3 } },
-  motion: { fast: 125, medium: 300, ratio: 0.75 },
+  motion: { fast: 125, medium: 300, slow: 700, ratio: 0.75 },
   tokens: {
     ...(COLORS as Record<keyof typeof COLORS, [string, string]>),
     '--radius-inner': '0.375rem', '--radius-element': '0.625rem', '--radius-container': '0.75rem', '--radius-page': '1.75rem',

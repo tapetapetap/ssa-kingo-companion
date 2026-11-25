@@ -24,7 +24,7 @@ describe('주소 → 화면', () => {
 describe('safeTo', () => {
   it('앱 안 주소만 따른다', () => {
     expect(safeTo('/notices?kind=job')).toBe('/notices?kind=job');
-    for (const bad of [null, '', 'notices', '//evil.com', '/\\evil.com', '/a\\b', '/\t/evil.com', 'https://evil.com', 'javascript:alert(1)', '/login', '/login?to=/me', '/start/consent', '/api/me', '/ops/', '/x/../login']) expect([bad, safeTo(bad)]).toEqual([bad, '/']);
+    for (const bad of [null, '', 'notices', '//evil.com', '/\\evil.com', '/a\\b', '/\t/evil.com', 'https://evil.com', 'javascript:alert(1)', '/login', '/login?to=/me', '/start/consent', '/api/me', '/ops/', '/x/../login', '/..//evil.com', '/.//login']) expect([bad, safeTo(bad)]).toEqual([bad, '/']);
     expect(safeTo('/loginx')).toBe('/loginx');
   });
 });
@@ -45,6 +45,10 @@ describe('whereTo', () => {
     expect(whereTo('home', '/login')).toBe('/');
     expect(whereTo('home', '/start/consent?to=%2F%2Fevil.com')).toBe('/');
     expect(whereTo('home', '/notices/cse%3A1')).toBe('/notices/cse%3A1');
+  });
+  it('주소창이 바꿔 적는 글자도 같은 주소로 센다', () => {
+    const u = new URL(whereTo(null, "/o'brien"), 'http://app');
+    expect(whereTo(null, u.pathname + u.search)).toBe(u.pathname + u.search);
   });
   it('가야 할 주소에서는 제자리다(끝없이 돌지 않는다)', () => {
     for (const next of [null, 'consent', 'answers', 'fields', 'home'] as const) for (const href of ['/', '/list?tab=later', '/login?to=%2Fme', '/start/answers?to=//x']) {

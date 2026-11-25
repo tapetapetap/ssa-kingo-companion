@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { connect } from 'node:net';
 import { join } from 'node:path';
 import { health, HttpError, kstIso, match, parseCookies, type Route } from './http.ts';
 import { testApp } from './test/app.ts';
@@ -131,6 +132,8 @@ describe('학생 앱 파일 (3단계 research R2)', () => {
 
   it('없는 파일(확장자 있음)·폴더 밖·없는 API·GET이 아닌 것은 404, /ops/는 그대로', async () => {
     for (const p of ['/assets/y.js', '/x.png', '/../package.json', '/%2e%2e/package.json', '/..%2fpackage.json', '/..%2fsecret', '/assets/..%2f..%2fsecret']) expect([p, (await web.request('GET', p)).status]).toEqual([p, 404]);
+    const raw = await new Promise<string>(ok => { const s = connect(Number(new URL(web.base).port), '127.0.0.1', () => s.end('GET // HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n')); s.on('data', d => ok(String(d))); });
+    expect(raw).toMatch(/^HTTP\/1\.1 404/); // 주소로 읽지 못해도 서버가 죽지 않는다
     expect(await web.request('GET', '/api/nope')).toMatchObject({ status: 404, body: { error: { code: 'not_found' } } });
     expect((await web.request('GET', '/api')).status).toBe(404);
     expect((await web.request('POST', '/')).status).toBe(404);

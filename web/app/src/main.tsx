@@ -107,11 +107,11 @@ function App() {
   useEffect(() => { if (target !== href) go(target, 'replace'); }, [target, href]);
   const route = parse(href);
   const shown = me !== undefined && target === href;
+  const place = `${route.name}${'id' in route ? route.id : ''}`; // 거르기처럼 같은 화면의 주소 바뀜은 세지 않는다
   useEffect(() => {
     document.title = `${TITLE[route.name]} · 킹고 컴패니언`;
     if (shown) main.current?.focus({ preventScroll: true });
-    window.scrollTo(0, 0);
-  }, [href, shown, route.name]);
+  }, [place, shown, route.name]);
 
   const menu = shown && !('to' in route);
   const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, check) : <Loading />;

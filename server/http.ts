@@ -129,10 +129,11 @@ export function createServer(routes: Route[], write?: Write, opsDir = OPS_DIR, a
   return createHttp(async (req, res) => {
     const t0 = performance.now();
     const method = req.method ?? 'GET';
-    const url = new URL(req.url ?? '/', 'http://localhost');
     let route = '(없음)';
     let r: Req | null = null;
     try {
+      const url = URL.parse(req.url ?? '/', 'http://localhost');
+      if (!url) throw new HttpError(404, 'not_found', '찾을 수 없어요');
       if (method === 'GET' && url.pathname !== '/api' && !url.pathname.startsWith('/api/')) {
         route = /^\/ops(\/|$)/.test(url.pathname) ? '/ops/' : '/(앱)';
         await sendFile(res, url.pathname, opsDir, appDir);
