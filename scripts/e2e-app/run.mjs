@@ -532,7 +532,8 @@ async function us4(base) {
   await page.getByText('아직 넣은 활동이 없어요.').waitFor();
   const md = await page.evaluate(async () => { const r = await fetch('/api/me/analysis.md'); return [r.headers.get('content-disposition'), await r.text()]; });
   ok(md[0].includes('analysis.md') && md[1].startsWith('# 나의 분석'), '.md가 파일로 오지 않는다');
-  ok(await page.getByRole('link', { name: '.md 파일로 내려받기' }).getAttribute('href') === '/api/me/analysis.md', '.md 주소가 다르다');
+  const [file] = await Promise.all([page.waitForEvent('download'), button('.md 파일로 내려받기').click()]);
+  ok(file.suggestedFilename() === 'analysis.md' && readFileSync(await file.path(), 'utf8') === md[1], '.md 파일이 보이는 글과 다르다');
   // 끄기·켜기
   await page.getByRole('switch', { name: '나의 분석으로 추천받기' }).click();
   await page.getByText('나의 분석을 끌까요?').waitFor();
@@ -541,6 +542,23 @@ async function us4(base) {
   await check(page, 'analysis-off');
   await button('다시 켜기').click();
   await page.getByRole('switch', { name: '나의 분석으로 추천받기' }).waitFor();
+  // 다른 탭에서 다른 학생이 로그인하면 이 탭도 그 학생이 된다(앞 학생의 계정을 지우지 않는다)
+  await open('/me');
+  await button('계정 지우기').waitFor();
+  const tab = await page.context().newPage();
+  await tab.goto(`${base}/me`);
+  await tab.evaluate(p => fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ method: 'dev', email: 'other@example.com', password: p }) }), PASSWORD);
+  await tab.close();
+  await button('계정 지우기').click();
+  await button('다음').click();
+  await button('모두 지우기').click();
+  await page.waitForTimeout(800);
+  ok((await db.sql`select 1 from students where id = ${other}`).length === 1, '다른 탭에서 로그인한 학생의 계정이 지워졌다');
+  await open('/me');
+  await button('로그아웃').click();
+  await at(page, '/login');
+  await login(page, 'me@example.com');
+  await at(page, '/');
   // 새 학기
   await db.sql`update answers set answered_at = now() - interval '400 days', grade = 2, term = 1 where student_id = ${id}`;
   await open('/');

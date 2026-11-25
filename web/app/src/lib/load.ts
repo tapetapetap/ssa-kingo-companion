@@ -17,15 +17,17 @@ export function useLoad<T>(fn: () => Promise<T>, deps: DependencyList, key?: str
     if (!quiet) set({ data: null, error: null });
     try {
       const data = await fn();
-      if (mine !== live.current) return;
+      if (mine !== live.current) return false;
       if (key) kept.set(key, data);
       set({ data, error: null });
+      return true;
     } catch (error) {
-      if (mine !== live.current) return;
+      if (mine !== live.current) return false;
       // 조용히 새로 고칠 때 끊김은 앞 자료를 두고, 없어진 자료는 없어졌다고 보인다
       const gone = error instanceof ApiError && error.code === 'not_found';
       if (gone && key) kept.delete(key);
       if (!quiet || gone) set({ data: null, error });
+      return false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 무엇이 바뀌면 다시 부를지는 부르는 쪽이 정한다
   }, deps);

@@ -19,6 +19,7 @@ import { forget } from './lib/load.ts';
 import { actions } from './lib/store.ts';
 import { ActionHost, closeSheets } from './parts/ActionHost.tsx';
 import { HomeIcon, ListIcon, MeIcon, NoticeIcon } from './parts/icons.tsx';
+import { MENU_BAR, MENU_HEIGHT } from './parts/Page.tsx';
 import { Empty, Failed, Loading } from './parts/States.tsx';
 import { back, cameBack, go, onLinkClick, parse, savedPlace, setGuard, useHref, whereTo, type Route } from './route.ts';
 import { Activity } from './screens/Activity.tsx';
@@ -64,7 +65,7 @@ function Menu({ name, wide }: { name: Route['name']; wide: boolean }) {
             <li key={m.href} style={{ flex: 1 }}>
               <Link href={m.href} isStandalone color={on ? 'accent' : 'secondary'} aria-current={on ? 'page' : undefined} style={{ display: 'block' }}>
                 <HStack gap={wide ? 3 : 0.5} hAlign={wide ? 'start' : 'center'} vAlign="center" paddingInline={wide ? 3 : 0}
-                  style={{ flexDirection: wide ? 'row' : 'column', minHeight: 48, ...(wide ? {} : { justifyContent: 'center' }) }}>
+                  style={{ flexDirection: wide ? 'row' : 'column', minHeight: MENU_BAR, ...(wide ? {} : { justifyContent: 'center' }) }}>
                   <Icon icon={m.icon} size="lg" />
                   <Text size={wide ? 'base' : 'sm'} color="inherit" weight={on ? 'semibold' : 'normal'}>{m.label}</Text>
                 </HStack>
@@ -108,8 +109,8 @@ function App() {
   const main = useRef<HTMLElement>(null);
   const tag = useRef('');
 
-  const check = useCallback(async () => {
-    setError(null);
+  const check = useCallback(async (quiet = false) => {
+    if (!quiet) setError(null);
     try {
       const now = await api<Me>('GET', '/api/me');
       if (tag.current !== now.tag) {
@@ -121,23 +122,33 @@ function App() {
       setMe(now);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'login_required') setMe(null);
-      else setError(e);
+      else if (!quiet) setError(e);
     }
   }, []);
-  const signedOut = () => { setMe(null); go('/login', 'replace'); };
+  const signedOut = () => { dropOther(''); setMe(null); go('/login', 'replace'); };
   useEffect(() => { void check(); }, [check]);
   useEffect(() => {
     const on = (e: Event) => {
-      stash(tag.current);
+      const path = stash(tag.current);
+      if (path && path !== location.pathname) {
+        setGuard(null);
+        go(path, 'replace'); // 창에서 쓰던 활동은 활동 화면에 되살린다
+      }
       setMe(m => ((e as CustomEvent<string>).detail === 'login_required' ? null : m && { ...m, next: 'consent' }));
     };
     window.addEventListener('app-auth', on);
     document.addEventListener('click', onLinkClick);
+    // 다른 탭에서 다른 학생이 로그인했을 수 있다. 돌아오면 누구인지 다시 본다
+    const seen = () => { if (document.visibilityState === 'visible') void check(true); };
+    document.addEventListener('visibilitychange', seen);
+    window.addEventListener('focus', seen);
     return () => {
       window.removeEventListener('app-auth', on);
       document.removeEventListener('click', onLinkClick);
+      document.removeEventListener('visibilitychange', seen);
+      window.removeEventListener('focus', seen);
     };
-  }, []);
+  }, [check]);
 
   const target = me === undefined ? href : whereTo(me?.next ?? null, href);
   useEffect(() => {
@@ -152,15 +163,15 @@ function App() {
     document.title = `${TITLE[route.name]} · 킹고 컴패니언`;
     if (shown) main.current?.focus({ preventScroll: true });
   }, [place, shown, route.name]);
-  useEffect(() => closeSheets(), [place, me]);
+  useEffect(() => closeSheets(), [place, me?.tag]);
   useLayoutEffect(() => { if (shown && cameBack()) window.scrollTo(0, savedPlace()); }, [href, shown]); // 뒤로 왔으면 떠날 때의 자리
 
   const menu = shown && !('to' in route);
-  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, me!, check, signedOut) : <Loading />;
+  const body = error ? <Failed error={error} retry={() => void check()} /> : shown ? screen(route, me!, () => check(), signedOut) : <Loading />;
   return (
     <HStack style={page} vAlign="stretch">
       {menu && wide && <Menu name={route.name} wide />}
-      <main ref={main} tabIndex={-1} style={{ ...column, paddingBlockEnd: menu && !wide ? 'calc(64px + env(safe-area-inset-bottom))' : 0 }}>{body}</main>
+      <main key={me?.tag} ref={main} tabIndex={-1} style={{ ...column, paddingBlockEnd: menu && !wide ? MENU_HEIGHT : 0 }}>{body}</main>
       {menu && !wide && <Menu name={route.name} wide={false} />}
     </HStack>
   );
@@ -170,7 +181,7 @@ function App() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <InternationalizationProvider locale="ko-KR" messages={{ 'ko-KR': koKR }}>
-      <Theme theme={kingo}><LayerProvider inset={{ blockEnd: 64 }}><App /><ActionHost /></LayerProvider></Theme>
+      <Theme theme={kingo}><LayerProvider inset={{ blockEnd: `calc(${MENU_BAR} + 1px)` }}><App /><ActionHost /></LayerProvider></Theme>
     </InternationalizationProvider>
   </StrictMode>
 );

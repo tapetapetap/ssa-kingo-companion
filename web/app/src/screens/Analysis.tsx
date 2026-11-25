@@ -22,6 +22,14 @@ const EMPTY = { done: '아직 넣은 활동이 없어요.', interest: '아직 �
 /** 줄을 고치는 화면. 나머지 줄은 뺄 수 있다 */
 const editHref = (key: string) => (key === 'ans' ? '/me/answers' : key === 'picked' ? '/me/fields' : key.startsWith('act:') ? `/me/activities/${key.slice(4)}` : null);
 
+/** 화면에 보이는 글과 같은 md를 파일로 준다 */
+function save(md: string) {
+  const url = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: 'analysis.md' });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export function Analysis({ onChanged }: { onChanged: () => Promise<void> }) {
   const { data, error, reload, refresh } = useLoad(async () => {
     const [a, f] = await Promise.all([api<Data>('GET', '/api/me/analysis'), api<FieldList>('GET', '/api/fields')]);
@@ -34,7 +42,7 @@ export function Analysis({ onChanged }: { onChanged: () => Promise<void> }) {
   const run = async (f: () => Promise<unknown>, said?: string) => {
     try {
       await f();
-      await refresh();
+      if (!await refresh()) return reload(); // 고쳤는데 새로 받지 못했으면 낡은 줄을 보이지 않는다
       if (said) toast({ body: said, uniqueID: 'note' });
     } catch (e) {
       toast({ body: messageOf(e), type: 'error', isAutoHide: true });
@@ -44,7 +52,7 @@ export function Analysis({ onChanged }: { onChanged: () => Promise<void> }) {
   if (data.a.off) {
     return <Page parent="/me"><Heading level={1}>나의 분석</Heading><Empty title="나의 분석을 꺼 두었어요" description="켜면 기록을 보고 다시 써요." action={<Button label="다시 켜기" variant="primary" size="lg" clickAction={() => turn(false)} />} /></Page>;
   }
-  const { lines, excluded, madeAt } = data.a;
+  const { lines, excluded, madeAt, md } = data.a;
   const textOf = (key: string) => lines.find(l => l.key === key)?.text;
   const text = (key: string) => lineText(key, textOf, id => data.f.fields.find(f => f.id === id)?.name);
   const line = (l: AnalysisLine) => {
@@ -87,7 +95,7 @@ export function Analysis({ onChanged }: { onChanged: () => Promise<void> }) {
       <HStack gap={3} vAlign="center" style={{ minHeight: 'var(--size-element-lg)' }}>
         <StackItem size="fill"><Switch label="나의 분석으로 추천받기" description="끄면 나의 분석을 지우고 프롬프트와 고른 분야로만 추천해요." labelPosition="start" labelSpacing="spread" width="100%" value onChange={() => setAsking(true)} /></StackItem>
       </HStack>
-      <Button label=".md 파일로 내려받기" size="lg" width="100%" href="/api/me/analysis.md" />
+      <Button label=".md 파일로 내려받기" size="lg" width="100%" onClick={() => save(md)} />
       <AlertDialog isOpen={asking} onOpenChange={setAsking} title="나의 분석을 끌까요?" description="지금 분석과 뺀 줄이 지워져요. 해 온 활동은 남고, 켜면 다시 써요. 끄기 전에 .md 파일로 받아 둘 수 있어요."
         actionLabel="끄기" cancelLabel="그대로 두기" onAction={() => { setAsking(false); void turn(true); }} />
     </Page>

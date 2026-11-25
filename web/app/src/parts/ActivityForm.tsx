@@ -8,7 +8,7 @@ import { Text } from '@astryxdesign/core/Text';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { api, ApiError, messageOf, type Activity, type Draft, type FieldList } from '../api.ts';
 import { kstToday, termsBefore } from '../lib/date.ts';
-import { writingNow } from '../lib/draft.ts';
+import { clear, writingNow } from '../lib/draft.ts';
 import { useLoad } from '../lib/load.ts';
 import { KINDS } from '../lib/notice.ts';
 import { ACTIVITY_FIELDS, ACTIVITY_NAME_CHARS, PROOF_CHARS } from '../lib/values.ts';
@@ -16,12 +16,13 @@ import { Failed, Loading } from './States.tsx';
 
 const termName = (t: string) => `${t.slice(0, 4)}년 ${t.slice(5)}학기`;
 
-export function ActivityForm({ draft, id, path, onSaved }: { draft: Partial<Activity> | Draft; id?: number; path: string; onSaved: () => void }) {
+export function ActivityForm({ draft, id, path, unsaved = false, onSaved }: { draft: Partial<Activity> | Draft; id?: number; path: string; unsaved?: boolean; onSaved: () => void }) {
   const fields = useLoad(() => api<FieldList>('GET', '/api/fields'), [], 'fields');
   const [d, setD] = useState<{ name: string; term: string; kind: string; fieldIds: string[]; proofUrl: string }>({
     name: draft.name ?? '', term: draft.term ?? '', kind: draft.kind ?? '', fieldIds: draft.fieldIds ?? [], proofUrl: ('proofUrl' in draft && draft.proofUrl) || ''
   });
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(unsaved);
+  useEffect(() => clear(path), [path]);
   // 로그인이 끊기면 쓰던 활동을 이 화면(path)에 되살린다(R17)
   useEffect(() => {
     writingNow(dirty ? path : null, d);

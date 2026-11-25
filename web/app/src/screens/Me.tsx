@@ -50,7 +50,11 @@ export function Me({ me, onSignedOut }: { me: Data; onSignedOut: () => void }) {
       <AlertDialog isOpen={asking === 1} onOpenChange={o => { if (!o) setAsking(a => (a === 1 ? 0 : a)); }} title="계정을 지울까요?" actionLabel="다음" cancelLabel="그만두기"
         description="처음 질문 답, 고른 분야, 프롬프트, 나의 분석, 활동, 내 목록이 바로 지워져요. 백업에서는 7일 뒤에 사라져요." onAction={() => setAsking(2)} />
       <AlertDialog isOpen={asking === 2} onOpenChange={o => { if (!o) setAsking(0); }} title="마지막으로 확인할게요" actionLabel="모두 지우기" cancelLabel="그만두기"
-        description="지우면 되살릴 수 없어요." onAction={() => { setAsking(0); void run(() => api('DELETE', '/api/me', { confirm: true })); }} />
+        description="지우면 되살릴 수 없어요." onAction={() => { setAsking(0); void run(async () => {
+        // 다른 탭에서 다른 학생이 로그인했으면 그 계정을 지우지 않는다
+        if ((await api<Data>('GET', '/api/me')).tag !== me.tag) return location.reload();
+        await api('DELETE', '/api/me', { confirm: true });
+      }); }} />
     </Page>
   );
 }

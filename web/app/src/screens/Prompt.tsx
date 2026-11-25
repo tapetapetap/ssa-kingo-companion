@@ -6,7 +6,7 @@ import { Heading, Text } from '@astryxdesign/core/Text';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { useToast } from '@astryxdesign/core/Toast';
 import { api, messageOf } from '../api.ts';
-import { take, writingNow } from '../lib/draft.ts';
+import { clear, draftOf, writingNow } from '../lib/draft.ts';
 import { useLoad } from '../lib/load.ts';
 import { PROMPT_CHARS } from '../lib/values.ts';
 import { LeaveGuard } from '../parts/LeaveGuard.tsx';
@@ -19,7 +19,8 @@ export function Prompt() {
   const { data, error, reload, set } = useLoad(() => api<{ body: string }>('GET', '/api/me/prompt'), []);
   const [body, setBody] = useState<string | null>(null);
   const toast = useToast();
-  useEffect(() => { if (data) setBody(b => b ?? take<string>(PATH) ?? data.body); }, [data]);
+  useEffect(() => { if (data) setBody(b => b ?? draftOf<string>(PATH) ?? data.body); }, [data]);
+  useEffect(() => { if (body !== null) clear(PATH); }, [body]);
   const dirty = !!data && body !== null && body !== data.body;
   useEffect(() => {
     writingNow(dirty ? PATH : null, body);
