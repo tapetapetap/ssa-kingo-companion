@@ -84,7 +84,7 @@ server/
 ├── jobs/daily.ts           # map·counts 단계, kingo:daily 잠금, 분류기 환경
 ├── model.ts                # currentModel, installedModels
 └── db/migrations/009_push.sql, 010_ops.sql
-etl/notices/{llm,fields,run,classify}.ts, etl/taxonomy/taxonomy.ts   # 앞 모델 보관 답 읽기, 실제 판정한 모델 이름, 요약JSON, fieldGate
+etl/notices/{llm,fields,run}.ts, etl/taxonomy/taxonomy.ts   # 앞 모델 보관 답 읽기, 실제 판정한 모델 이름, 요약JSON, fieldGate
 scripts/e2e-app/run.mjs
 deploy/                     # kingo-notify.*, kingo-requests.*, compose(gold·push env), Dockerfile(build:app), kingo.env.example, consent.dev.md(dev-2)
 ```
