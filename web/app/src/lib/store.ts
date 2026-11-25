@@ -21,8 +21,8 @@ export async function withCards<T>(method: string, path: string, cardsOf: (data:
   return data;
 }
 
-/** 서버가 목록에서 숨기는 것: 관심 없음, 다시 볼 날 전인 나중에 보기(2단계 FR-026) */
+/** 서버가 목록에서 숨기는 것: 관심 없음, 다시 볼 날 전인 나중에 보기(마감이 당겨져 닫히는 날이 앞서면 보인다, 2단계 FR-026) */
 export function hidden(n: NoticeCard): boolean {
   const a = actions.of(n);
-  return a?.kind === 'dislike' || (a?.kind === 'later' && !!a.revisitOn && a.revisitOn > kstToday());
+  return a?.kind === 'dislike' || (a?.kind === 'later' && !!a.revisitOn && a.revisitOn > kstToday() && a.revisitOn <= n.closesOn);
 }

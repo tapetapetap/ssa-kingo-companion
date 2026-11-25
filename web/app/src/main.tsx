@@ -16,7 +16,7 @@ import { Theme } from '@astryxdesign/core/theme';
 import { api, ApiError, type Me } from './api.ts';
 import { forget } from './lib/load.ts';
 import { actions } from './lib/store.ts';
-import { ActionHost } from './parts/ActionHost.tsx';
+import { ActionHost, closeSheets } from './parts/ActionHost.tsx';
 import { HomeIcon, ListIcon, MeIcon, NoticeIcon } from './parts/icons.tsx';
 import { Empty, Failed, Loading } from './parts/States.tsx';
 import { cameBack, go, onLinkClick, parse, savedPlace, useHref, whereTo, type Route } from './route.ts';
@@ -131,6 +131,7 @@ function App() {
     document.title = `${TITLE[route.name]} · 킹고 컴패니언`;
     if (shown) main.current?.focus({ preventScroll: true });
   }, [place, shown, route.name]);
+  useEffect(() => closeSheets(), [place, me]);
   useLayoutEffect(() => { if (shown && cameBack()) window.scrollTo(0, savedPlace()); }, [href, shown]); // 뒤로 왔으면 떠날 때의 자리
 
   const menu = shown && !('to' in route);

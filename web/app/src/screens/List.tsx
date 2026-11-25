@@ -4,6 +4,7 @@ import { List } from '@astryxdesign/core/List';
 import { Tab, TabList } from '@astryxdesign/core/TabList';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import type { ListItem } from '../api.ts';
+import { kstToday } from '../lib/date.ts';
 import { ordered } from '../lib/list.ts';
 import { useLoad } from '../lib/load.ts';
 import { dayText } from '../lib/notice.ts';
@@ -22,9 +23,11 @@ export function MyList({ tab }: { tab: 'like' | 'later' }) {
   if (error) return <Page><Heading level={1}>내 목록</Heading><Failed error={error} retry={reload} /></Page>;
   if (!data) return <Page><Heading level={1}>내 목록</Heading><Loading /></Page>;
   const inTab = (t: 'like' | 'later') => data.items.filter(i => actions.of(i.notice)?.kind === t);
+  const due = ({ notice }: ListItem) => { const a = actions.of(notice); return a?.kind === 'later' && !!a.revisitOn && a.revisitOn <= kstToday(); };
   const note = ({ notice, flags }: ListItem) => (tab === 'like' ? '' : flags.includes('revisit_due') && !flags.includes('closed') && !flags.includes('down') ? '다시 볼 날이에요'
     : notice.open && actions.of(notice)?.revisitOn ? `${dayText(actions.of(notice)!.revisitOn!)}에 다시 보여 드려요` : '');
-  const items = ordered(inTab(tab));
+  // 불러온 뒤 이 앱에서 바꾼 행동을 따른다
+  const items = ordered(inTab(tab).map(i => ({ ...i, flags: i.flags.filter(f => f !== 'revisit_due' || due(i)) })));
   return (
     <Page>
       <Heading level={1}>내 목록</Heading>

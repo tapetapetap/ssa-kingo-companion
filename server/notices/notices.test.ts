@@ -59,6 +59,24 @@ describe('공지 목록 (US4, FR-021·022)', () => {
     expect(p1.items).toHaveLength(20);
     const p2 = (await app.request('GET', `/api/notices?cursor=${p1.next}`)).body as { items: unknown[]; next: string | null };
     expect([p2.items.length, p2.next]).toEqual([8, null]);
+    expect((await app.request('GET', '/api/notices?cursor=MjA')).body).toMatchObject({ error: { code: 'invalid', field: 'cursor' } });
+  });
+
+  it('이어 받는 사이에 숨긴 공지가 있어도 다음 쪽이 밀리지 않는다(두 정렬)', async () => {
+    for (let no = 1; no <= 50; no++) await notice(db.sql, { no, deadline: no % 4 ? no % 9 : null, posted: -(no % 6) });
+    for (const sort of ['new', 'due']) {
+      await db.sql`delete from actions`;
+      const all: string[] = [];
+      let cursor = '';
+      for (let i = 0; i < 4; i++) {
+        const p = (await app.request('GET', `/api/notices?sort=${sort}${cursor}`)).body as { items: { id: string }[]; next: string | null };
+        all.push(...p.items.map(n => n.id));
+        for (const n of p.items.slice(3, 7)) await app.request('PUT', `/api/notices/${encodeURIComponent(n.id)}/action`, { kind: 'dislike' });
+        if (!p.next) break;
+        cursor = `&cursor=${p.next}`;
+      }
+      expect([sort, all.length, new Set(all).size]).toEqual([sort, 50, 50]);
+    }
   });
 });
 

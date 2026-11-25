@@ -74,23 +74,23 @@ function ShelfRow({ name, more, shelf }: { name: string; more: string | null; sh
 }
 
 export function Home() {
-  const { data, error, reload, refresh } = useLoad(() => withCards<Data>('GET', '/api/home', cards), [], 'home');
+  const { data, error, reload, refresh, cancel } = useLoad(() => withCards<Data>('GET', '/api/home', cards), [], 'home');
   useActions();
   // 가장 추천에 행동하면 그 자리에 되돌리기를 5초 보인 뒤 홈을 다시 부른다(FR-012)
   const [undo, setUndo] = useState<(() => void) | null>(null);
-  const opts = useMemo<Opts>(() => ({ onActed: u => setUndo(() => u), onFailed: () => setUndo(null) }), []);
+  const opts = useMemo<Opts>(() => ({ onActed: u => { cancel(); setUndo(() => u); }, onFailed: () => setUndo(null), onUndone: () => { cancel(); setUndo(null); } }), [cancel]);
   useEffect(() => {
     if (!undo) return;
-    const t = setTimeout(() => void refresh().then(() => setUndo(null)), UNDO_MS);
+    const t = setTimeout(() => void refresh().then(() => setUndo(u => (u === undo ? null : u))), UNDO_MS);
     return () => clearTimeout(t);
   }, [undo, refresh]);
   const asked = useRef(false);
   const repicking = data?.pick?.repicking ?? false;
   useEffect(() => {
-    if (!repicking || asked.current) return;
+    if (!repicking || asked.current || undo) return;
     const t = setTimeout(() => { asked.current = true; void refresh(); }, HOME_REFRESH_MS);
     return () => clearTimeout(t);
-  }, [repicking, refresh]);
+  }, [repicking, refresh, undo]);
   if (error) return <Failed error={error} retry={reload} />;
   if (!data) return <Loading />;
   const none = homeEmpty(data.pickEmpty);
@@ -102,7 +102,7 @@ export function Home() {
         <Card padding={4}>
           <HStack gap={2} justify="between" vAlign="center" wrap="wrap">
             <Text role="status">다른 추천을 고르는 중이에요</Text>
-            <Button label="되돌리기" size="lg" onClick={() => { undo(); setUndo(null); }} />
+            <Button label="되돌리기" size="lg" onClick={() => { undo(); opts.onUndone?.(); }} />
           </HStack>
         </Card>
       ) : data.pick ? <Pick pick={data.pick} opts={opts} /> : <Empty title={none.title} description={none.description} action={none.link && <Button label={none.link.label} size="lg" href={none.link.href} />} />}

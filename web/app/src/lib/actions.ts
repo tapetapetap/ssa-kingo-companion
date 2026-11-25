@@ -8,8 +8,12 @@ type Job = { want: Want; resolve: (d: Done | null) => void; reject: (e: unknown)
 type Entry = { shown: Action | null; saved: Action | null; savedAt: number; running: boolean; next: Job | null };
 
 const guess = (w: Want): Action | null => w && { kind: w.kind, revisitOn: w.revisitOn ?? null, reason: w.reason ?? null, at: null };
-/** 되돌릴 때 다시 보낼 것 */
-export const again = (a: Action | null): Want => a && { kind: a.kind, ...(a.revisitOn ? { revisitOn: a.revisitOn } : {}), ...(a.reason ? { reason: a.reason } : {}) };
+/** 되돌릴 때 다시 보낼 것. 다시 볼 날은 서버가 받는 내일~닫히는 날로 맞춘다(이미 지난 날이었으면 내일) */
+export function again(a: Action | null, range: { min: string; max: string } | null): Want {
+  if (!a) return null;
+  const day = a.revisitOn && range ? (a.revisitOn < range.min ? range.min : a.revisitOn > range.max ? range.max : a.revisitOn) : a.revisitOn;
+  return { kind: a.kind, ...(day ? { revisitOn: day } : {}), ...(a.reason ? { reason: a.reason } : {}) };
+}
 
 export function createActions(send: (id: string, want: Want) => Promise<Done>, now = () => performance.now()) {
   const entries = new Map<string, Entry>();
@@ -28,9 +32,9 @@ export function createActions(send: (id: string, want: Want) => Promise<Done>, n
         const d = await send(id, job.want);
         e.saved = d.action;
         e.savedAt = now();
-        job.resolve(d);
+        job.resolve(e.next ? null : d); // 뒤에 누른 것이 있으면 그것이 답이다
       } catch (err) {
-        if (e.next) job.resolve(null); // 뒤에 누른 것이 있으면 그것이 답이다
+        if (e.next) job.resolve(null);
         else job.reject(err);
       }
       if (!e.next) e.shown = e.saved;

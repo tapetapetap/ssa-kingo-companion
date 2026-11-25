@@ -47,6 +47,14 @@ describe('카드 행동', () => {
     expect((await ps[2])?.action?.kind).toBe('dislike');
     expect(s.calls).toHaveLength(2);
   });
+  it('앞 것이 성공해도 뒤에 누른 것이 있으면 null이다(되돌린 행동의 제안이 뜨지 않게)', async () => {
+    const s = server();
+    const a = createActions(s.send);
+    const p = a.set(n, { kind: 'dislike', reason: 'done' });
+    void a.set(n, null);
+    s.calls[0].ok(act('dislike'));
+    expect(await p).toBeNull();
+  });
   it('뒤의 것이 실패하면 앞에 저장된 것으로 돌아간다', async () => {
     const s = server();
     const a = createActions(s.send);
@@ -88,8 +96,11 @@ describe('카드 행동', () => {
     off();
     void a.set(n, null);
     expect(seen).toBe(1);
-    expect(again({ kind: 'later', revisitOn: '2026-12-01', reason: null, at: 't' })).toEqual({ kind: 'later', revisitOn: '2026-12-01' });
-    expect(again({ kind: 'dislike', revisitOn: null, reason: 'time', at: 't' })).toEqual({ kind: 'dislike', reason: 'time' });
-    expect(again(null)).toBeNull();
+    const r = { min: '2026-11-30', max: '2026-12-25' };
+    const later = (revisitOn: string) => again({ kind: 'later', revisitOn, reason: null, at: 't' }, r);
+    expect(later('2026-12-01')).toEqual({ kind: 'later', revisitOn: '2026-12-01' });
+    expect([later('2026-11-29'), later('2026-12-31')]).toEqual([{ kind: 'later', revisitOn: '2026-11-30' }, { kind: 'later', revisitOn: '2026-12-25' }]);
+    expect(again({ kind: 'dislike', revisitOn: null, reason: 'time', at: 't' }, null)).toEqual({ kind: 'dislike', reason: 'time' });
+    expect(again(null, r)).toBeNull();
   });
 });

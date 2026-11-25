@@ -18,7 +18,7 @@ import { ActionBar } from './ActionBar.tsx';
 import { ActivityForm } from './ActivityForm.tsx';
 
 /** 홈의 가장 추천처럼 되돌리기를 알림 줄 대신 그 자리에서 보일 때 */
-export type Opts = { onActed?: (undo: () => void) => void; onFailed?: () => void };
+export type Opts = { onActed?: (undo: () => void) => void; onFailed?: () => void; onUndone?: () => void };
 type Ask = { mode: 'menu' | 'later' | 'dislike'; notice: NoticeCard; opts: Opts };
 
 let ask: Ask | null = null;
@@ -30,6 +30,9 @@ function open(a: Ask | null) {
   subs.forEach(f => f());
 }
 export const openSheet = (mode: 'menu' | 'later' | 'dislike', notice: NoticeCard, opts: Opts = {}) => open({ mode, notice, opts });
+/** 화면이 바뀌거나 로그인이 끊기면 열린 창과 되돌리기를 닫는다 */
+let shut = () => {};
+export const closeSheets = () => shut();
 let perform: (notice: NoticeCard, want: Want, opts: Opts) => void = () => {};
 export const act = (notice: NoticeCard, want: Want, opts: Opts = {}) => perform(notice, want, opts);
 
@@ -59,7 +62,7 @@ export function ActionHost() {
       closeToast();
       closeToast = toast({ body: messageOf(e), type: 'error', isAutoHide: true, autoHideDuration: UNDO_MS });
     };
-    const undo = () => { actions.set(notice, again(before)).catch(fail); };
+    const undo = () => { actions.set(notice, again(before, laterRange(notice.closesOn, kstToday()))).catch(fail); };
     closeToast();
     closeToast = () => {};
     if (opts.onActed) opts.onActed(undo);
@@ -67,7 +70,7 @@ export function ActionHost() {
     actions.set(notice, want).then(d => { 
       if (!d?.suggestActivity) return;
       closeToast(); // 되돌리기는 제안 창에 있다
-      setSuggest({ draft: d.suggestActivity, undo });
+      setSuggest({ draft: d.suggestActivity, undo: () => { undo(); opts.onUndone?.(); } });
     }, e => {
       opts.onFailed?.();
       fail(e);
@@ -79,6 +82,7 @@ export function ActionHost() {
     act(now.notice, want, now.opts);
   };
   const close = () => { setSuggest(null); setAsking(false); };
+  shut = () => { open(null); close(); closeToast(); };
   const title = now?.mode === 'later' ? '언제 다시 볼까요?' : now?.mode === 'dislike' ? '어떤 점이 안 맞았어요?' : '표시하기';
   return (
     <>

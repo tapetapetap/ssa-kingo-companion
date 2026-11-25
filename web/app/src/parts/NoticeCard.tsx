@@ -47,7 +47,7 @@ export function ShelfCard({ notice }: { notice: Notice }) {
       <VStack gap={2}>
         <HStack justify="between" vAlign="center" gap={2}><Text size="sm" color="secondary">{kindName(notice.kind) ?? '공지'}</Text><Due notice={notice} /></HStack>
         <Text weight="semibold" maxLines={2} hasTruncateTooltip={false} data-server-text>{notice.title}</Text>
-        <Lines notice={notice} about={notice.host ?? ''} note="" />
+        <Lines notice={notice} about={notice.host ?? ''} />
         <HStack justify="end"><MiniActions notice={notice} /></HStack>
       </VStack>
     </ClickableCard>

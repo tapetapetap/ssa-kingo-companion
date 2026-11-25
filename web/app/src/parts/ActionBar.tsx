@@ -9,6 +9,7 @@ import { ToggleButton } from '@astryxdesign/core/ToggleButton';
 import type { NoticeCard } from '../api.ts';
 import { kstToday } from '../lib/date.ts';
 import { laterRange } from '../lib/later.ts';
+import { actionText } from '../lib/notice.ts';
 import { actions, useActions } from '../lib/store.ts';
 import { act, openSheet, type Opts } from './ActionHost.tsx';
 import { ListIcon } from './icons.tsx';
@@ -19,7 +20,15 @@ export function ActionBar({ notice, opts, onPicked }: { notice: NoticeCard; opts
   useActions();
   const now = actions.of(notice);
   const noLater = !laterRange(notice.closesOn, kstToday());
-  if (!notice.open) return now && <Button label="표시 지우기" size="lg" onClick={() => { onPicked?.(); act(notice, null, opts); }} />;
+  const said = actionText(now);
+  if (!notice.open) {
+    return now && (
+      <VStack gap={2} hAlign="start">
+        <Text color="accent" weight="semibold">{said}</Text>
+        <Button label="표시 지우기" size="lg" onClick={() => { onPicked?.(); act(notice, null, opts); }} />
+      </VStack>
+    );
+  }
   const press = (kind: typeof KINDS[number][0]) => {
     if (now?.kind === kind || kind === 'like') {
       onPicked?.();
@@ -28,6 +37,7 @@ export function ActionBar({ notice, opts, onPicked }: { notice: NoticeCard; opts
   };
   return (
     <VStack gap={2}>
+      {now?.kind === 'later' && <Text size="sm" color="accent" weight="semibold">{said}</Text>}
       <HStack gap={2} wrap="wrap">
         {KINDS.map(([kind, label]) => (
           <Button key={kind} label={label} size="lg" variant={kind === 'dislike' && now?.kind !== 'dislike' ? 'ghost' : 'secondary'} aria-pressed={now?.kind === kind}

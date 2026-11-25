@@ -29,11 +29,12 @@ export function ActivityForm({ draft, id, onSaved, onChange }: { draft: Partial<
   };
   if (fields.error) return <Failed error={fields.error} retry={fields.reload} />;
   if (!fields.data) return <Loading />;
+  const known = d.fieldIds.filter(x => fields.data!.fields.some(f => f.id === x)); // 목록에서 빠진 분야는 세지도 보내지도 않는다
   const status = (field: string) => (error?.field === field ? { type: 'error' as const, message: error.message } : undefined);
   const terms = termsBefore(kstToday(), d.term);
   const save = async () => {
     try {
-      const body = { ...d, proofUrl: d.proofUrl.trim() || null };
+      const body = { ...d, fieldIds: known, proofUrl: d.proofUrl.trim() || null };
       await api(id ? 'PATCH' : 'POST', id ? `/api/me/activities/${id}` : '/api/me/activities', body);
       onSaved();
     } catch (e) {
@@ -46,8 +47,8 @@ export function ActivityForm({ draft, id, onSaved, onChange }: { draft: Partial<
       <Selector label="학기" size="lg" placeholder="고르기" presentation="adaptive" options={terms.map(t => ({ value: t, label: termName(t) }))} value={d.term || undefined} onChange={v => put({ term: v ?? '' })} status={status('term')} />
       <Selector label="종류" size="lg" placeholder="고르기" presentation="adaptive" options={KINDS.map(([value, label]) => ({ value, label }))} value={d.kind || undefined} onChange={v => put({ kind: v ?? '' })} status={status('kind')} />
       <MultiSelector label={`분야(${ACTIVITY_FIELDS}개까지)`} size="lg" placeholder="고르지 않아도 돼요" presentation="adaptive" hasSearch searchPlaceholder="분야 이름으로 찾기" emptySearchText="맞는 분야가 없어요" triggerDisplay="labels"
-        options={fields.data.fields.map(f => ({ value: f.id, label: f.name, disabled: d.fieldIds.length >= ACTIVITY_FIELDS && !d.fieldIds.includes(f.id) }))}
-        value={d.fieldIds.filter(x => fields.data!.fields.some(f => f.id === x))} onChange={v => put({ fieldIds: v.slice(0, ACTIVITY_FIELDS) })} status={status('fieldIds')} />
+        options={fields.data.fields.map(f => ({ value: f.id, label: f.name, disabled: known.length >= ACTIVITY_FIELDS && !known.includes(f.id) }))}
+        value={known} onChange={v => put({ fieldIds: v.slice(0, ACTIVITY_FIELDS) })} status={status('fieldIds')} />
       <TextInput label="증빙 주소" description="블로그나 GitHub처럼 해 온 것을 보여 주는 주소예요. 없어도 돼요." size="lg" type="url" inputMode="url" autoCapitalize="off" value={d.proofUrl} onChange={v => put({ proofUrl: v.slice(0, PROOF_CHARS) })} status={status('proofUrl')} />
       {error && !['name', 'term', 'kind', 'fieldIds', 'proofUrl'].includes(error.field ?? '') && <Text color="primary" role="alert">{error.message}</Text>}
       <Button label="저장하기" variant="primary" size="lg" width="100%" isDisabled={!d.name.trim() || !d.term || !d.kind} clickAction={save} />

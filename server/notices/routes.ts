@@ -62,8 +62,6 @@ export async function cards(sql: Sql, rows: Row[]) {
   });
 }
 
-/** 글 번호(cse:123의 123) */
-const NO = `cast(split_part(n.id, ':', 2) as bigint)`;
 const termOf = (d: Date) => {
   const k = new Date(d.getTime() + 9 * 3600_000);
   const [y, m] = [k.getUTCFullYear(), k.getUTCMonth() + 1];
@@ -84,23 +82,28 @@ export function noticeRoutes(ctx: Ctx): Route[] {
       if (sort !== 'new' && sort !== 'due') throw invalid('sort', '정렬은 new나 due예요');
       const text = (q.get('q') ?? '').toLowerCase().replace(/\s+/g, '');
       if ((q.get('q') ?? '').length > LIMITS.queryChars) throw new HttpError(422, 'too_long', `찾는 말은 ${LIMITS.queryChars}자까지예요`, { max: LIMITS.queryChars });
-      const offset = q.get('cursor') ? Number(Buffer.from(q.get('cursor')!, 'base64url').toString()) : 0;
-      if (!Number.isInteger(offset) || offset < 0) throw invalid('cursor', '다음 쪽 표시가 틀려요');
+      // 다음 쪽 표시는 앞 쪽 마지막 공지다. 사이에 행동으로 숨긴 공지가 있어도 건너뛰거나 겹치지 않는다(몇 개째로 세면 숨긴 만큼 밀린다)
+      const after = q.get('cursor') ? Buffer.from(q.get('cursor')!, 'base64url').toString() : null;
+      if (after !== null && !(await sql`select 1 from notices where id = ${after}`).length) throw invalid('cursor', '다음 쪽 표시가 틀려요');
+      const newKey = (n: string) => `(-(${n}.posted_on - date '2000-01-01'), -cast(split_part(${n}.id, ':', 2) as bigint))`;
+      const dueKey = (n: string) => `((${n}.deadline is null), ${n}.closes_on, ${newKey(n).slice(1)}`;
+      const key = sort === 'new' ? newKey : dueKey;
       const like = `%${text.replace(/[\\%_]/g, c => `\\${c}`)}%`;
       const rows = await sql<Row[]>`${SELECT(sql, s.id)}
         where ${sql.unsafe(OPEN)} and not coalesce(${sql.unsafe(HIDDEN)}, false)
           and (${kinds.length === 0} or n.kind = any(${kinds}::text[]))
           and (${fieldIds.length === 0} or exists (select 1 from notice_fields nf where nf.notice_id = n.id and nf.field_id = any(${fieldIds}::text[])))
           and (${text === ''} or n.search_text like ${like})
-        order by ${sort === 'new' ? sql.unsafe(`n.posted_on desc, ${NO} desc`) : sql.unsafe(`(n.deadline is null), n.closes_on, n.posted_on desc, ${NO} desc`)}
-        limit ${LIMITS.pageSize + 1} offset ${offset}`;
+          and (${after === null} or ${sql.unsafe(key('n'))} > (select ${sql.unsafe(key('c').slice(1, -1))} from notices c where c.id = ${after}))
+        order by ${sql.unsafe(key('n').slice(1, -1))}
+        limit ${LIMITS.pageSize + 1}`;
       const items = await cards(sql, rows.slice(0, LIMITS.pageSize));
       let empty: string | null = null;
-      if (!items.length && offset === 0) {
+      if (!items.length && after === null) {
         const [o] = await sql<{ n: number }[]>`select count(*)::int as n from notices n where ${sql.unsafe(OPEN)}`;
         empty = o.n ? 'no_match' : 'no_open_notices';
       }
-      const next = rows.length > LIMITS.pageSize ? Buffer.from(String(offset + LIMITS.pageSize)).toString('base64url') : null;
+      const next = rows.length > LIMITS.pageSize ? Buffer.from(items.at(-1)!.id).toString('base64url') : null;
       return { body: { items, next, empty }, headers: s.headers };
     }],
     ['GET', '/api/notices/:id', async req => {
