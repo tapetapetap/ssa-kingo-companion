@@ -53,7 +53,7 @@
 
 ### `GET /api/ops/map`
 
-`fields`: `[{ id, name, group, groupName, x, y }]`, `notices`: `[{ id, title, kind, deadline, postedOn, source, x, y, rank, first, core: [id], review: boolean }]`, `pairs`: `[{ a, b, sim }]`, `empty`: `[{ field, notices: [id] }]`, `unused`: `[id]`. `groupName`은 가장 위 묶음(큰 분야)이다. `stale`은 만든 때가 마지막 매일 작업보다 앞이면 참이다. 그 뒤 내려갔거나 공지가 아니게 된 공지는 빠진다.
+`fields`: `[{ id, name, group, groupName, x, y }]`, `notices`: `[{ id, title, kind, deadline, postedOn, source, x, y, rank, first, core: [id], review: boolean }]`, `pairs`: `[{ a, b, sim }]`, `empty`: `[{ field, notices: [id] }]`, `unused`: `[id]`. `groupName`은 가장 위 묶음(큰 분야)이다. `stale`은 만든 때가 마지막 매일 작업의 `started_at`보다 앞이면 참이다(지도는 작업 중간에 만들어진다). `reason`은 마지막 매일 작업의 `steps.map.error`이고, 매일 작업이 없었으면 '아직 매일 작업이 돌지 않았어요'다. 그 뒤 내려갔거나 공지가 아니게 된 공지는 빠진다.
 
 ### `GET /api/ops/models`
 

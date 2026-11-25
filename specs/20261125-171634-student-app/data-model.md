@@ -17,7 +17,7 @@
 | 표 | 칸 | 규칙 |
 |---|---|---|
 | `op_requests` | `id` PK identity, `kind` text in (`daily`, `model_trial`), `model` text(`model_trial`만, 그 밖 null), `by_operator` text, `at`, `status` text in (`waiting`, `running`, `paused`, `done`, `failed`), `done` int 기본 0, `total` int 기본 0, `started_at`, `ended_at`, `error` text | 종류마다 열린 것(`waiting`·`running`·`paused`) 하나: 부분 unique 인덱스 `(kind) where status in (…)` |
-| `model_trials` | `id` PK identity, `request_id` → op_requests, `model` text, `taxonomy_id` text, `field_version` text, `prompt_version` text, `gold_version` text, `trial_version` int, `metrics` jsonb, `started_at`, `ended_at` | `metrics`: `{ corePrecision, coreRecall, relatedPrecision, oppPrecision, oppRecall }`(모두 `{num, den}`), `fieldSample`, `oppSample`, `secPerAsk`, `gpuAvg`, `tempMax`. 라벨·제목·본문 없음 |
+| `model_trials` | `id` PK identity, `request_id` → op_requests, `model` text, `taxonomy_id` text, `field_version` text, `prompt_version` text, `gold_version` text, `trial_version` int, `metrics` jsonb, `started_at`, `ended_at` | `metrics`: `{ corePrecision, coreRecall, relatedPrecision, oppRight, oppMissed }`(모두 `{num, den}`. `oppRight`는 '기회 여부', `oppMissed`는 '기회 놓침'), `fieldSample`, `oppSample`, `secPerAsk`, `gpuAvg`, `tempMax`. 라벨·제목·본문 없음 |
 | `model_changes` | `id` PK identity, `old_model` text, `new_model` text, `trial_id` → model_trials, `by_operator` text, `at` | 지금 모델은 마지막 행 |
 | `field_maps` | `id` PK identity, `at`, `taxonomy_id` text, `edition` text, `data` jsonb | 최근 7개 |
 
@@ -38,7 +38,7 @@
 }
 ```
 
-`rank`는 첫 핵심 분야의 순위(1부터)이고 핵심이 없으면 `null`이다. 이름·제목은 담지 않고 답할 때 붙인다.
+`rank`는 첫 핵심 분야의 순위(1부터)이고 핵심이 없으면 `null`이다. `first`는 벡터가 가장 가까운 분야 id(1위 분야)다. 이름·제목은 담지 않고 답할 때 붙인다.
 
 ## 답에 더하는 칸(`GET /api/me`)
 

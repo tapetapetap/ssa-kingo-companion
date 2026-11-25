@@ -12,7 +12,7 @@
 
 - [ ] T001 `web/app/vite.config.ts`, `web/app/index.html`(lang ko, viewport, manifest·아이콘 링크), `web/app/src/main.tsx`(빈 화면)를 만들고 `package.json`에 `build:app`(`vite build --config web/app/vite.config.ts`)을 더한다. 개발 서버는 `/api`를 `KINGO_API_URL`로 넘긴다
 - [ ] T002 [P] `.gitignore`에 `web/app/dist`가 빠지는지 보고(`web/ops/dist`와 같은 규칙) `tsconfig.json`의 include에 `web/app`이 드는지 확인한다
-- [ ] T003 `deploy/Dockerfile`에 `npm run build:app`, `.github/workflows/ci.yml`의 빌드 줄에 `npm run build:app`을 더한다
+- [ ] T003 `deploy/Dockerfile`에 `npm run build:app`, `.dockerignore`에 `web/app/dist`, `.github/workflows/ci.yml`의 빌드 줄에 `npm run build:app`을 더한다
 - [ ] T004 [P] dev 의존성 `axe-core`를 정확한 판으로 더한다(`package.json`, `package-lock.json`)
 
 ## Phase 2: Foundational
@@ -24,7 +24,7 @@
 - [ ] T007 [P] 시험과 구현: `web/app/src/lib/date.ts`(`kstToday`, `dday(deadline, today)` → '오늘 마감'·'D-3'·'마감 지남'·'마감 없음', `termOf(day)`, `termSuggestion(answeredAt, answers, today)`)와 `date.test.ts`. 학기 경계(2/28~3/1, 8/31~9/1), 학년 올림(3월이 지난 횟수, 4 이하), 기기 시간대가 달라도 같은 값
 - [ ] T008 [P] `web/app/src/api.ts`: 요청·오류(`web/ops/src/api.ts`와 같은 꼴), 401·403 `consent_required`를 앱 사건(`app-auth`)으로 알린다. 시험 `web/app/src/api.test.ts`(HTML 오류 쪽, 네트워크 끊김은 `offline` 코드)
 - [ ] T009 [P] 시험과 구현: `web/app/src/route.ts`(contracts/app.md 주소 표 읽기·만들기, `go`·`replace`·뒤로 가기, 자리 기억 Map, `safeTo(to)` 검사)와 `route.test.ts`(`//evil`, `/\evil`, `/login`, `/start` 거절, 거르기 주소 왕복)
-- [ ] T010 [P] `web/app/src/theme.ts`: 디자인 후보 아티팩트(X6aGWhu4g5NdQJVTTdi3es)의 추천안을 읽어 astryx 테마 `kingo`를 만든다(밝은·어두운 화면). `web/app/src/lib/values.ts`에 앱의 첫 값
+- [ ] T010 [P] `web/app/src/theme.ts`: contracts/design.md의 값으로 astryx 테마 `kingo`를 만든다(밝은·어두운 화면). `web/app/src/theme.test.ts`가 design.md의 대비 조건을 계산해 본다. `web/app/src/lib/values.ts`에 앱의 첫 값
 - [ ] T011 `web/app/src/parts/States.tsx`(불러오는 중·빈 상태·실패·오프라인)와 `web/app/src/main.tsx`의 틀(아래 메뉴 막대, 900px부터 왼쪽 메뉴)
 - [ ] T012 `scripts/e2e-app/run.mjs`와 `package.json`의 `e2e:app`: 시험 스키마(`server/test/db.ts`의 방법)에 공지 45개·분야 목록·개발 계정 둘(로그인 전, 분야까지 마친 것)을 넣고 서버를 임시 포트에 띄워 Playwright로 돈다. 걸음마다 320·390·768px 가로 넘침 0, axe 심각·중대 0, 화면 글자를 `scripts/audit-copy/rules.mjs`로 검사. 끝나면 스키마를 지운다. `.github/workflows/ci.yml`에 더한다
 
@@ -62,7 +62,7 @@
 
 **Goal**: 세 행동과 되돌리기, 내 목록. **Independent Test**: spec US3.
 
-- [ ] T027 [P] [US3] 시험과 구현: `web/app/src/lib/list.ts`(FR-017 순서)와 `web/app/src/lib/later.ts`(기본 날짜, 고를 수 있는 날, 오늘 닫히면 못 함)와 시험
+- [ ] T027 [P] [US3] 시험과 구현: `web/app/src/lib/list.ts`(FR-017 순서. `revisit_due`와 `closed`가 함께 있는 것은 맨 아래)와 `web/app/src/lib/later.ts`(기본 날짜, 고를 수 있는 날, 오늘 닫히면 못 함)와 시험
 - [ ] T028 [P] [US3] 시험과 구현: `web/app/src/lib/actions.ts`(바로 바꾸고 실패하면 되돌림, 겹치면 마지막 것 하나만 보냄, 여러 화면의 같은 공지에 알림)와 시험
 - [ ] T029 [US3] `web/app/src/parts/ActionBar.tsx`: 관심 있어요·나중에 보기(날짜 칸)·관심 없음(네 이유와 '이유 없이'), 5초 되돌리기, 닫힌 공지는 지우기만. `NoticeCard`와 `NoticeDetail`에 잇고, 알림 묻기 자리는 빈 고리로 둔다(US5)
 - [ ] T030 [US3] `web/app/src/parts/ActivityForm.tsx`: 활동 칸(이름 100자·학기·종류·분야 0~2·증빙). '이미 해 봤어요' 뒤 초안으로 연다. US4에서도 쓴다
@@ -78,7 +78,7 @@
 - [ ] T033 [P] [US4] 시험과 구현: `web/app/src/lib/draft.ts`(R17의 `sessionStorage` 글, `tag`가 다르면 버림, 저장소가 막히면 조용히)와 시험
 - [ ] T034 [P] [US4] `web/app/src/screens/Me.tsx`: 칸과 길, 로그아웃, 계정 지우기 두 번 확인
 - [ ] T035 [P] [US4] `web/app/src/screens/Prompt.tsx`: 글자 수, 저장하지 않고 나가면 묻기, `draft` 잇기
-- [ ] T036 [US4] `web/app/src/screens/Analysis.tsx`: 세 칸, 출처·증빙, 줄 빼기·되살리기, 흐름의 근거 줄, 끄기(지워지는 것 알림)·켜기, `.md` 내려받기. 뺀 줄의 글은 서버가 키만 주므로 키를 사람이 읽을 말로 푼다(`liked:<분야>` → '관심 있어요가 몰린 분야: …', `web/app/src/lib/lineKey.ts`와 시험)
+- [ ] T036 [US4] `web/app/src/screens/Analysis.tsx`: 세 칸, 출처·증빙, 줄 빼기·되살리기, 흐름의 근거 줄, 끄기(지워지는 것 알림)·켜기, `.md` 내려받기. 뺀 줄의 글은 서버가 키만 주므로 키를 사람이 읽을 말로 푼다(`liked:<분야>` → '관심 있어요가 몰린 분야: <이름>', `disliked:<분야>` → '관심 없음이 몰린 분야: <이름>', `flow:<키+키>` → '컴패니언이 본 흐름 한 줄'과 근거 줄 이름들, 목록에 없는 분야는 id 대신 '지금 목록에 없는 분야', `web/app/src/lib/lineKey.ts`와 시험)
 - [ ] T037 [US4] `web/app/src/screens/Activity.tsx`: `ActivityForm`으로 넣기·고치기·지우기, 100개 한도, `draft` 잇기. 처음 질문·분야 고치기는 `Answers`·`Fields`를 다시 쓴다
 - [ ] T038 [US4] `web/app/src/screens/Home.tsx`에 새 학기 제안(FR-019, `termSuggestion`), 닫으면 `localStorage`에 학기
 - [ ] T039 [US4] `scripts/e2e-app/run.mjs`: US4 걸음(프롬프트 쓰다 로그인 끊김 → 복구, 다른 계정이면 복구 없음, 줄 빼기, 끄기·켜기, `.md`, 새 학기, 계정 지우기)
@@ -99,12 +99,12 @@
 - [ ] T047 [US5] 의존성 `web-push@4.0.0`(정확한 판), `server/push/web-push.d.ts`
 - [ ] T048 [US5] 시험: `server/push/send.test.ts` — 보냄·410(구독 지움)·500 뒤 한 번 더·또 실패, 두 번 돌리면 0, `sending`으로 남은 것은 안 보냄, 08:59·21:00, 기기 둘, TTL, 30일 지난 기록, 출력에 제목·주소 없음
 - [ ] T049 [US5] `server/push/send.ts`(R7)와 `server/cli.ts`의 `notify`·`push-keys`(contracts/cli.md, `server/cli.test.ts`)
-- [ ] T050 [US5] `server/outbound.test.ts`: `web-push`를 가져오는 파일은 `server/push/send.ts`(와 `push-keys`의 자리) 하나이고 api가 시작할 때 가져오는 파일 묶음(`server/main.ts`에서 따라간 import)에 없음을 본다
+- [ ] T050 [US5] `server/outbound.test.ts`: `web-push`를 가져오는 파일은 `server/push/send.ts` 하나이고(`push-keys`가 쓰는 `generateVAPIDKeys`도 여기서 다시 내보낸다) api가 시작할 때 가져오는 파일 묶음(`server/main.ts`에서 따라간 import)에 없음을 본다
 - [ ] T051 [P] [US5] `web/app/public/sw.js`(R3), `web/app/public/manifest.webmanifest`, 아이콘(192·512·maskable·apple-touch). `sw.js`의 알림 꼴 검사는 `web/app/src/sw.test.ts`에서 파일을 읽어 가짜 전역으로 돌린다
 - [ ] T052 [US5] 시험과 구현: `web/app/src/lib/push.ts`(상태: 지원 안 함·설치 필요·막힘·준비 중·꺼짐·켜짐, 켜기·끄기, app.md 9)와 시험
 - [ ] T053 [US5] `web/app/src/screens/Push.tsx`(FR-036·FR-039), `ActionBar`의 '마감 전에 알려 드릴까요?' 한 번, `Home`의 아이폰 안내 한 번, `main.tsx`의 서비스 워커 등록
-- [ ] T054 [P] [US5] `deploy/`: `kingo-notify.service`·`.timer`, `compose.yaml`(jobs에만 `kingo.push.env`), `kingo.env.example`, `kingo.push.env.example`, `.gitignore`, `consent.dev.md`를 `dev-2`로(FR-040)
-- [ ] T055 [US5] `scripts/e2e-app/run.mjs`: 알림 칸의 상태(준비 중·꺼짐)와 오프라인 껍데기(`context.setOffline`), Cache Storage에 `/api` 없음. 실제 켜기는 quickstart 2를 손으로 하고 결과를 이 줄에 적는다
+- [ ] T054 [P] [US5] `deploy/`: `kingo-notify.service`·`.timer`, `compose.yaml`(jobs에만 `kingo.push.env`), `kingo.env.example`, `kingo.push.env.example`, `.gitignore`와 `.dockerignore`에 `deploy/kingo.push.env`(이미지는 `COPY . .`라 빠지면 개인 키가 api에도 들어간다), `consent.dev.md`를 `dev-2`로(FR-040)
+- [ ] T055 [US5] `scripts/e2e-app/run.mjs`: 알림 칸의 상태(준비 중·꺼짐)와 오프라인 껍데기(처음 한 번 연 바로 뒤 `context.setOffline`하고 새로 고침), Cache Storage에 `/api` 없음. 실제 켜기는 quickstart 2를 손으로 하고 결과를 이 줄에 적는다
 
 **Checkpoint**: PR E(`/security-review` 포함). 동의 문구 초안 문서(Claude Docs)에도 문장을 더한다.
 
@@ -130,7 +130,7 @@
 - [ ] T064 [P] [US7] 시험과 구현: `server/ops/tsne.ts`(R13)와 시험(같은 입력 같은 글자, 세 무리가 갈라짐, 91개 1초 안)
 - [ ] T065 [US7] 시험과 구현: `server/ops/map.ts`의 `buildMap`(무게 가운데, 순위, 쌍·빈 곳·안 쓰인 분야, 벡터 없음, 분야 12개 미만, 7개만 남김, 공지 1,000개 1분 안)과 `server/jobs/daily.ts`의 `map` 단계(실패해도 이어짐)
 - [ ] T066 [US7] 시험과 구현: `GET /api/ops/map`(contracts/api.md, 내려간 공지 빠짐, `stale`, 없을 때 까닭)
-- [ ] T067 [US7] `web/ops/src/EmbedMap.tsx`: SVG 점(색과 모양 둘 다로 구분), 기준 3·5·10·15, 목록 넷, 거르기 다섯, 판정 검토로 가기, 자판으로 목록을 다 쓸 수 있음. 시안(8Mdj7g1CwejvUDQdkgM3Ki)을 읽어 맞춘다
+- [ ] T067 [US7] `web/ops/src/EmbedMap.tsx`: SVG 점(색과 모양 둘 다로 구분), 기준 3·5·10·15, 목록 넷, 거르기 다섯(기간은 전체·최근 30일·최근 7일), 판정 검토로 가기, 자판으로 목록을 다 쓸 수 있음. 시안(8Mdj7g1CwejvUDQdkgM3Ki)을 읽어 맞춘다
 
 **Checkpoint**: PR G.
 
@@ -142,8 +142,8 @@
 - [ ] T069 [US8] `etl/notices/llm.ts`(`makeChat`의 `older`, `Outcome.model`)와 `fields.ts`·`run.ts`(근거에 실제 모델 이름)
 - [ ] T070 [P] [US8] 시험과 구현: `etl/taxonomy/taxonomy.ts`의 `fieldGate(t, version, model, measured?)`(R14)와 `run.ts`의 `KINGO_FIELD_MEASURED` 읽기
 - [ ] T071 [US8] 시험과 구현: `server/model.ts`의 `currentModel`과 부르는 세 곳(`server/jobs/daily.ts`, `server/cli.ts`, `server/pick/repick.ts`), 분류기 환경 넘기기, `rejudgePaths(no, models)`가 앞 모델 답도 지움. `server/jobs/daily.test.ts`·`server/model.test.ts`를 고친다
-- [ ] T072 [US8] 시험: `server/jobs/swap.test.ts` — 가짜 모델 서버로 A로 판정 → B로 바꿈 → 매일 작업 → 앞 공지 근거 'LLM: A', 새 공지 'LLM: B', 다시 판정한 공지 'LLM: B', A로 되돌려도 B 판정 그대로(SC-010)
-- [ ] T073 [US8] 시험과 구현: `server/ops/trial.ts`(R15): 정답셋·본문 없음 까닭, 이어 하기, 밤 시간 끝에 멈춤, 글마다 잠금을 놓음, 지표가 `scoreTaxonomy`·`eval.score`와 같음, 조건 판, 지금 모델 먼저, `model_bursts`에 `trial`. `server/outbound.test.ts`의 `etl/` 허용 목록에 `score.ts`·`eval.ts`·`run.ts`를 더한다(수집 코드를 부르지 않는지 함께 본다)
+- [ ] T072 [US8] 시험: `server/jobs/swap.test.ts` — 가짜 모델 서버로 A로 판정 → B로 바꿈 → 매일 작업 → 앞 공지 근거 'LLM: A', 새 공지 'LLM: B', 다시 판정한 공지 'LLM: B', A로 되돌려도 B 판정 그대로, B로 바꾼 뒤 지금 모델 B를 다시 재도 분류기 보관 폴더에 새 파일이 0개이고 A가 판정한 공지가 그대로(SC-010)
+- [ ] T073 [US8] 시험과 구현: `server/ops/trial.ts`(R15): 정답셋·본문 없음 까닭, 이어 하기, 밤 시간 끝에 멈춤, 글마다 잠금을 놓음, 지표가 `scoreTaxonomy`·`eval.score`와 같음, 지금 모델이든 후보든 분류기 보관 폴더에 쓰지 않음, 조건 판, 지금 모델 먼저, `model_bursts`에 `trial`. `server/outbound.test.ts`의 `etl/` 허용 목록에 `score.ts`·`eval.ts`·`run.ts`를 더한다(수집 코드를 부르지 않는지 함께 본다)
 - [ ] T074 [US8] `server/ops/requests.ts`에 `model_trial`을 잇는다(밤 시간 22:00~02:50, 매일 작업 끝~07:00)
 - [ ] T075 [US8] 시험과 구현: `server/ops/models.ts`의 경로 넷(contracts/api.md): 84.9%·85.0% 경계(분수), `trial_stale` 세 가지, 설치되지 않음, 이미 지금 모델, 열린 요청, 취소, 바꾼 사람
 - [ ] T076 [US8] `web/ops/src/Models.tsx`: 지금 모델·후보·진행·나란히 비교·경고·바꾸기 확인·기록
