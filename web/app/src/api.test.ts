@@ -23,6 +23,43 @@ describe('api', () => {
     answer(403, '{"error":{"code":"locked","message":"잠겼어요","until":"2026-11-25T15:20:00.000+09:00"}}');
     expect(await fail()).toMatchObject({ code: 'locked', message: '잠겼어요', extra: { until: '2026-11-25T15:20:00.000+09:00' } });
   });
+  describe('boot.js가 먼저 받은 답(SC-002)', () => {
+    const fresh = async () => { vi.resetModules(); return (await import('./api.ts')).api; };
+    const boot = (body: string | null, status = 200) => { window.boot = new Map([['/api/me', Promise.resolve(body === null ? null : new Response(body, { status }))]]); };
+    it('처음 한 번만 쓰고, 실패한 답은 쓰지 않는다', async () => {
+      answer(200, '"새로"');
+      let call = await fresh();
+      boot('"먼저"');
+      expect([await call('GET', '/api/me'), await call('GET', '/api/me')]).toEqual(['먼저', '새로']);
+      for (const [body, status] of [['{"error":{"code":"login_required"}}', 401], [null, 200]] as const) {
+        call = await fresh();
+        boot(body, status);
+        expect(await call('GET', '/api/me')).toBe('새로');
+      }
+    });
+    it('boot.js가 앱보다 늦게 돌았거나 무언가 바꾼 뒤, 시작하고 오래되면 쓰지 않는다', async () => {
+      answer(200, '"새로"');
+      let call = await fresh();
+      window.boot = undefined;
+      await call('GET', '/api/me');
+      boot('"옛"'); // 늦게 온 답이 남아도 둘째 요청은 새로 부른다
+      expect(await call('GET', '/api/me')).toBe('새로');
+      call = await fresh();
+      window.boot = new Map([['/api/me', Promise.resolve(new Response('1'))], ['/api/home', Promise.resolve(new Response('"앞 학생의 홈"'))]]);
+      await call('GET', '/api/me');
+      await call('GET', '/api/me'); // 다른 탭에서 바뀌었는지 다시 본 뒤
+      expect(await call('GET', '/api/home')).toBe('새로');
+      call = await fresh();
+      boot('"앞 학생"');
+      await call('POST', '/api/login');
+      expect(await call('GET', '/api/me')).toBe('새로');
+      call = await fresh();
+      boot('"옛"');
+      vi.spyOn(performance, 'now').mockReturnValue(31_000);
+      expect(await call('GET', '/api/me')).toBe('새로');
+      vi.restoreAllMocks();
+    });
+  });
   it('HTML 오류 쪽, 끊긴 연결, 모르는 꼴', async () => {
     answer(502, '<html>bad gateway</html>');
     expect(await fail()).toMatchObject({ code: 'server_error', message: '잠시 뒤에 다시 해 주세요' });

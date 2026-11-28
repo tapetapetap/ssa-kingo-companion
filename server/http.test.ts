@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { brotliCompressSync } from 'node:zlib';
 import { connect } from 'node:net';
 import { join } from 'node:path';
 import { health, HttpError, kstIso, match, parseCookies, type Route } from './http.ts';
@@ -120,6 +121,15 @@ describe('학생 앱 파일 (3단계 research R2)', () => {
       expect(r.headers.get('x-content-type-options')).toBe('nosniff');
       expect(r.headers.get('referrer-policy')).toBe('same-origin');
     }
+  });
+
+  it('미리 만든 brotli가 있으면 청한 쪽에만 주고 vary를 단다', async () => {
+    writeFileSync(join(root, 'dist', 'assets', 'z.js'), 'z=1');
+    writeFileSync(join(root, 'dist', 'assets', 'z.js.br'), brotliCompressSync('z=1'));
+    const br = await fetch(`${web.base}/assets/z.js`, { headers: { 'accept-encoding': 'gzip, br' } });
+    expect([br.headers.get('content-encoding'), br.headers.get('vary'), br.headers.get('content-type'), await br.text()]).toEqual(['br', 'accept-encoding', 'text/javascript; charset=utf-8', 'z=1']);
+    const plain = await fetch(`${web.base}/assets/z.js`, { headers: { 'accept-encoding': 'gzip, br;q=0' } });
+    expect([plain.headers.get('content-encoding'), plain.headers.get('vary'), await plain.text()]).toEqual([null, 'accept-encoding', 'z=1']);
   });
 
   it('/assets는 오래 보관하고, 서비스 워커와 manifest는 보관하지 않는다', async () => {

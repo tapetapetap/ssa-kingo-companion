@@ -49,6 +49,7 @@ export const kingo = defineTheme({
   },
   components: {
     heading: { base: { letterSpacing: '-0.02em' } },
+    'carousel-scroller': { base: { alignItems: 'stretch' } }, // 선반 카드의 높이를 맞춘다
     'radio-list-item': { base: { minHeight: '2.75rem' } },
     'collapsible-trigger': { base: { minHeight: '2.75rem' } }
   }

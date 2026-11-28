@@ -9,11 +9,26 @@ export class ApiError extends Error {
   }
 }
 
+declare global { interface Window { boot?: Map<string, Promise<Response | null>> } }
+const BOOT_MS = 30_000;
+const asked = new Set<string>();
+let changed = false;
+/** boot.js가 먼저 청한 답은 앱이 그 주소를 처음 청할 때만, 시작하고 잠깐만 쓴다. 둘째부터나 무언가 바꾼 뒤(로그인 등)에는 언제나 새로 부른다
+ *  (다른 탭에서 다른 학생이 들어왔는지 다시 묻는 요청이 옛 답을 받으면 안 된다) */
+async function early(method: string, path: string): Promise<Response | null> {
+  if (method !== 'GET') changed = true;
+  if (asked.has(path)) changed = true; // 무엇이든 다시 물었으면 누구인지도 다시 볼 때라 남은 것을 버린다
+  if (changed) return null;
+  asked.add(path);
+  const res = performance.now() < BOOT_MS ? await window.boot?.get(path) : null;
+  return res?.ok ? res : null;
+}
+
 export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
   let text: string;
   try {
-    res = await fetch(path, { method, headers: method === 'GET' ? {} : { 'content-type': 'application/json' }, body: method === 'GET' ? undefined : JSON.stringify(body ?? {}) });
+    res = await early(method, path) ?? await fetch(path, { method, headers: method === 'GET' ? {} : { 'content-type': 'application/json' }, body: method === 'GET' ? undefined : JSON.stringify(body ?? {}) });
     text = await res.text();
   } catch {
     throw new ApiError('offline', '인터넷에 연결되지 않았어요');
