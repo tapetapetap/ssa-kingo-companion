@@ -1,4 +1,4 @@
-# Tasks: 4단계 첫 명세 — 운영자 '분야 관계'
+# Tasks: 4단계 첫 명세 — 운영자 '분야 체계'
 
 **Input**: `specs/20261128-171415-field-relations/`의 [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/api.md](contracts/api.md), [quickstart.md](quickstart.md)
 
@@ -40,8 +40,8 @@
 - [ ] T016 시험: `server/ops/taxonomy.test.ts`(새로)에 `GET /api/ops/taxonomy`가 운영자만(학생 401/403), 묶음·분야·CSRankings 영역·과목 영역, 분야마다 최근 30일 공지 수(핵심·관련, 내려간 공지와 30일 밖은 빠짐), `flags.noLinks`·`noNotices`, 지금 판이 '바탕'인지 돌려주는지, 응답 JSON에 학생 계정 이메일·학생 id가 없는지(시험 학생을 만들고 글자를 찾음, FR-005) 더한다. `GET /api/ops/taxonomy/fields/:id`의 최근 글 5개(최근 것부터)와 가까운 분야 5개(벡터 없으면 null), 없는 분야 404도 더한다
 - [ ] T017 `server/ops/taxonomy.ts`의 두 GET 경로와 `server/app.ts`에 경로 묶음을 더한다(contracts/api.md, R8). 공지 수는 한 쿼리로 센다
 - [ ] T018 [P] `web/ops/src/api.ts`에 자료 꼴(`Taxonomy`, `FieldDetail`)을 더한다
-- [ ] T019 `web/ops/src/Fields.tsx`(새로)와 `web/ops/src/Shell.tsx` 메뉴 '분야 관계'(`?menu=fields`): 판 카드(지금 판·초안 수·재기 상태 자리), 묶음→분야 TREE와 찾기(이름·동의어·정의), 자세히(이름·경로·정의·동의어·CSRankings·과목 영역·공지 수와 최근 글·가까운 분야). 글을 누르면 임베딩 지도의 '판정 검토에서 보기'와 같은 `onReview(id)`로 판정 검토를 연다. 부품은 `astryx search`로 고른다(R10)
-- [ ] T020 `scripts/e2e-ops/run.mjs`(새로): 시험 스키마에 활성 목록·공지·운영자를 넣고 서버를 띄워 '분야 관계'를 열고, 묶음 펼치기 → 분야 고르기 → 자세히 칸 확인 → 찾기, 1280·768·390px과 글자 200%에서 `checks.mjs` 검사를 한다
+- [ ] T019 `web/ops/src/Fields.tsx`(새로)와 `web/ops/src/Shell.tsx` 메뉴 '분야 체계'(`?menu=fields`): 판 카드(지금 판·초안 수·재기 상태 자리), 묶음→분야 TREE와 찾기(이름·동의어·정의), 자세히(이름·경로·정의·동의어·CSRankings·과목 영역·공지 수와 최근 글·가까운 분야). 글을 누르면 임베딩 지도의 '판정 검토에서 보기'와 같은 `onReview(id)`로 판정 검토를 연다. 부품은 `astryx search`로 고른다(R10)
+- [ ] T020 `scripts/e2e-ops/run.mjs`(새로): 시험 스키마에 활성 목록·공지·운영자를 넣고 서버를 띄워 '분야 체계'를 열고, 묶음 펼치기 → 분야 고르기 → 자세히 칸 확인 → 찾기, 1280·768·390px과 글자 200%에서 `checks.mjs` 검사를 한다
 
 ## Phase 4: User Story 2 - 동의어와 정의를 고쳐 초안에 모은다 (P1) — PR C
 
@@ -69,7 +69,7 @@
 - [ ] T035 `scripts/e2e-ops/run.mjs`에 재기 결과를 시험 자료로 넣은 뒤 적용 → 판 기록 → 되돌리기 걸음과, 열린 모델 재기가 있으면 '초안 재기'가 막히고 까닭이 보이는 걸음(반대로 열린 초안 재기가 있으면 모델 화면의 '오늘 밤 재기'가 막힘, spec US3-1)을 더한다
 - [ ] T036 `server/ops/models.ts`와 `server/ops/models.test.ts`: `GET /api/ops/models`의 결과 목록과 `POST /api/ops/models/current`가 `request_id`의 kind가 `model_trial`인 줄(과 request_id가 null인 앞 줄)만 쓰는지 시험하고 고친다(초안 재기 결과가 섞이지 않음, R5). '처음 모델'(`initialOf`)은 판을 적용한 뒤에도 바탕 파일의 `chosen`을 보는지 시험한다(R3). `web/ops/src/Models.tsx`는 초안 재기가 열려 있으면 모델 재기 단추를 막고 까닭을 보인다(반대도 `Fields.tsx`에서)
 
-## Phase 6: User Story 5 - 분야 관계를 MAP으로 본다 (P2) — PR E
+## Phase 6: User Story 5 - 분야 체계를 MAP으로 본다 (P2) — PR E
 
 **Independent Test**: spec US5.
 
@@ -81,7 +81,7 @@
 ## Phase 7: Polish
 
 - [ ] T041 SC-007: PR D가 머지된 뒤 이 맥에서 동의어를 넣은 초안(재현율이 낮은 분야 위주, 운영자처럼 화면으로 넣음)을 한 번 재서 지금 판 대비 핵심 재현율·핵심 정밀도·관련 정밀도의 변화를 이 줄에 적는다(`KINGO_TEMP_LIMIT=70`, 한도는 목표로만). 결과가 85% 이상이어도 적용은 사용자와 정한다
-- [ ] T042 [P] `README.md`(분야 관계 화면, 판 폴더, 새 환경 변수, `e2e:ops`)와 2단계 `specs/20261117-052701-backend-skeleton/quickstart.md`의 운영 절차에 판 폴더 백업 메모
+- [ ] T042 [P] `README.md`(분야 체계 화면, 판 폴더, 새 환경 변수, `e2e:ops`)와 2단계 `specs/20261117-052701-backend-skeleton/quickstart.md`의 운영 절차에 판 폴더 백업 메모
 - [ ] T043 quickstart 1~4를 처음부터 해 보고 어긋난 곳을 고친다
 
 ## Dependencies

@@ -1,4 +1,4 @@
-# Implementation Plan: 4단계 첫 명세 — 운영자 '분야 관계'
+# Implementation Plan: 4단계 첫 명세 — 운영자 '분야 체계'
 
 **Branch**: `docs/field-relations-spec` | **Date**: 2026-11-28 | **Spec**: [spec.md](spec.md)
 
@@ -6,7 +6,7 @@
 
 ## Summary
 
-분야에 동의어 칸을 더하고, 운영자 화면 '분야 관계'에서 보고 고친다. 고친 것은 DB 초안에 모이고, 3단계 모델 재기 틀로 밤에 재서, 85%를 넘으면 적용해 DB에 **전체 목록**으로 된 분야 판이 생긴다(R1). 매일 작업은 그 판을 날짜·순번 이름의 판 파일로 써서 분류기에 넘긴다(R2). 판 안의 `chosen`이 85% 근거라 `fieldGate`는 그대로 통과한다(R3).
+분야에 동의어 칸을 더하고, 운영자 화면 '분야 체계'에서 보고 고친다. 고친 것은 DB 초안에 모이고, 3단계 모델 재기 틀로 밤에 재서, 85%를 넘으면 적용해 DB에 **전체 목록**으로 된 분야 판이 생긴다(R1). 매일 작업은 그 판을 날짜·순번 이름의 판 파일로 써서 분류기에 넘긴다(R2). 판 안의 `chosen`이 85% 근거라 `fieldGate`는 그대로 통과한다(R3).
 
 가장 조심할 것은 둘이다. (1) **동의어가 없으면 판정 판이 지금과 같아야 한다**: 지시문 본문은 손대지 않고 분야 줄과 판 재료에만 동의어가 있을 때 붙인다(R4, SC-006). 어기면 지금 85% 근거가 무너져 분야 판정이 멈춘다. (2) **분류기는 DB에 붙지 않는다**: 판은 파일 경로로만 넘긴다(R2).
 
@@ -78,7 +78,7 @@ server/ops/requests.ts          # taxonomy_trial 가져가기, 못 쓴 판 파�
 server/model.ts                 # classifierEnv에 KINGO_TAXONOMY_FILE
 server/jobs/daily.ts            # 시작할 때 판 읽기, rejudgePaths가 지금 판 사용
 server/ingest/ingest.ts         # 지금 판으로 fields 넣기
-web/ops/src/Fields.tsx          # '분야 관계' 화면(판 카드·TREE·자세히·판 기록)
+web/ops/src/Fields.tsx          # '분야 체계' 화면(판 카드·TREE·자세히·판 기록)
 web/ops/src/FieldGraph.tsx      # 방사형 MAP 탭
 web/ops/src/radial.ts           # 배치 순수 함수(시험)
 web/ops/src/Shell.tsx           # 메뉴 더함
@@ -91,7 +91,7 @@ deploy/compose.yaml             # jobs에 판 폴더 읽고 쓰기 볼륨, 환�
 | PR | 담는 것 | 이야기 |
 |---|---|---|
 | A | 동의어 칸, 판정 판·후보 글·지시문 줄(R4), `KINGO_TAXONOMY_FILE`(R2), 마이그레이션 011, `currentTaxonomy`와 다섯 곳 바꾸기, 판 이름·판 파일 쓰기, 매일 작업 연결 | 바탕 |
-| B | 보기 API, '분야 관계' 화면(판 카드·TREE·자세히), `e2e:ops` | US1 |
+| B | 보기 API, '분야 체계' 화면(판 카드·TREE·자세히), `e2e:ops` | US1 |
 | C | 초안 API(저장·지우기·불러오기, 겹침·409)와 고치기 화면 | US2 |
 | D | 초안 재기(`taxonomy_trial`), 적용·되돌리기 API와 화면, 판 기록 | US3, US4 |
 | E | 방사형 MAP 탭 | US5 |

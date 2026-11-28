@@ -1,4 +1,4 @@
-# Data Model: 운영자 '분야 관계'
+# Data Model: 운영자 '분야 체계'
 
 마이그레이션 `server/db/migrations/011_taxonomy.sql` 하나. 학생 표는 건드리지 않는다.
 

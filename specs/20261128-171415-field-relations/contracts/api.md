@@ -1,4 +1,4 @@
-# API 계약: 운영자 '분야 관계'
+# API 계약: 운영자 '분야 체계'
 
 모두 운영자 전용(`requireOperator`), 바꾸는 요청은 JSON 본문과 같은 출처(지금 `server/http.ts` 규칙). 오류 꼴은 2단계와 같다: `{ error: { code, message, field? } }`. 응답에 학생 자료가 없다(FR-005).
 

@@ -1,4 +1,4 @@
-# Goldfish Review — 4단계 첫 명세 — 운영자 '분야 관계'(분야 지식그래프 보기와 동의어·정의 고치기)
+# Goldfish Review — 4단계 첫 명세 — 운영자 '분야 체계'(분야 지식그래프 보기와 동의어·정의 고치기)
 
 - 날짜: 2026-11-28
 - 리뷰어 상태: comprehension 완료 · readiness NO-GO

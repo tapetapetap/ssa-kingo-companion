@@ -1,4 +1,4 @@
-# Research: 운영자 '분야 관계'
+# Research: 운영자 '분야 체계'
 
 결정은 모두 2026-11-28 brainstorming(설계 1/4~4/4)과 아래 코드 확인에 따른다.
 
@@ -66,5 +66,5 @@
 
 ## R10. 화면
 
-- **Figma(2026-11-28 사용자 결정: Figma로 보여 주고 진행)**: [킹고 운영 - 분야 관계](https://www.figma.com/design/YdoiLpd4meCrgaYoH3223N) — TREE와 자세히(node 2:2), MAP 탭·재기 결과·판 기록(node 3:61), 휴대폰 MAP(node 3:747). 글꼴은 제품의 시스템 글꼴 대신 Noto Sans KR로 그렸다. 숫자는 예시다. 구현은 이 프레임을 따른다(figma-design-to-code).
-- **Decision**: 운영 화면(`web/ops`)에 메뉴 '분야 관계'를 더한다. 기존 부품(astryx Tree/List·Card·Table·Tabs·TextArea·TokenInput 등, 있는 것을 `astryx search`로 확인)을 쓴다. 화면 구성은 설계 3/4. Figma는 구현 전 승인 전에 그린다(AGENTS.md 2-0.5). 파일 URL이 필요하다. 3단계에서는 사용자가 Figma를 빼기로 했으므로(2026-11-18) 이번에도 뺄지 게이트 전에 묻는다.
+- **Figma(2026-11-28 사용자 결정: Figma로 보여 주고 진행)**: [킹고 운영 - 분야 체계](https://www.figma.com/design/YdoiLpd4meCrgaYoH3223N) — TREE와 자세히(node 2:2), MAP 탭·재기 결과·판 기록(node 3:61), 휴대폰 MAP(node 3:747). 글꼴은 제품의 시스템 글꼴 대신 Noto Sans KR로 그렸다. 숫자는 예시다. 구현은 이 프레임을 따른다(figma-design-to-code).
+- **Decision**: 운영 화면(`web/ops`)에 메뉴 '분야 체계'를 더한다. 기존 부품(astryx Tree/List·Card·Table·Tabs·TextArea·TokenInput 등, 있는 것을 `astryx search`로 확인)을 쓴다. 화면 구성은 설계 3/4. Figma는 구현 전 승인 전에 그린다(AGENTS.md 2-0.5). 파일 URL이 필요하다. 3단계에서는 사용자가 Figma를 빼기로 했으므로(2026-11-18) 이번에도 뺄지 게이트 전에 묻는다.

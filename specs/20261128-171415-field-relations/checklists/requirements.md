@@ -1,4 +1,4 @@
-# Specification Quality Checklist: 4단계 첫 명세 — 운영자 '분야 관계'
+# Specification Quality Checklist: 4단계 첫 명세 — 운영자 '분야 체계'
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-11-28

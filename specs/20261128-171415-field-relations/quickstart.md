@@ -1,10 +1,10 @@
-# Quickstart: 운영자 '분야 관계' 확인하기
+# Quickstart: 운영자 '분야 체계' 확인하기
 
 앞 단계 quickstart(`specs/20261125-171634-student-app/quickstart.md`)로 DB·서버·운영자 계정이 떠 있다고 본다.
 
 ## 1. 보기
 
-1. `npm run build:ops && npm run server`로 띄우고 운영자로 로그인해 '분야 관계'를 연다.
+1. `npm run build:ops && npm run server`로 띄우고 운영자로 로그인해 '분야 체계'를 연다.
 2. 지금 판이 '바탕'이고, 묶음 11개 TREE와 분야 91개가 나오는지 본다.
 3. 'LLM'을 골라 정의·CSRankings·과목 영역·공지 수·가까운 분야 5개가 나오는지 본다. 넣기 전이면 공지 수 0과 '아직 벡터가 없어요'가 나온다.
 4. 'MAP' 탭에서 노드를 눌러 자세히가 바뀌는지 본다. 새로 고쳐도 같은 자리에 그려지는지 본다.
@@ -34,5 +34,5 @@
 ```sh
 npx tsc --noEmit
 npx vitest run
-npm run build:ops && npm run e2e:ops   # 이 단계에서 새로 만드는 운영 화면 검사('분야 관계' 걸음)
+npm run build:ops && npm run e2e:ops   # 이 단계에서 새로 만드는 운영 화면 검사('분야 체계' 걸음)
 ```
