@@ -14,9 +14,10 @@ import { scoreTaxonomy, type Ratio } from '../../etl/notices/score.ts';
 import type { Taxonomy } from '../../etl/taxonomy/taxonomy.ts';
 import type { Sql } from '../db/sql.ts';
 import { LIMITS } from '../limits.ts';
+import { currentTaxonomy } from '../taxonomy/current.ts';
 import { hideSecrets } from '../log.ts';
 import { currentModel, installedModels, openUnlocked, withModelLock, type Installed, type ModelDeps } from '../model.ts';
-import { activeTaxonomy, goldVersion, latestRound, TRIAL_VERSION } from './conditions.ts';
+import { goldVersion, latestRound, TRIAL_VERSION } from './conditions.ts';
 
 export const TRIAL_DIR = fileURLToPath(new URL('../../etl/.cache/trial', import.meta.url));
 export type Metrics = {
@@ -52,7 +53,7 @@ function readable<T>(read: () => T): T {
 
 /** 정답셋과 본문을 읽는다. 모자라면 까닭을 던진다(라벨과 본문은 이 프로세스 밖으로 나가지 않는다) */
 async function readGold(d: TrialDeps): Promise<Gold> {
-  const t = await activeTaxonomy(d.sql, d.taxonomyDir);
+  const t = await currentTaxonomy(d.sql, d.taxonomyDir);
   if (!t) throw new Error('활성 분야 목록이 없어요');
   const round = latestRound(d.goldDir, t.id);
   const version = goldVersion(d.goldDir, t.id);
