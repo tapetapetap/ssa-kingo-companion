@@ -14,17 +14,17 @@
 
 **Language/Version**: TypeScript, Node 24(타입 제거로 실행), 운영 화면 Vite 8 + React 19 + astryx 0.7.17
 
-**Primary Dependencies**: 새 의존성 없음. 그림은 SVG를 직접 그린다(임베딩 지도와 같음)
+**Primary Dependencies**: 새 의존성 없음. MAP은 SVG를 직접 그린다(임베딩 지도와 같음)
 
 **Storage**: Postgres 17 + pgvector. 마이그레이션 011 하나(새 표 3개, `op_requests` 칸·색인, [data-model.md](data-model.md)). 판 파일은 서버 폴더 `etl/taxonomy/versions/`(저장소 밖, gitignore)
 
 **Testing**: vitest(순수 함수·API·DB·매일 작업), 운영 화면 Playwright 스크립트 `e2e:ops`(새로 만듦, `scripts/e2e-app/run.mjs`의 검사 함수를 함께 씀)
 
-**Target Platform**: 운영자 PC 브라우저(휴대폰은 보기만, 그림은 줄여 보임). 서버는 3단계와 같음
+**Target Platform**: 운영자 PC 브라우저(휴대폰은 보기만, MAP은 줄여 보임). 서버는 3단계와 같음
 
 **Project Type**: API + 운영 작업 + 운영자 웹 페이지 + 분류기
 
-**Performance Goals**: 화면 자료 1초 안(분야 91개 × 공지 수 한 쿼리), 그림 140노드·210선 첫 그리기 0.5초 안
+**Performance Goals**: 화면 자료 1초 안(분야 91개 × 공지 수 한 쿼리), MAP 140노드·210선 첫 그리기 0.5초 안
 
 **Constraints**: 학생 자료를 운영자 응답에 넣지 않음. 분류기는 DB에 붙지 않음. 부하 제한과 밤 시간 그대로(재기는 모델 재기와 한 번에 하나). 판정 판은 동의어가 없으면 그대로. 저장소에 정답셋·공지 본문 없음
 
@@ -36,7 +36,7 @@
 
 | 문 | 이 plan | 결과 |
 |---|---|---|
-| 새 의존성은 꼭 필요할 때만 | 없음(그림은 SVG 직접) | 통과(R8) |
+| 새 의존성은 꼭 필요할 때만 | 없음(MAP은 SVG 직접) | 통과(R8) |
 | 학생 자료는 운영자에게 안 보임 | 공지 수는 공지 판정에서만, 응답 꼴에 학생 칸 없음, 시험으로 확인 | 통과(R8, FR-005) |
 | 동의어는 학생에게 안 보임 | `fields` 표에 동의어 칸 없음, 학생 응답 시험 | 통과(R9, SC-005) |
 | 85% 문턱 | 적용·되돌리기는 같은 조건·85%만, 근거는 판 안 `chosen` | 통과(R3, R6) |
@@ -78,8 +78,8 @@ server/ops/requests.ts          # taxonomy_trial 가져가기, 못 쓴 판 파�
 server/model.ts                 # classifierEnv에 KINGO_TAXONOMY_FILE
 server/jobs/daily.ts            # 시작할 때 판 읽기, rejudgePaths가 지금 판 사용
 server/ingest/ingest.ts         # 지금 판으로 fields 넣기
-web/ops/src/Fields.tsx          # '분야 관계' 화면(판 카드·나무·자세히·판 기록)
-web/ops/src/FieldGraph.tsx      # 방사형 그림 탭
+web/ops/src/Fields.tsx          # '분야 관계' 화면(판 카드·TREE·자세히·판 기록)
+web/ops/src/FieldGraph.tsx      # 방사형 MAP 탭
 web/ops/src/radial.ts           # 배치 순수 함수(시험)
 web/ops/src/Shell.tsx           # 메뉴 더함
 scripts/e2e-ops/run.mjs         # 운영 화면 검사(새로)
@@ -91,10 +91,10 @@ deploy/compose.yaml             # jobs에 판 폴더 읽고 쓰기 볼륨, 환�
 | PR | 담는 것 | 이야기 |
 |---|---|---|
 | A | 동의어 칸, 판정 판·후보 글·지시문 줄(R4), `KINGO_TAXONOMY_FILE`(R2), 마이그레이션 011, `currentTaxonomy`와 다섯 곳 바꾸기, 판 이름·판 파일 쓰기, 매일 작업 연결 | 바탕 |
-| B | 보기 API, '분야 관계' 화면(판 카드·나무·자세히), `e2e:ops` | US1 |
+| B | 보기 API, '분야 관계' 화면(판 카드·TREE·자세히), `e2e:ops` | US1 |
 | C | 초안 API(저장·지우기·불러오기, 겹침·409)와 고치기 화면 | US2 |
 | D | 초안 재기(`taxonomy_trial`), 적용·되돌리기 API와 화면, 판 기록 | US3, US4 |
-| E | 방사형 그림 탭 | US5 |
+| E | 방사형 MAP 탭 | US5 |
 
 PR마다: 시험 → 구현 → (화면이면) e2e·눈으로 보기·`impeccable audit`·`polish` → `ponytail-review` → `/code-review` → PR → CI → Claude 리뷰 → 머지. A와 D는 `/security-review`도 한다(A는 분류기 환경과 파일 쓰기, D는 적용 권한). C는 운영자 입력이라 `/code-review`에서 검사를 본다.
 
@@ -124,4 +124,4 @@ PR마다: 시험 → 구현 → (화면이면) e2e·눈으로 보기·`impeccabl
 | 지시문이 길어져 CPU 판정이 느려짐(학교 데스크톱) | 재기 결과에 지시문 글자 수와 요청당 시간을 보인다. 동의어 10개 상한 |
 | 바탕 파일이 PR로 바뀌어 지금 판이 낡음 | `baseChanged` 알림, 판정은 지금 판으로 계속. 다음 명세 ③에서 바탕 고치기를 화면으로 옮길지 정한다 |
 | 판 폴더가 컨테이너 재시작으로 사라짐 | compose에서 이름 있는 볼륨에 붙인다. 판은 DB(매일 백업)에 전체가 있어, 파일이 없어지면 `file`을 비우고 다시 쓰면 된다 |
-| 그림이 실뭉치가 됨 | 방사형 고정 배치, 고른 노드만 진하게, 범례. 엉키면 바깥 고리 정렬을 고친다(R8) |
+| MAP이 실뭉치가 됨 | 방사형 고정 배치, 고른 노드만 진하게, 범례. 엉키면 바깥 고리 정렬을 고친다(R8) |

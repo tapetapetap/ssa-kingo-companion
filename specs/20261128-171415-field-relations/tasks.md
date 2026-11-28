@@ -40,7 +40,7 @@
 - [ ] T016 시험: `server/ops/taxonomy.test.ts`(새로)에 `GET /api/ops/taxonomy`가 운영자만(학생 401/403), 묶음·분야·CSRankings 영역·과목 영역, 분야마다 최근 30일 공지 수(핵심·관련, 내려간 공지와 30일 밖은 빠짐), `flags.noLinks`·`noNotices`, 지금 판이 '바탕'인지 돌려주는지, 응답 JSON에 학생 계정 이메일·학생 id가 없는지(시험 학생을 만들고 글자를 찾음, FR-005) 더한다. `GET /api/ops/taxonomy/fields/:id`의 최근 글 5개(최근 것부터)와 가까운 분야 5개(벡터 없으면 null), 없는 분야 404도 더한다
 - [ ] T017 `server/ops/taxonomy.ts`의 두 GET 경로와 `server/app.ts`에 경로 묶음을 더한다(contracts/api.md, R8). 공지 수는 한 쿼리로 센다
 - [ ] T018 [P] `web/ops/src/api.ts`에 자료 꼴(`Taxonomy`, `FieldDetail`)을 더한다
-- [ ] T019 `web/ops/src/Fields.tsx`(새로)와 `web/ops/src/Shell.tsx` 메뉴 '분야 관계'(`?menu=fields`): 판 카드(지금 판·초안 수·재기 상태 자리), 묶음→분야 나무와 찾기(이름·동의어·정의), 자세히(이름·경로·정의·동의어·CSRankings·과목 영역·공지 수와 최근 글·가까운 분야). 글을 누르면 임베딩 지도의 '판정 검토에서 보기'와 같은 `onReview(id)`로 판정 검토를 연다. 부품은 `astryx search`로 고른다(R10)
+- [ ] T019 `web/ops/src/Fields.tsx`(새로)와 `web/ops/src/Shell.tsx` 메뉴 '분야 관계'(`?menu=fields`): 판 카드(지금 판·초안 수·재기 상태 자리), 묶음→분야 TREE와 찾기(이름·동의어·정의), 자세히(이름·경로·정의·동의어·CSRankings·과목 영역·공지 수와 최근 글·가까운 분야). 글을 누르면 임베딩 지도의 '판정 검토에서 보기'와 같은 `onReview(id)`로 판정 검토를 연다. 부품은 `astryx search`로 고른다(R10)
 - [ ] T020 `scripts/e2e-ops/run.mjs`(새로): 시험 스키마에 활성 목록·공지·운영자를 넣고 서버를 띄워 '분야 관계'를 열고, 묶음 펼치기 → 분야 고르기 → 자세히 칸 확인 → 찾기, 1280·768·390px과 글자 200%에서 `checks.mjs` 검사를 한다
 
 ## Phase 4: User Story 2 - 동의어와 정의를 고쳐 초안에 모은다 (P1) — PR C
@@ -51,7 +51,7 @@
 - [ ] T022 `server/taxonomy/draft.ts`: 저장·지우기(하나·전체)·판 불러오기(`replace`)를 구현한다(R7, FR-010~015)
 - [ ] T023 시험: `server/ops/taxonomy.test.ts`에 `PUT`·`DELETE /api/ops/taxonomy/draft*`와 `POST /api/ops/taxonomy/draft/load`의 상태 코드(contracts/api.md), GET 응답의 `draft`·`fields[].draft`·`flags.gone`·`flags.overlap`, 학생 API(`/api/fields` 등)에 초안을 고친 뒤에도 정의가 그대로이고 동의어 글자가 없는지(SC-005)를 더한다
 - [ ] T024 `server/ops/taxonomy.ts`에 초안 경로를 더한다
-- [ ] T025 `web/ops/src/Fields.tsx`: 자세히에서 정의 고치기·동의어 칩 넣고 빼기·저장, 겹침과 409를 그 자리에 보이기(새 값으로 바꾸기), 나무의 '고침' 표시, 판 카드의 고친 분야 수, '바탕으로 되돌리기'·'초안 지우기'(확인 창). 화면의 겹침 미리 알림은 T005의 `aliasOverlaps`를 같이 쓴다
+- [ ] T025 `web/ops/src/Fields.tsx`: 자세히에서 정의 고치기·동의어 칩 넣고 빼기·저장, 겹침과 409를 그 자리에 보이기(새 값으로 바꾸기), TREE의 '고침' 표시, 판 카드의 고친 분야 수, '바탕으로 되돌리기'·'초안 지우기'(확인 창). 화면의 겹침 미리 알림은 T005의 `aliasOverlaps`를 같이 쓴다
 - [ ] T026 `scripts/e2e-ops/run.mjs`에 고치기 걸음(동의어 둘 넣기 → 저장 → '고침' → 겹침 알림 → 초안 지우기)을 더한다
 
 ## Phase 5: User Story 3·4 - 초안 재기와 적용, 판 기록과 되돌리기 (P1·P2) — PR D
@@ -69,14 +69,14 @@
 - [ ] T035 `scripts/e2e-ops/run.mjs`에 재기 결과를 시험 자료로 넣은 뒤 적용 → 판 기록 → 되돌리기 걸음과, 열린 모델 재기가 있으면 '초안 재기'가 막히고 까닭이 보이는 걸음(반대로 열린 초안 재기가 있으면 모델 화면의 '오늘 밤 재기'가 막힘, spec US3-1)을 더한다
 - [ ] T036 `server/ops/models.ts`와 `server/ops/models.test.ts`: `GET /api/ops/models`의 결과 목록과 `POST /api/ops/models/current`가 `request_id`의 kind가 `model_trial`인 줄(과 request_id가 null인 앞 줄)만 쓰는지 시험하고 고친다(초안 재기 결과가 섞이지 않음, R5). '처음 모델'(`initialOf`)은 판을 적용한 뒤에도 바탕 파일의 `chosen`을 보는지 시험한다(R3). `web/ops/src/Models.tsx`는 초안 재기가 열려 있으면 모델 재기 단추를 막고 까닭을 보인다(반대도 `Fields.tsx`에서)
 
-## Phase 6: User Story 5 - 분야 관계를 그림으로 본다 (P2) — PR E
+## Phase 6: User Story 5 - 분야 관계를 MAP으로 본다 (P2) — PR E
 
 **Independent Test**: spec US5.
 
 - [ ] T037 시험: `web/ops/src/radial.test.ts`(새로)에 `radialLayout(목록, 공지 수)`가 노드(묶음·분야·CSRankings 영역·과목 영역 각각 한 번)와 선(묶음→분야, 분야–CSRankings, 과목 영역–분야)을 모두 내고, 같은 입력이면 같은 좌표, 분야는 자기 묶음의 각도 안, 바깥 고리는 이어진 분야 각도의 평균 순, 노드 크기가 공지 수를 따르는지(0이면 최소) 더한다
 - [ ] T038 `web/ops/src/radial.ts`: 배치 순수 함수(R8)
-- [ ] T039 `web/ops/src/FieldGraph.tsx`(새로)와 `Fields.tsx`의 '나무 | 그림' 탭: SVG 그림, 노드는 버튼 역할과 이름·Tab 이동, 고른 노드와 이어진 것만 진하게, 표시는 색 + 모양(고친 분야 굵은 테두리, 연결 없음 점선, 공지 0 속 빈 원)과 범례, 노드를 고르면 나무·자세히가 같은 분야, 좁은 화면에서는 줄여 보이고 고치기는 나무로 안내(FR-006~008)
-- [ ] T040 `scripts/e2e-ops/run.mjs`에 그림 탭 걸음(노드 수·선 수 확인, 노드 누르기 → 자세히, 키보드로 고르기, 390px에서 가로 넘침 없음)을 더한다
+- [ ] T039 `web/ops/src/FieldGraph.tsx`(새로)와 `Fields.tsx`의 'TREE | MAP' 탭: SVG MAP, 노드는 버튼 역할과 이름·Tab 이동, 고른 노드와 이어진 것만 진하게, 표시는 색 + 모양(고친 분야 굵은 테두리, 연결 없음 점선, 공지 0 속 빈 원)과 범례, 노드를 고르면 TREE·자세히가 같은 분야, 좁은 화면에서는 줄여 보이고 고치기는 TREE로 안내(FR-006~008)
+- [ ] T040 `scripts/e2e-ops/run.mjs`에 MAP 탭 걸음(노드 수·선 수 확인, 노드 누르기 → 자세히, 키보드로 고르기, 390px에서 가로 넘침 없음)을 더한다
 
 ## Phase 7: Polish
 
