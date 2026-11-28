@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { SWE } from '../../src/data/courses/swe.ts';
 import { JOBS, validList } from './fixtures.ts';
 import {
-  checkTaxonomy, fieldGate, findChosen, groupPath, labelsOf, listChars, loadTaxonomy, readList, TAXONOMY_IDS,
+  aliasOverlaps, checkTaxonomy, fieldGate, findChosen, groupPath, labelsOf, listChars, loadTaxonomy, loadTaxonomyFile, mergeDraft, normalizeWord, readList, TAXONOMY_IDS,
   type Chosen, type Taxonomy, type TaxonomyId
 } from './taxonomy.ts';
 
@@ -157,5 +157,44 @@ describe('저장소 목록 파일', () => {
         expect(t.courseMap[row.id]).toEqual(t.fields.filter(f => f.csr.some(k => (row.areas as string[]).includes(k))).map(f => f.id));
       }
     }
+  });
+});
+
+describe('동의어와 초안 합치기(4단계 research R5·R7)', () => {
+  it('normalizeWord: NFKC → 소문자 → 빈칸 지움', () => {
+    expect(normalizeWord(' Ｇ P t ')).toBe('gpt');
+    expect(normalizeWord('자연어 처리')).toBe(normalizeWord('자연어처리'));
+  });
+  it('loadTaxonomyFile: 경로 하나를 읽고 파일 안 id로 꼴을 본다. aliases는 없어도 되고 있으면 문자열 목록', () => {
+    const dir = tmp();
+    const t = validList('custom');
+    const ok = join(dir, 'custom-2026-11-28-1.json');
+    writeFileSync(ok, JSON.stringify({ ...t, fields: t.fields.map((f, i) => (i ? f : { ...f, aliases: ['a'] })) }));
+    expect(loadTaxonomyFile(ok).fields[0].aliases).toEqual(['a']);
+    const bad = join(dir, 'b.json');
+    writeFileSync(bad, JSON.stringify({ ...t, fields: t.fields.map((f, i) => (i ? f : { ...f, aliases: [1] })) }));
+    expect(() => loadTaxonomyFile(bad)).toThrow('fields 꼴이 틀려요');
+    writeFileSync(bad, JSON.stringify({ ...t, id: 'nope' }));
+    expect(() => loadTaxonomyFile(bad)).toThrow('모르는 목록');
+    expect(() => loadTaxonomyFile(join(dir, 'none.json'))).toThrow('없어요');
+  });
+  it('mergeDraft: 같은 id만 덮고, 빈 동의어는 칸을 지우고, 없어진 분야 줄은 빼며 원본은 그대로', () => {
+    const t = validList('custom');
+    const [a, b] = t.fields;
+    const m = mergeDraft(t, [{ fieldId: a.id, aliases: ['x', 'y'], desc: '새 정의' }, { fieldId: b.id, aliases: [], desc: b.desc }, { fieldId: 'gone', aliases: ['z'], desc: 'd' }]);
+    expect(m.fields[0]).toMatchObject({ aliases: ['x', 'y'], desc: '새 정의' });
+    expect('aliases' in m.fields[1]).toBe(false);
+    expect(m.fields.map(f => f.id)).toEqual(t.fields.map(f => f.id));
+    expect(t.fields[0].desc).not.toBe('새 정의');
+  });
+  it('aliasOverlaps: 다른 분야의 이름·동의어와 같은 말(빈칸·대소문자 무시)을 찾는다. 자기 이름과 같은 말은 겹침이 아니다', () => {
+    const t = validList('custom');
+    const [a, b] = t.fields;
+    const m = mergeDraft(t, [{ fieldId: a.id, aliases: [b.name.toUpperCase(), 'gpt', a.name], desc: a.desc }, { fieldId: b.id, aliases: ['G P T'], desc: b.desc }]);
+    expect(aliasOverlaps(m).filter(x => x.fieldId === a.id)).toEqual([
+      { fieldId: a.id, word: b.name.toUpperCase(), with: { fieldId: b.id, name: b.name } },
+      { fieldId: a.id, word: 'gpt', with: { fieldId: b.id, name: b.name } }
+    ]);
+    expect(aliasOverlaps(t)).toEqual([]);
   });
 });

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { validList } from '../taxonomy/fixtures.ts';
 import { saveTaxonomy, TAXONOMY_IDS, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { BoardError, listUrl, SOURCE, viewUrl, type Get, type NoticeRow } from './cse.ts';
-import type { FieldAsk, FieldOutcome } from './fields.ts';
+import { fieldVersion, type FieldAsk, type FieldOutcome } from './fields.ts';
 import type { Ask, LlmOutcome } from './llm.ts';
 import { buildResult, chosenField, collect, formatSummary, judge, judgeAll, main, modelEnv, writeResult, type ResultFile } from './run.ts';
 
@@ -337,8 +337,8 @@ describe('judgeAll (스펙 2)', () => {
 
   it('modelEnv: 앞 모델과 잰 값을 읽고, 없거나 꼴이 틀리면 없는 것으로 본다', () => {
     const measured = { prompt: 'p', model: 'b', num: 30, den: 34 };
-    expect(modelEnv({ KINGO_LLM_OLDER: 'a:1, c:2 ,', KINGO_FIELD_MEASURED: JSON.stringify(measured) })).toEqual({ older: ['a:1', 'c:2'], measured });
-    for (const bad of [undefined, '{깨짐', 'null', '{"prompt":1}', '[]']) expect(modelEnv({ KINGO_FIELD_MEASURED: bad })).toEqual({ older: [], measured: null });
+    expect(modelEnv({ KINGO_LLM_OLDER: 'a:1, c:2 ,', KINGO_FIELD_MEASURED: JSON.stringify(measured) })).toEqual({ older: ['a:1', 'c:2'], measured, file: null });
+    for (const bad of [undefined, '{깨짐', 'null', '{"prompt":1}', '[]']) expect(modelEnv({ KINGO_FIELD_MEASURED: bad })).toEqual({ older: [], measured: null, file: null });
   });
 
   it('json이면 끝에 숫자만 담은 요약JSON 한 줄을 더 낸다. 글이나 본문은 없다(3단계 R10)', async () => {
@@ -494,5 +494,25 @@ describe('chosenField (스펙 3 research R12)', () => {
     const chosen = { date: '2026-11-20', corePrecision: { num: 88, den: 100 }, prompt: '1a2b3c4d', model: 'gemma4:12b' };
     expect(() => chosenField({ gate: () => gate }, lists(t => { if (t.id !== 'ncs') t.chosen = chosen; }))).toThrow('고른 안이 둘 이상이에요: custom, csrankings');
     expect(chosenField({ gate: () => gate }, lists())).toBeUndefined();
+  });
+
+  it('판 파일(KINGO_TAXONOMY_FILE)이 있으면 그 파일 하나만 읽는다. chosen이 판·모델과 맞으면 분야를 넣고, 없거나 틀리면 까닭만(4단계 research R2)', () => {
+    const dir = lists(); // 목록 셋에는 고른 안이 없다
+    const t = validList('custom');
+    t.fields[0].aliases = ['다른 이름'];
+    const model = process.env.KINGO_LLM_MODEL || 'gemma4:12b';
+    const file = join(tmp(), 'custom-2026-11-28-1.json');
+    const write = (chosen: Taxonomy['chosen']) => writeFileSync(file, JSON.stringify({ ...t, chosen }));
+    write({ date: '2026-11-28', corePrecision: { num: 29, den: 33 }, prompt: fieldVersion(t), model });
+    const r = chosenField({ gate: () => gate }, dir, { file });
+    expect(r && 'ask' in r && r.ask.version).toBe(fieldVersion(t));
+    write(null);
+    expect(chosenField({ gate: () => gate }, dir, { file })).toEqual({ reason: '판 파일에 85% 기록이 없어 분야를 넣지 않았어요' });
+    write({ date: '2026-11-28', corePrecision: { num: 29, den: 33 }, prompt: 'deadbeef', model });
+    expect(chosenField({ gate: () => gate }, dir, { file })).toMatchObject({ reason: expect.stringContaining('판정 판이 바뀌어') });
+    writeFileSync(file, '{');
+    expect(chosenField({ gate: () => gate }, dir, { file })).toEqual({ reason: `분야 목록을 읽지 못해 분야를 넣지 않았어요 (분야 목록 파일이 JSON이 아니에요: ${file})` });
+    expect(modelEnv({ KINGO_TAXONOMY_FILE: file }).file).toBe(file);
+    expect(modelEnv({}).file).toBeNull();
   });
 });

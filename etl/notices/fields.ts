@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { groupPath, labelsOf, type Taxonomy, type TaxonomyId } from '../taxonomy/taxonomy.ts';
 import type { NoticeRow } from './cse.ts';
-import { CANDIDATE_RULE, CORE_TOP, EMBED_K, fieldVectors, noticeVector, readNoticeVector, topCandidates, type Embed, type FieldVectors } from './embed.ts';
+import { aliasPart, CANDIDATE_RULE, CORE_TOP, EMBED_K, fieldVectors, noticeVector, readNoticeVector, topCandidates, type Embed, type FieldVectors } from './embed.ts';
 import { DEFAULT_MODEL, jsonOf, makeChat, modelDir, PROMPT_PARTS, readKept, userMessage, versionOf, type Gate, type Older, type Outcome, type Post } from './llm.ts';
 
 /** core는 0~2개(가까운 순), related는 0~5개이고 둘은 겹치지 않는다. 둘 다 비면 '분야 없음'이다 */
@@ -44,7 +44,7 @@ export function systemFor(t: Taxonomy, ids: string[]): string {
   const blocks = t.groups
     .map(g => ({ g, fields: t.fields.filter(f => f.group === g.id && pick.has(f.id)) }))
     .filter(b => b.fields.length)
-    .map(b => [`## ${groupPath(t, b.g.id)}`, ...b.fields.map(f => `- ${nameOf.get(f.id) ?? f.name}: ${f.desc}`)].join('\n'));
+    .map(b => [`## ${groupPath(t, b.g.id)}`, ...b.fields.map(f => `- ${nameOf.get(f.id) ?? f.name}${aliasPart(f)}: ${f.desc}`)].join('\n'));
   return `${FIELD_SYSTEM}\n\n${blocks.join('\n\n')}`;
 }
 
@@ -60,7 +60,7 @@ export function schemaFor(t: Taxonomy, ids: string[]) {
 export const fieldParts = (t: Taxonomy) => ({
   system: FIELD_SYSTEM, user: PROMPT_PARTS.user, schema: schemaFor(t, []), think: false, options: FIELD_OPTIONS,
   limits: PROMPT_PARTS.limits, key: PROMPT_PARTS.key,
-  taxonomy: { groups: t.groups.map(g => [g.id, g.name, g.parent]), fields: t.fields.map(f => [f.id, f.name, f.group, f.desc]) },
+  taxonomy: { groups: t.groups.map(g => [g.id, g.name, g.parent]), fields: t.fields.map(f => (f.aliases?.length ? [f.id, f.name, f.group, f.desc, f.aliases] : [f.id, f.name, f.group, f.desc])) },
   candidates: CANDIDATE_RULE
 });
 export const fieldVersion = (t: Taxonomy) => versionOf(fieldParts(t));

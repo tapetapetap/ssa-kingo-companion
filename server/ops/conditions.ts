@@ -5,23 +5,16 @@ import { join } from 'node:path';
 import { fieldVersion } from '../../etl/notices/fields.ts';
 import { roundFile } from '../../etl/notices/gold.ts';
 import { PROMPT_VERSION } from '../../etl/notices/llm.ts';
-import { loadTaxonomy, TAXONOMY_IDS, type Taxonomy, type TaxonomyId } from '../../etl/taxonomy/taxonomy.ts';
+import type { Taxonomy, TaxonomyId } from '../../etl/taxonomy/taxonomy.ts';
 import type { Sql } from '../db/sql.ts';
+import { currentTaxonomy } from '../taxonomy/current.ts';
 
 /** 재는 방법의 판. 방법을 바꾸면 올린다 */
 export const TRIAL_VERSION = 1;
 export type Conditions = { taxonomy: Taxonomy; fieldVersion: string; promptVersion: string; goldVersion: string | null };
 
-/** 활성 목록(파일). 없거나 모르는 목록이면 null */
-export async function activeTaxonomy(sql: Sql, dir?: string): Promise<Taxonomy | null> {
-  const [t] = await sql<{ id: string }[]>`select id from taxonomies where active`;
-  if (!t || !(TAXONOMY_IDS as readonly string[]).includes(t.id)) return null;
-  try {
-    return loadTaxonomy(t.id as TaxonomyId, dir);
-  } catch {
-    return null;
-  }
-}
+/** 활성 목록의 지금 분야 판(적용한 판이 없으면 바탕 파일). 없거나 읽지 못하면 null(4단계 research R1) */
+export const activeTaxonomy = (sql: Sql, dir?: string): Promise<Taxonomy | null> => currentTaxonomy(sql, dir);
 
 /** 지금 조건. 정답셋은 api가 볼 수 없어 jobs가 10분마다 적어 둔 판을 읽는다(없으면 모든 결과가 낡은 것이다) */
 export async function conditions(sql: Sql, dir?: string): Promise<Conditions | null> {

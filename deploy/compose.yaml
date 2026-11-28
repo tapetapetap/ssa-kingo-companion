@@ -61,6 +61,8 @@ services:
       - ./config:/config:ro
       # 모델 재기의 정답셋(저장소 밖, 읽기만). 없으면 빈 폴더가 생기고 재기만 하지 못한다
       - ${KINGO_GOLD_HOST_DIR:-./gold}:/gold:ro
+      # 적용한 분야 판 파일(4단계, 덮어쓰지 않음). 판은 DB에도 전체가 있다
+      - taxonomy-versions:/app/etl/taxonomy/versions
     networks: [inner, outer]
 networks:
   inner: { internal: true }
@@ -70,3 +72,4 @@ volumes:
   ollama-models:
   etl-cache:
   etl-out:
+  taxonomy-versions:

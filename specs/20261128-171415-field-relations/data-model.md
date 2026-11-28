@@ -31,6 +31,7 @@
 | taxonomy_id | text not null | |
 | name | text not null | `YYYY-MM-DD-N`(한국 날짜). (taxonomy_id, name) 유일 |
 | list | jsonb not null | 전체 목록(바탕 꼴, chosen 포함) |
+| edits | jsonb not null | 바탕 위의 고침 전체(`DraftLine[]`). 잴 목록 = `mergeDraft(바탕, edits + 초안)`이라 바탕이 바뀌어도 고침을 잃지 않는다(구현 중 정함, research R5) |
 | field_version | text not null | `fieldVersion(list)` |
 | base_version | text not null | 판을 만들 때 바탕 파일의 `fieldVersion(loadTaxonomy(바탕))`. 지금 바탕과 다르면 `baseChanged` |
 | trial_id | bigint references model_trials | 근거 재기 |

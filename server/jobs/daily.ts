@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { CACHE_DIR } from '../../etl/notices/cse.ts';
 import { fieldFolder } from '../../etl/notices/fields.ts';
 import { LLM_CACHE_DIR, modelDir, PROMPT_VERSION } from '../../etl/notices/llm.ts';
-import { loadTaxonomy, TAXONOMY_IDS } from '../../etl/taxonomy/taxonomy.ts';
+import { loadTaxonomy, TAXONOMY_IDS, type Taxonomy } from '../../etl/taxonomy/taxonomy.ts';
+import { currentVersion, VERSIONS_DIR, writeVersionFile, type Current } from '../taxonomy/current.ts';
 import { writeFlow } from '../analysis/flow.ts';
 import { rebuild } from '../analysis/store.ts';
 import type { Mode } from '../config.ts';
@@ -29,11 +30,13 @@ export type DailyDeps = {
   now?: () => Date;
   /** 분류기 자식 프로세스. 끝 코드와 표준 출력 */
   classifier?: (env: Record<string, string>) => Promise<{ code: number; stdout: string }>;
-  ingestFile?: (taxonomyId: string, model: Model) => Promise<IngestResult>;
+  ingestFile?: (taxonomyId: string, model: Model, taxonomy: Taxonomy | null) => Promise<IngestResult>;
   backup?: () => Promise<string>;
   model?: () => Model;
   /** 다시 판정할 글 번호의 분류기 보관 셋(research R11) */
-  cachePaths?: (no: number, models: string[]) => string[];
+  cachePaths?: (no: number, models: string[], taxonomy: Taxonomy | null) => string[];
+  /** 판 파일 폴더(KINGO_TAXONOMY_VERSIONS_DIR). 못 쓰면 etl/.cache/taxonomy에 써서 넘긴다(4단계 research R2) */
+  versionsDir?: string;
   pollMs?: number;
   /** 지금 동의 문구의 판. 없으면 하루 숫자를 남기지 않는다 */
   consentVersion?: string;
@@ -61,8 +64,9 @@ function runClassifier(env: Record<string, string>): Promise<{ code: number; std
 
 /** 본문 보관본, 기회 판정 보관 답, 분야 판정 보관 답(research R11). 분야 답은 분류기가 고른 목록(파일의 chosen)이 DB의 활성 목록과
  *  다를 수 있어 읽히는 목록마다 지운다. 앞 모델의 답도 지운다(남으면 그것을 다시 읽어 다시 판정이 되지 않는다, 3단계 R14) */
-export const rejudgePaths = (no: number, models: string[]) => [join(CACHE_DIR, `${no}.html`), ...models.flatMap(model => [
+export const rejudgePaths = (no: number, models: string[], taxonomy: Taxonomy | null = null) => [join(CACHE_DIR, `${no}.html`), ...models.flatMap(model => [
   join(LLM_CACHE_DIR, modelDir(model), PROMPT_VERSION, `${no}.json`),
+  ...(taxonomy ? [join(fieldFolder(taxonomy, model), `${no}.json`)] : []), // 지금 분야 판의 폴더(4단계)
   ...TAXONOMY_IDS.flatMap(id => {
     try {
       return [join(fieldFolder(loadTaxonomy(id), model), `${no}.json`)];
@@ -71,6 +75,18 @@ export const rejudgePaths = (no: number, models: string[]) => [join(CACHE_DIR, `
     }
   })
 ])];
+
+/** 판 파일을 판 폴더에 쓰고(이미 있으면 그대로) 경로를 돌려준다. 판 폴더에 못 쓰면 임시 폴더에 쓰고, 판의 file은 비워 둬 다음에 다시 쓴다 */
+async function versionFile(sql: Sql, cur: Current, dir = process.env.KINGO_TAXONOMY_VERSIONS_DIR || VERSIONS_DIR): Promise<string> {
+  const v = { taxonomy_id: cur.taxonomyId, name: cur.name, list: cur.list };
+  try {
+    const file = writeVersionFile(dir, v);
+    await sql`update taxonomy_versions set file = ${file} where id = ${cur.id} and file is distinct from ${file}`;
+    return file;
+  } catch {
+    return writeVersionFile(join(ROOT, 'etl', '.cache', 'taxonomy'), v);
+  }
+}
 
 /** 분류기가 끝에 낸 숫자. 없거나 읽지 못하면 비운다(단계는 실패가 아니다) */
 function classifierCounts(stdout: string): Record<string, unknown> {
@@ -135,6 +151,9 @@ async function run(d: DailyDeps): Promise<DailyRun> {
   const models = [name, ...await olderModels(sql)];
   const model = d.model?.() ?? openModel(sql, 'daily', { model: name });
   const active = async () => (await sql<{ id: string }[]>`select id from taxonomies where active`)[0]?.id ?? null;
+  // 지금 분야 판은 시작할 때 한 번 읽고 끝까지 쓴다(4단계 FR-025)
+  const cur = await currentVersion(sql);
+  const taxonomy = cur?.list ?? null;
   let classifierLine: string | null = null;
   let marks: string[] = [];
 
@@ -142,13 +161,13 @@ async function run(d: DailyDeps): Promise<DailyRun> {
     await step('rejudge', async () => {
       marks = (await sql<{ notice_id: string }[]>`select notice_id from rejudge_marks`).map(r => r.notice_id);
       if (!marks.length) return 'skipped';
-      for (const id of marks) for (const p of (d.cachePaths ?? rejudgePaths)(Number(id.split(':')[1]), models)) rmSync(p, { force: true });
+      for (const id of marks) for (const p of (d.cachePaths ?? rejudgePaths)(Number(id.split(':')[1]), models, taxonomy)) rmSync(p, { force: true });
       return { notices: marks.length };
     });
     await step('classifier', async () => {
       if (d.skipClassifier) return 'skipped';
       // 분류기의 모델 요청이 api의 다시 고르기와 함께 가지 않게 모델 잠금을 잡고 돌린다(research R7)
-      const env = await classifierEnv(sql);
+      const env = await classifierEnv(sql, { taxonomy, file: cur?.id ? await versionFile(sql, cur, d.versionsDir) : null });
       const r = await withModelLock(sql, () => (d.classifier ?? runClassifier)(env));
       classifierLine = r.stdout.split('\n').find(l => l.startsWith('부하:')) ?? null;
       if (r.code !== 0) throw new Error(`분류기가 ${r.code}로 끝났어요`);
@@ -158,7 +177,7 @@ async function run(d: DailyDeps): Promise<DailyRun> {
       if (!steps.classifier.ok && !steps.classifier.skipped) return 'skipped'; // 분류기를 건너뛰었으면 있는 결과 파일로 넣는다
       const t = await active();
       if (!t) throw new Error('활성 분야 목록이 없어요');
-      const r = await (d.ingestFile ?? ((id, m) => ingest(JSON.parse(readFileSync(OUT_FILE, 'utf8')), id, {}, { sql, mode: d.mode, embed: m.embed })))(t, model);
+      const r = await (d.ingestFile ?? ((id, m, tax) => ingest(JSON.parse(readFileSync(OUT_FILE, 'utf8')), id, {}, { sql, mode: d.mode, embed: m.embed, taxonomy: tax })))(t, model, taxonomy);
       if (!r.ok) throw new Error(r.reason);
       // 보관 셋을 지우고 분류기가 실제로 다시 판정했을 때만 표시를 지운다(건너뛴 날은 다음 날 다시 한다)
       if (marks.length && steps.rejudge.ok && steps.classifier.ok) await sql`delete from rejudge_marks where notice_id = any(${marks})`;
