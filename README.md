@@ -67,6 +67,7 @@ Ollama는 맥에서 바로 띄우고 `gemma4:12b`와 `bge-m3`를 받아 둔다. 
 `deploy/`의 compose 묶음(db, ollama, api, proxy, jobs)으로 띄운다. 바깥에 열리는 것은 문지기(Caddy, `KINGO_PORT`, 기본 8080)뿐이고 api·db는 바깥 인터넷에 닿지 않는 내부 네트워크에 있다. 매일 03:00에 `kingo-daily.timer`가 매일 작업을 돌린다. 처음 올리는 순서는 quickstart의 '6. 학교 데스크톱'이다.
 
 - 호스트 값: `deploy/.env`(`KINGO_PORT`, `KINGO_BACKUP_HOST_DIR`, 정답셋 폴더 `KINGO_GOLD_HOST_DIR`). 컨테이너 값: `deploy/kingo.env`(꼴: `deploy/kingo.env.example`)와 알림 개인 키 `deploy/kingo.push.env`(꼴: `deploy/kingo.push.env.example`, jobs만). 모두 커밋하지 않는다.
+- 분야 판 파일(4단계): 운영자가 '분야 체계'에서 적용한 판을 jobs가 `etl/taxonomy/versions/custom-YYYY-MM-DD-N.json`으로 쓴다(볼륨 `taxonomy-versions`, 덮어쓰지 않음, `KINGO_TAXONOMY_VERSIONS_DIR`). 판은 DB에도 전체가 있고, 매일 작업은 지금 판 파일을 `KINGO_TAXONOMY_FILE`로 분류기에 넘긴다. 저장소에 남기려면 그 파일을 PR로 올린다.
 - 명령은 jobs 컨테이너에서 부른다: `docker compose -f deploy/compose.yaml run --rm jobs node server/cli.ts <명령>`
 
 ### 명령

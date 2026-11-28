@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { validList } from '../taxonomy/fixtures.ts';
-import type { Taxonomy } from '../taxonomy/taxonomy.ts';
+import { loadTaxonomy, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import type { NoticeRow } from './cse.ts';
 import { CANDIDATE_RULE, type Embed } from './embed.ts';
 import {
@@ -237,5 +237,23 @@ describe('readFieldAnswer · 셈', () => {
     for (const o of outs) countField(s, o);
     expect(s).toEqual({ cached: 1, fresh: 1, failed: 1, notAsked: 2, noTemp: 0, empty: 1 });
     expect(fieldPart(s)).toBe('분야 판정 5(보관 1 · 새로 1 · 실패 1 · 못 물음 2 · 분야 없음 1)');
+  });
+});
+
+describe('동의어(4단계 research R4, SC-006)', () => {
+  const base = loadTaxonomy('custom');
+  const llm = (aliases?: string[]) => ({ ...base, fields: base.fields.map(f => (f.id === 'llm' ? { ...f, ...(aliases ? { aliases } : {}) } : f)) });
+  it('바탕 custom의 판정 판은 지금 근거(chosen.prompt)와 같고, 빈 동의어도 같다', () => {
+    expect(fieldVersion(base)).toBe('73a2661c');
+    expect(base.chosen?.prompt).toBe('73a2661c');
+    expect(fieldVersion(llm([]))).toBe('73a2661c');
+  });
+  it('동의어가 있으면 분야 줄에 붙고 판이 바뀐다. 답의 enum에는 이름만 있다', () => {
+    const t = llm(['거대언어모델', 'GPT']);
+    const f = t.fields.find(x => x.id === 'llm')!;
+    expect(systemFor(t, ['llm'])).toContain(`- LLM·생성형 AI (다른 이름: 거대언어모델, GPT): ${f.desc}`);
+    expect(systemFor(base, ['llm'])).toContain(`- LLM·생성형 AI: ${f.desc}`);
+    expect(fieldVersion(t)).not.toBe('73a2661c');
+    expect(JSON.stringify(schemaFor(t, ['llm']))).not.toContain('거대언어모델');
   });
 });

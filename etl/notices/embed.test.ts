@@ -4,9 +4,12 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { validList } from '../taxonomy/fixtures.ts';
 import type { NoticeRow } from './cse.ts';
+import { loadTaxonomy } from '../taxonomy/taxonomy.ts';
 import { CANDIDATE_RULE, EMBED_K, fieldText, fieldVectors, makeEmbed, noticeText, noticeVector, readFieldVectors, readNoticeVector, topCandidates } from './embed.ts';
 import type { Gate, Post } from './llm.ts';
 
+/** 바탕 custom의 분야 벡터 보관 파일 이름(동의어를 더하기 전과 같아야 한다) */
+const CUSTOM_FILE = 'custom-be76db57.json';
 const tmp = () => mkdtempSync(join(tmpdir(), 'embed-'));
 const row = (no: number, title = '[가나다] 드론 영상 분석 대회'): NoticeRow => ({ no, title, board: '채용/모집', postedAt: '2026-11-01', pinned: false });
 /** 글마다 정해진 2차원 벡터를 주는 가짜 /api/embed(직접 만든 값) */
@@ -142,5 +145,20 @@ describe('topCandidates', () => {
   it(`분야가 k개 이하면 모두 후보다(k 기본값 ${EMBED_K})`, () => {
     expect(topCandidates(fv, [1, 0])).toEqual(['a', 'b', 'c', 'd']);
     expect(topCandidates(fv, [0, 0], 4)).toEqual(['a', 'b', 'c', 'd']);
+  });
+});
+
+describe('동의어(4단계 research R4, SC-006)', () => {
+  const withAliases = (t: ReturnType<typeof loadTaxonomy>, id: string, aliases: string[]) => ({ ...t, fields: t.fields.map(f => (f.id === id ? { ...f, aliases } : f)) });
+  it('동의어가 없거나 비면 분야 글과 보관 파일 이름이 지금과 같다', async () => {
+    const t = loadTaxonomy('custom');
+    const name = async (x: typeof t) => { const dir = tmp(); await fieldVectors(x, makeEmbed({ post: okPost() }), dir); return readdirSync(join(dir, 'bge-m3'))[0]; };
+    expect(await name(t)).toBe(CUSTOM_FILE);
+    expect(await name(withAliases(t, 'llm', []))).toBe(CUSTOM_FILE);
+  });
+  it('동의어가 있으면 이름 뒤에 다른 이름을 붙인다', () => {
+    const t = withAliases(loadTaxonomy('custom'), 'llm', ['거대언어모델', 'GPT']);
+    const f = t.fields.find(x => x.id === 'llm')!;
+    expect(fieldText(t, f)).toBe(`인공지능 > LLM·생성형 AI (다른 이름: 거대언어모델, GPT): ${f.desc}`);
   });
 });

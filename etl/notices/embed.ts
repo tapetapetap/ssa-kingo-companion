@@ -28,7 +28,9 @@ const isVector = (v: unknown): v is number[] => Array.isArray(v) && v.length > 0
 const isVectors = (v: unknown, n: number): v is number[][] =>
   Array.isArray(v) && v.length === n && v.every(isVector) && v.every(x => x.length === (v[0] as number[]).length);
 
-export const fieldText = (t: Taxonomy, f: Field) => `${groupPath(t, f.group)} > ${f.name}: ${f.desc}`;
+/** 동의어가 있으면 이름 뒤에 붙인다. 없거나 비면 글이 그대로라 보관 벡터도 그대로다(4단계 research R4) */
+export const aliasPart = (f: Field) => (f.aliases?.length ? ` (다른 이름: ${f.aliases.join(', ')})` : '');
+export const fieldText = (t: Taxonomy, f: Field) => `${groupPath(t, f.group)} > ${f.name}${aliasPart(f)}: ${f.desc}`;
 export function noticeText(row: NoticeRow, lines: string[]): string {
   const body = lines.join('\n').slice(0, NOTICE_CHARS);
   return body ? `${row.title}\n${body}` : row.title;

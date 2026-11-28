@@ -13,7 +13,8 @@ export type IngestSummary = {
   vectors: { kept: number; made: number; failed: number }; taxonomy: { id: string; edition: string; chosen: boolean }; switched: { from: string; to: string } | null;
 };
 export type IngestResult = { ok: true; summary: IngestSummary; dryRun: boolean } | { ok: false; reason: string };
-export type IngestDeps = VectorDeps & { sql: Sql; mode: Mode; taxonomyDir?: string };
+/** taxonomy: 매일 작업이 읽은 지금 분야 판. 넣을 목록 id가 같을 때만 쓰고, 아니면 파일(4단계 research R1) */
+export type IngestDeps = VectorDeps & { sql: Sql; mode: Mode; taxonomyDir?: string; taxonomy?: Taxonomy | null };
 
 const hash = (o: unknown) => createHash('sha1').update(JSON.stringify(o)).digest('hex');
 const searchText = (title: string, host: string | null) => `${title}${host ?? ''}`.toLowerCase().replace(/\s+/g, '');
@@ -37,7 +38,7 @@ export async function ingest(input: unknown, taxonomyId: string, o: { switch?: b
   if (!isTaxonomyId(taxonomyId)) return reject(sql, f, taxonomyId, `없는 분야 목록이에요: ${taxonomyId}`, dryRun);
   let t: Taxonomy;
   try {
-    t = loadTaxonomy(taxonomyId, d.taxonomyDir ?? TAXONOMY_DIR);
+    t = d.taxonomy?.id === taxonomyId ? d.taxonomy : loadTaxonomy(taxonomyId, d.taxonomyDir ?? TAXONOMY_DIR);
   } catch (e) {
     return reject(sql, f, taxonomyId, e instanceof Error ? e.message : String(e), dryRun);
   }

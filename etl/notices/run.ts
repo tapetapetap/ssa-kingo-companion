@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { classify, hostOf, type Judged, type Kind } from './classify.ts';
 import { BoardError, bodyOf, CACHE_DIR, listSince, makeGet, SOURCE, viewUrl, type Get, type NoticeRow } from './cse.ts';
 import { deadlineOf, readDates, stripDates } from './deadline.ts';
-import { fieldGate, findChosen, loadTaxonomy, TAXONOMY_DIR, TAXONOMY_IDS, type Measured, type Taxonomy } from '../taxonomy/taxonomy.ts';
+import { fieldGate, findChosen, loadTaxonomy, loadTaxonomyFile, TAXONOMY_DIR, TAXONOMY_IDS, type Measured, type Taxonomy } from '../taxonomy/taxonomy.ts';
 import { makeEmbed } from './embed.ts';
 import { countField, FIELD_CACHE_DIR, fieldPart, makeFieldAsk, newStats, type FieldAnswer, type FieldAsk, type FieldStats } from './fields.ts';
 import { fromLlm, LLM_CACHE_DIR, LLM_LOW, LLM_ROUTE, makeAsk, type Ask, type Gate, type LlmStats } from './llm.ts';
@@ -237,15 +237,16 @@ export async function main(args: string[], get: Get, out = OUT_FILE, dir = CACHE
 
 /** 고른 안이 있으면 분야 판정기를 만들고 결과 파일에 넣어도 되는지 본다(스펙 3 research R12).
  *  목록 파일을 읽지 못하면 이유만 돌려줘 공지 수집은 그대로 돌고, 고른 안이 둘 이상일 때만 던진다(contracts/cli.md) */
-export function chosenField(t: { gate: () => Gate }, dir = TAXONOMY_DIR, x: { older?: string[]; measured?: Measured | null } = {}): RunExtra['field'] {
+export function chosenField(t: { gate: () => Gate }, dir = TAXONOMY_DIR, x: { older?: string[]; measured?: Measured | null; file?: string | null } = {}): RunExtra['field'] {
   let lists: Taxonomy[];
   try {
-    lists = TAXONOMY_IDS.map(id => loadTaxonomy(id, dir));
+    // 매일 작업이 지금 분야 판을 파일로 넘기면 그것 하나만 쓴다(4단계 research R2)
+    lists = x.file ? [loadTaxonomyFile(x.file)] : TAXONOMY_IDS.map(id => loadTaxonomy(id, dir));
   } catch (e) {
     return { reason: `분야 목록을 읽지 못해 분야를 넣지 않았어요 (${messageOf(e)})` };
   }
   const chosen = findChosen(lists);
-  if (!chosen) return undefined;
+  if (!chosen) return x.file ? { reason: '판 파일에 85% 기록이 없어 분야를 넣지 않았어요' } : undefined;
   const gate = t.gate(); // 같은 throttle의 새 문: 분야 판정의 noTemp를 따로 센다
   const ask = makeFieldAsk({ taxonomy: chosen, embed: makeEmbed({ gate }), gate, older: (x.older ?? []).map(model => ({ dir: FIELD_CACHE_DIR, model })) });
   const ok = fieldGate(chosen, ask.version, ask.model, x.measured);
@@ -253,13 +254,13 @@ export function chosenField(t: { gate: () => Gate }, dir = TAXONOMY_DIR, x: { ol
 }
 
 /** 매일 작업이 넘긴 앞 모델들과 지금 모델을 잰 값(3단계 research R14). 손으로 돌리면 둘 다 없어 지금과 같다. 꼴이 틀리면 없는 것으로 본다 */
-export function modelEnv(env: Record<string, string | undefined>): { older: string[]; measured: Measured | null } {
+export function modelEnv(env: Record<string, string | undefined>): { older: string[]; measured: Measured | null; file: string | null } {
   let m: Partial<Measured> = {};
   try {
     m = JSON.parse(env.KINGO_FIELD_MEASURED ?? 'null') ?? {};
   } catch { /* 없는 것으로 본다 */ }
   const ok = typeof m.prompt === 'string' && typeof m.model === 'string' && Number.isInteger(m.num) && Number.isInteger(m.den);
-  return { older: (env.KINGO_LLM_OLDER ?? '').split(',').map(s => s.trim()).filter(Boolean), measured: ok ? m as Measured : null };
+  return { older: (env.KINGO_LLM_OLDER ?? '').split(',').map(s => s.trim()).filter(Boolean), measured: ok ? m as Measured : null, file: env.KINGO_TAXONOMY_FILE || null };
 }
 
 // 경로에 심볼릭 링크가 있어도 진입점을 알아본다(process.argv[1]과 import.meta.url 비교는 링크를 다르게 풀어 조용히 아무것도 안 한다).

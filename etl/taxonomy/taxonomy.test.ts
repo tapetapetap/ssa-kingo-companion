@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { SWE } from '../../src/data/courses/swe.ts';
 import { JOBS, validList } from './fixtures.ts';
 import {
-  checkTaxonomy, fieldGate, findChosen, groupPath, labelsOf, listChars, loadTaxonomy, readList, TAXONOMY_IDS,
+  aliasOverlaps, checkTaxonomy, fieldGate, findChosen, groupPath, labelsOf, listChars, loadTaxonomy, loadTaxonomyFile, mergeDraft, normalizeWord, readList, TAXONOMY_IDS,
   type Chosen, type Taxonomy, type TaxonomyId
 } from './taxonomy.ts';
 
@@ -118,7 +118,10 @@ describe('findChosen · fieldGate (research R12)', () => {
     const m = (num: number, o: object = {}) => ({ prompt: '1a2b3c4d', model: 'qwen:7b', num, den: 100, ...o });
     expect(fieldGate(t, '1a2b3c4d', 'qwen:7b', m(85))).toEqual({ ok: true });
     for (const bad of [m(84), m(85, { prompt: 'x' }), m(85, { model: 'other' }), m(0, { den: 0 }), null]) expect('reason' in fieldGate(t, '1a2b3c4d', 'qwen:7b', bad)).toBe(true);
-    expect('reason' in fieldGate(t, '5e6f7a8b', 'qwen:7b', m(99, { prompt: '5e6f7a8b' }))).toBe(true); // 판이 바뀌었으면 다시 고른다
+    // 4단계: 판이 바뀌어도 그 판을 지금 모델로 잰 85% 이상 값이 있으면 그것이 근거다(분야 판 적용 뒤에도 멈추지 않음). 다른 판·모델의 값은 근거가 아니다
+    expect(fieldGate(t, '5e6f7a8b', 'qwen:7b', m(99, { prompt: '5e6f7a8b' }))).toEqual({ ok: true });
+    expect(fieldGate(t, '5e6f7a8b', 'gemma4:12b', m(90, { prompt: '5e6f7a8b', model: 'gemma4:12b' }))).toEqual({ ok: true });
+    expect('reason' in fieldGate(t, '5e6f7a8b', 'gemma4:12b', m(90, { prompt: '1a2b3c4d', model: 'gemma4:12b' }))).toBe(true);
     expect(fieldGate(t, '5e6f7a8b', 'qwen:7b')).toEqual({ reason: '고른 안 custom을 고른 뒤 판정 판이 바뀌어(1a2b3c4d → 5e6f7a8b) 분야를 넣지 않았어요. 다시 재고 고르세요' });
     expect(fieldGate(t, '1a2b3c4d', 'qwen:7b')).toEqual({ reason: '고른 안 custom은 gemma4:12b로 쟀는데 지금 모델은 qwen:7b이라 분야를 넣지 않았어요' });
     const low = { ...t, chosen: chosen(84) };
@@ -157,5 +160,45 @@ describe('저장소 목록 파일', () => {
         expect(t.courseMap[row.id]).toEqual(t.fields.filter(f => f.csr.some(k => (row.areas as string[]).includes(k))).map(f => f.id));
       }
     }
+  });
+});
+
+describe('동의어와 초안 합치기(4단계 research R5·R7)', () => {
+  it('normalizeWord: NFKC → 소문자 → 빈칸 지움', () => {
+    expect(normalizeWord(' Ｇ P t ')).toBe('gpt');
+    expect(normalizeWord('자연어 처리')).toBe(normalizeWord('자연어처리'));
+  });
+  it('loadTaxonomyFile: 경로 하나를 읽고 파일 안 id로 꼴을 본다. aliases는 없어도 되고 있으면 문자열 목록', () => {
+    const dir = tmp();
+    const t = validList('custom');
+    const ok = join(dir, 'custom-2026-11-28-1.json');
+    writeFileSync(ok, JSON.stringify({ ...t, fields: t.fields.map((f, i) => (i ? f : { ...f, aliases: ['a'] })) }));
+    expect(loadTaxonomyFile(ok).fields[0].aliases).toEqual(['a']);
+    const bad = join(dir, 'b.json');
+    writeFileSync(bad, JSON.stringify({ ...t, fields: t.fields.map((f, i) => (i ? f : { ...f, aliases: [1] })) }));
+    expect(() => loadTaxonomyFile(bad)).toThrow('fields 꼴이 틀려요');
+    writeFileSync(bad, JSON.stringify({ ...t, id: 'nope' }));
+    expect(() => loadTaxonomyFile(bad)).toThrow('모르는 목록');
+    expect(() => loadTaxonomyFile(join(dir, 'none.json'))).toThrow('없어요');
+  });
+  it('mergeDraft: 같은 id만 덮고, 빈 동의어는 칸을 지우고, 없어진 분야 줄은 빼며 원본은 그대로', () => {
+    const t = validList('custom');
+    const [a, b] = t.fields;
+    const m = mergeDraft(t, [{ fieldId: a.id, aliases: ['x', 'y'], desc: '새 정의' }, { fieldId: b.id, aliases: [], desc: b.desc }, { fieldId: 'gone', aliases: ['z'], desc: 'd' }]);
+    expect(m.fields[0]).toMatchObject({ aliases: ['x', 'y'], desc: '새 정의' });
+    expect('aliases' in m.fields[1]).toBe(false);
+    expect(m.fields.map(f => f.id)).toEqual(t.fields.map(f => f.id));
+    expect(t.fields[0].desc).not.toBe('새 정의');
+  });
+  it('aliasOverlaps: 다른 분야의 이름·동의어와 같은 말(빈칸·대소문자 무시)을 찾는다. 자기 이름과 같은 말은 겹침이 아니다', () => {
+    const t = validList('custom');
+    const [a, b] = t.fields;
+    const m = mergeDraft(t, [{ fieldId: a.id, aliases: [b.name.toUpperCase(), 'gpt', a.name], desc: a.desc }, { fieldId: b.id, aliases: ['G P T'], desc: b.desc }]);
+    expect(aliasOverlaps(m).filter(x => x.fieldId === a.id)).toEqual([
+      { fieldId: a.id, word: b.name.toUpperCase(), with: { fieldId: b.id, name: b.name } },
+      { fieldId: a.id, word: 'gpt', with: { fieldId: b.id, name: b.name } }
+    ]);
+    expect(aliasOverlaps(t)).toEqual([]);
+    expect(aliasOverlaps(mergeDraft(t, [{ fieldId: a.id, aliases: ['  '], desc: a.desc }, { fieldId: b.id, aliases: ['\u3000'], desc: b.desc }]))).toEqual([]);
   });
 });

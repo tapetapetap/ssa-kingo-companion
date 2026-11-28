@@ -15,7 +15,11 @@ export const COURSE_ROWS = ['ai', 'ml', 'vision', 'arch', 'os', 'network', 'secu
 export const TAXONOMY_DIR = fileURLToPath(new URL('.', import.meta.url));
 
 export type Group = { id: string; name: string; parent: string | null };
-export type Field = { id: string; name: string; group: string; desc: string; descFrom: 'made' | 'source'; csr: string[]; ncs: string | null };
+export type Field = {
+  id: string; name: string; group: string; desc: string; descFrom: 'made' | 'source'; csr: string[]; ncs: string | null;
+  /** 동의어(4단계). 없거나 비면 판정 판이 그대로다(research R4) */
+  aliases?: string[];
+};
 export type Chosen = { date: string; corePrecision: Ratio; prompt: string; model: string };
 export type Taxonomy = {
   id: TaxonomyId; name: string; edition: string;
@@ -42,7 +46,8 @@ function shapeError(o: unknown, id: TaxonomyId): string | null {
   if (c !== null && !(isObj(c) && isNum(c.major) && isNum(c.middle) && isNum(c.minor) && isNum(c.detail))) return 'sourceCounts 꼴이 틀려요';
   if (!every(o.groups, g => isObj(g) && isStr(g.id) && isStr(g.name) && (g.parent === null || isStr(g.parent)))) return 'groups 꼴이 틀려요';
   const fieldOk = (f: unknown) => isObj(f) && isStr(f.id) && isStr(f.name) && isStr(f.group) && isStr(f.desc)
-    && (f.descFrom === 'made' || f.descFrom === 'source') && every(f.csr, isStr) && (f.ncs === null || isStr(f.ncs));
+    && (f.descFrom === 'made' || f.descFrom === 'source') && every(f.csr, isStr) && (f.ncs === null || isStr(f.ncs))
+    && (f.aliases === undefined || every(f.aliases, isStr));
   if (!every(o.fields, fieldOk)) return 'fields 꼴이 틀려요';
   if (!isObj(o.courseMap) || !Object.values(o.courseMap).every(v => every(v, isStr))) return 'courseMap 꼴이 틀려요';
   const ch = o.chosen;
@@ -53,7 +58,15 @@ function shapeError(o: unknown, id: TaxonomyId): string | null {
 
 /** 파일 꼴을 검사한 뒤에만 타입을 붙인다. 없거나 꼴이 틀리면 이유를 담아 던진다 */
 export function loadTaxonomy(id: TaxonomyId, dir = TAXONOMY_DIR): Taxonomy {
-  const file = join(dir, `${id}.json`);
+  return readTaxonomy(join(dir, `${id}.json`), id);
+}
+
+/** 판 파일 하나(4단계 KINGO_TAXONOMY_FILE). 목록 id는 파일 이름이 아니라 파일 안에서 읽는다 */
+export function loadTaxonomyFile(file: string): Taxonomy {
+  return readTaxonomy(file, null);
+}
+
+function readTaxonomy(file: string, want: TaxonomyId | null): Taxonomy {
   if (!existsSync(file)) throw new Error(`분야 목록 파일이 없어요: ${file}`);
   let o: unknown;
   try {
@@ -61,9 +74,48 @@ export function loadTaxonomy(id: TaxonomyId, dir = TAXONOMY_DIR): Taxonomy {
   } catch {
     throw new Error(`분야 목록 파일이 JSON이 아니에요: ${file}`);
   }
+  const id = want ?? (isObj(o) && isStr(o.id) && isTaxonomyId(o.id) ? o.id : null);
+  if (!id) throw new Error(`분야 목록 파일 ${file}: 모르는 목록이에요`);
   const bad = shapeError(o, id);
   if (bad) throw new Error(`분야 목록 파일 ${file}: ${bad}`);
   return o as Taxonomy;
+}
+
+/** 동의어·이름을 견줄 때의 꼴: NFKC → 소문자 → 빈칸 지움(research R7) */
+export const normalizeWord = (s: string) => s.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+
+/** 초안 줄 하나: 분야의 동의어와 정의 */
+export type DraftLine = { fieldId: string; aliases: string[]; desc: string };
+
+/** 목록에 줄들을 얹은 새 목록. 같은 id만 덮고, 빈 동의어는 칸을 지우고, 목록에 없는 id는 뺀다 */
+export function mergeDraft(t: Taxonomy, lines: DraftLine[]): Taxonomy {
+  const by = new Map(lines.map(l => [l.fieldId, l]));
+  return {
+    ...t,
+    fields: t.fields.map(f => {
+      const l = by.get(f.id);
+      if (!l) return f;
+      const { aliases: _, ...rest } = f;
+      return { ...rest, desc: l.desc, ...(l.aliases.length ? { aliases: l.aliases } : {}) };
+    })
+  };
+}
+
+export type AliasOverlap = { fieldId: string; word: string; with: { fieldId: string; name: string } };
+
+/** 동의어 가운데 다른 분야의 이름이나 동의어와 같은 말. 자기 분야의 이름·동의어와 같은 것은 겹침이 아니다 */
+export function aliasOverlaps(t: Taxonomy): AliasOverlap[] {
+  const owners = new Map<string, Set<string>>();
+  for (const f of t.fields) for (const w of [f.name, ...(f.aliases ?? [])]) {
+    const k = normalizeWord(w);
+    owners.set(k, (owners.get(k) ?? new Set()).add(f.id));
+  }
+  const name = new Map(t.fields.map(f => [f.id, f.name]));
+  return t.fields.flatMap(f => (f.aliases ?? []).flatMap(word => {
+    if (!normalizeWord(word)) return []; // 빈 말은 겹침이 아니다(길이 규칙은 초안 저장이 본다)
+    const other = [...(owners.get(normalizeWord(word)) ?? [])].find(id => id !== f.id);
+    return other ? [{ fieldId: f.id, word, with: { fieldId: other, name: name.get(other)! } }] : [];
+  }));
 }
 
 /** 반쪽 파일이 남지 않게 .tmp에 다 쓴 뒤 이름을 바꾼다 */
@@ -194,9 +246,9 @@ export type Measured = { prompt: string; model: string; num: number; den: number
 /** 결과 파일에 분야를 넣어도 되는가. 판정 판 → 모델 → 정밀도 순으로 처음 걸린 이유 하나를 낸다(research R12) */
 export function fieldGate(t: ChosenTaxonomy, version: string, model: string, measured?: Measured | null): { ok: true } | { reason: string } {
   const c = t.chosen;
+  // 지금 판·지금 모델로 잰 85% 이상 값이 있으면 그것이 근거다(모델을 바꿨거나 분야 판을 적용한 뒤, 4단계 research R3)
+  if (measured?.prompt === version && measured.model === model && passes({ num: measured.num, den: measured.den })) return { ok: true };
   if (c.prompt !== version) return { reason: `고른 안 ${t.id}을 고른 뒤 판정 판이 바뀌어(${c.prompt} → ${version}) 분야를 넣지 않았어요. 다시 재고 고르세요` };
-  // 고른 뒤 모델을 바꿨으면 그 모델로 잰 값이 같은 판에서 85%를 넘어야 한다
-  if (c.model !== model && measured?.prompt === version && measured.model === model && passes({ num: measured.num, den: measured.den })) return { ok: true };
   if (c.model !== model) return { reason: `고른 안 ${t.id}은 ${c.model}로 쟀는데 지금 모델은 ${model}이라 분야를 넣지 않았어요` };
   if (!passes(c.corePrecision)) return { reason: `고른 안 ${t.id}의 핵심 정밀도 ${pct(c.corePrecision)} < 85%라 분야를 넣지 않았어요` };
   return { ok: true };

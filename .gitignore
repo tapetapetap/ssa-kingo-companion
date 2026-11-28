@@ -33,3 +33,4 @@ deploy/kingo.push.env
 deploy/.env
 deploy/config/
 deploy/gold/
+etl/taxonomy/versions/

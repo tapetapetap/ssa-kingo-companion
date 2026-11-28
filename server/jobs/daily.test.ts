@@ -1,7 +1,10 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CACHE_DIR } from '../../etl/notices/cse.ts';
-import { FIELD_CACHE_DIR } from '../../etl/notices/fields.ts';
+import { FIELD_CACHE_DIR, fieldVersion } from '../../etl/notices/fields.ts';
+import { loadTaxonomyFile, mergeDraft } from '../../etl/taxonomy/taxonomy.ts';
 import { LLM_CACHE_DIR, PROMPT_VERSION } from '../../etl/notices/llm.ts';
 import type { Model } from '../model.ts';
 import { testDb } from '../test/db.ts';
@@ -145,5 +148,78 @@ describe('매일 작업 (US6, research R14)', () => {
     expect(called).toBe(false);
     expect(r.steps.classifier).toMatchObject({ ok: false, skipped: true });
     expect(r.steps.ingest).toMatchObject({ ok: true });
+  });
+});
+
+describe('지금 분야 판을 분류기·넣기·다시 판정에 넘긴다(4단계 research R2·R3)', () => {
+  const addVersion = async (t: Awaited<ReturnType<typeof seedTaxonomy>>) => {
+    const list = mergeDraft(t, [{ fieldId: t.fields[0].id, aliases: ['가'], desc: t.fields[0].desc }]);
+    const [v] = await db.sql<{ id: string }[]>`insert into taxonomy_versions (taxonomy_id, name, list, edits, field_version, base_version, by_operator)
+      values (${t.id}, '2026-11-28-1', ${db.sql.json(list as never)}, '[]', ${fieldVersion(list)}, 'x', 'ops@x.co') returning id`;
+    await db.sql`insert into taxonomy_changes (taxonomy_id, kind, version_id, by_operator) values (${t.id}, 'apply', ${v.id}, 'ops@x.co')`;
+    return { list, id: v.id };
+  };
+  beforeEach(async () => { await db.sql`truncate taxonomy_versions, taxonomy_changes, model_trials, model_changes cascade`; });
+
+  it('판이 없으면(바탕) 분류기 환경에 판 파일이 없다', async () => {
+    await seedTaxonomy(db.sql);
+    let env: Record<string, string> = {};
+    await runDaily(deps({ versionsDir: mkdtempSync(join(tmpdir(), 'v-')), classifier: async e => { env = e; return { code: 0, stdout: '' }; } }));
+    expect(env.KINGO_TAXONOMY_FILE).toBeUndefined();
+  });
+
+  it('판이 있으면 판 폴더에 쓰고 그 경로를 넘긴다. 넣기와 다시 판정도 그 판을 받는다', async () => {
+    const t = await seedTaxonomy(db.sql);
+    await notice(db.sql, { no: 7 });
+    await db.sql`insert into rejudge_marks (notice_id, by_operator) values ('cse:7', 'ops@example.com')`;
+    const { list, id } = await addVersion(t);
+    const dir = mkdtempSync(join(tmpdir(), 'v-'));
+    let env: Record<string, string> = {};
+    const got: unknown[] = [];
+    await runDaily(deps({
+      versionsDir: dir, classifier: async e => { env = e; return { code: 0, stdout: '' }; },
+      cachePaths: (_no, _m, tax) => { got.push(['rejudge', tax?.fields[0].aliases]); return []; },
+      ingestFile: async (_id, _m, tax) => { got.push(['ingest', tax?.fields[0].aliases]); return ok; }
+    }));
+    const file = join(dir, 'custom-2026-11-28-1.json');
+    expect(env.KINGO_TAXONOMY_FILE).toBe(file);
+    expect(loadTaxonomyFile(file)).toEqual(list);
+    expect((await db.sql`select file from taxonomy_versions where id = ${id}`)[0].file).toBe(file);
+    expect(got).toEqual([['rejudge', ['가']], ['ingest', ['가']]]);
+    expect(rejudgePaths(7, ['m:1'], list).filter(p => p.includes(fieldVersion(list)))).toHaveLength(1);
+  });
+
+  it('판 폴더에 못 쓰면 임시 폴더에 써서 넘기고 판의 file은 비워 둔다', async () => {
+    const t = await seedTaxonomy(db.sql);
+    const { id } = await addVersion(t);
+    const notDir = join(mkdtempSync(join(tmpdir(), 'v-')), 'file');
+    writeFileSync(notDir, 'x');
+    let env: Record<string, string> = {};
+    await runDaily(deps({ versionsDir: notDir, classifier: async e => { env = e; return { code: 0, stdout: '' }; } }));
+    expect(env.KINGO_TAXONOMY_FILE).toContain(join('etl', '.cache', 'taxonomy'));
+    expect((await db.sql`select file from taxonomy_versions where id = ${id}`)[0].file).toBeNull();
+  });
+
+  it('판 폴더에 같은 이름의 다른 내용 파일이 있으면 분류기 단계가 그 까닭으로 실패한다(덮어쓰지 않음)', async () => {
+    const t = await seedTaxonomy(db.sql);
+    await addVersion(t);
+    const dir = mkdtempSync(join(tmpdir(), 'v-'));
+    writeFileSync(join(dir, 'custom-2026-11-28-1.json'), '{}');
+    let called = false;
+    const r = await runDaily(deps({ versionsDir: dir, classifier: async () => { called = true; return { code: 0, stdout: '' }; } }));
+    expect(called).toBe(false);
+    expect(r.steps.classifier.error).toContain('판 파일이 이미 다른 내용으로 있어요');
+  });
+
+  it('85% 근거는 지금 판의 field_version으로 잰 통과 줄만 고른다(적용하지 않은 초안 재기는 근거가 아니다)', async () => {
+    const t = await seedTaxonomy(db.sql);
+    const { list } = await addVersion(t);
+    const row = (fv: string, num: number) => db.sql`insert into model_trials (model, taxonomy_id, field_version, prompt_version, gold_version, trial_version, metrics, started_at)
+      values ('gemma4:12b', 'custom', ${fv}, 'p', 'g', 1, ${db.sql.json({ corePrecision: { num, den: 100 } })}, now())`;
+    await row(fieldVersion(list), 90);
+    await row('draftver', 95); // 더 나중의 초안 재기
+    let env: Record<string, string> = {};
+    await runDaily(deps({ versionsDir: mkdtempSync(join(tmpdir(), 'v-')), classifier: async e => { env = e; return { code: 0, stdout: '' }; } }));
+    expect(JSON.parse(env.KINGO_FIELD_MEASURED)).toMatchObject({ prompt: fieldVersion(list), num: 90 });
   });
 });
