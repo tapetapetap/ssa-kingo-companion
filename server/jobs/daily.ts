@@ -8,7 +8,7 @@ import { CACHE_DIR } from '../../etl/notices/cse.ts';
 import { fieldFolder } from '../../etl/notices/fields.ts';
 import { LLM_CACHE_DIR, modelDir, PROMPT_VERSION } from '../../etl/notices/llm.ts';
 import { loadTaxonomy, TAXONOMY_IDS, type Taxonomy } from '../../etl/taxonomy/taxonomy.ts';
-import { currentVersion, VERSIONS_DIR, writeVersionFile, type Current } from '../taxonomy/current.ts';
+import { currentVersion, VersionConflict, VERSIONS_DIR, writeVersionFile, type Current } from '../taxonomy/current.ts';
 import { writeFlow } from '../analysis/flow.ts';
 import { rebuild } from '../analysis/store.ts';
 import type { Mode } from '../config.ts';
@@ -83,7 +83,8 @@ async function versionFile(sql: Sql, cur: Current, dir = process.env.KINGO_TAXON
     const file = writeVersionFile(dir, v);
     await sql`update taxonomy_versions set file = ${file} where id = ${cur.id} and file is distinct from ${file}`;
     return file;
-  } catch {
+  } catch (e) {
+    if (e instanceof VersionConflict) throw e; // 분류기 단계 오류로 보인다
     return writeVersionFile(join(ROOT, 'etl', '.cache', 'taxonomy'), v);
   }
 }

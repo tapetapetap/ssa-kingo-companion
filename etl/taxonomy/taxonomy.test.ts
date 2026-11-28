@@ -118,7 +118,10 @@ describe('findChosen · fieldGate (research R12)', () => {
     const m = (num: number, o: object = {}) => ({ prompt: '1a2b3c4d', model: 'qwen:7b', num, den: 100, ...o });
     expect(fieldGate(t, '1a2b3c4d', 'qwen:7b', m(85))).toEqual({ ok: true });
     for (const bad of [m(84), m(85, { prompt: 'x' }), m(85, { model: 'other' }), m(0, { den: 0 }), null]) expect('reason' in fieldGate(t, '1a2b3c4d', 'qwen:7b', bad)).toBe(true);
-    expect('reason' in fieldGate(t, '5e6f7a8b', 'qwen:7b', m(99, { prompt: '5e6f7a8b' }))).toBe(true); // 판이 바뀌었으면 다시 고른다
+    // 4단계: 판이 바뀌어도 그 판을 지금 모델로 잰 85% 이상 값이 있으면 그것이 근거다(분야 판 적용 뒤에도 멈추지 않음). 다른 판·모델의 값은 근거가 아니다
+    expect(fieldGate(t, '5e6f7a8b', 'qwen:7b', m(99, { prompt: '5e6f7a8b' }))).toEqual({ ok: true });
+    expect(fieldGate(t, '5e6f7a8b', 'gemma4:12b', m(90, { prompt: '5e6f7a8b', model: 'gemma4:12b' }))).toEqual({ ok: true });
+    expect('reason' in fieldGate(t, '5e6f7a8b', 'gemma4:12b', m(90, { prompt: '1a2b3c4d', model: 'gemma4:12b' }))).toBe(true);
     expect(fieldGate(t, '5e6f7a8b', 'qwen:7b')).toEqual({ reason: '고른 안 custom을 고른 뒤 판정 판이 바뀌어(1a2b3c4d → 5e6f7a8b) 분야를 넣지 않았어요. 다시 재고 고르세요' });
     expect(fieldGate(t, '1a2b3c4d', 'qwen:7b')).toEqual({ reason: '고른 안 custom은 gemma4:12b로 쟀는데 지금 모델은 qwen:7b이라 분야를 넣지 않았어요' });
     const low = { ...t, chosen: chosen(84) };
@@ -196,5 +199,6 @@ describe('동의어와 초안 합치기(4단계 research R5·R7)', () => {
       { fieldId: a.id, word: 'gpt', with: { fieldId: b.id, name: b.name } }
     ]);
     expect(aliasOverlaps(t)).toEqual([]);
+    expect(aliasOverlaps(mergeDraft(t, [{ fieldId: a.id, aliases: ['  '], desc: a.desc }, { fieldId: b.id, aliases: ['\u3000'], desc: b.desc }]))).toEqual([]);
   });
 });

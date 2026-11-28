@@ -52,13 +52,16 @@ export async function versionName(sql: Sql, taxonomyId: string, now = new Date()
   return `${day}-${r.n + 1}`;
 }
 
+/** 같은 이름의 판 파일이 다른 내용으로 있다(못 쓰는 것과 달리 사람이 봐야 한다) */
+export class VersionConflict extends Error {}
+
 /** 판 파일을 쓴다. 이미 있으면 덮어쓰지 않는다: 같은 내용이면 그 경로, 다르면 던진다 */
 export function writeVersionFile(dir: string, v: { taxonomy_id: string; name: string; list: Taxonomy }): string {
   const file = join(dir, `${v.taxonomy_id}-${v.name}.json`);
   const text = `${JSON.stringify(v.list, null, 2)}\n`;
   if (existsSync(file)) {
     if (readFileSync(file, 'utf8') === text) return file;
-    throw new Error(`판 파일이 이미 다른 내용으로 있어요: ${file}`);
+    throw new VersionConflict(`판 파일이 이미 다른 내용으로 있어요: ${file}`);
   }
   mkdirSync(dir, { recursive: true });
   writeFileSync(`${file}.tmp`, text);

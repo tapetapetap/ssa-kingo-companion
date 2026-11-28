@@ -200,6 +200,17 @@ describe('지금 분야 판을 분류기·넣기·다시 판정에 넘긴다(4�
     expect((await db.sql`select file from taxonomy_versions where id = ${id}`)[0].file).toBeNull();
   });
 
+  it('판 폴더에 같은 이름의 다른 내용 파일이 있으면 분류기 단계가 그 까닭으로 실패한다(덮어쓰지 않음)', async () => {
+    const t = await seedTaxonomy(db.sql);
+    await addVersion(t);
+    const dir = mkdtempSync(join(tmpdir(), 'v-'));
+    writeFileSync(join(dir, 'custom-2026-11-28-1.json'), '{}');
+    let called = false;
+    const r = await runDaily(deps({ versionsDir: dir, classifier: async () => { called = true; return { code: 0, stdout: '' }; } }));
+    expect(called).toBe(false);
+    expect(r.steps.classifier.error).toContain('판 파일이 이미 다른 내용으로 있어요');
+  });
+
   it('85% 근거는 지금 판의 field_version으로 잰 통과 줄만 고른다(적용하지 않은 초안 재기는 근거가 아니다)', async () => {
     const t = await seedTaxonomy(db.sql);
     const { list } = await addVersion(t);

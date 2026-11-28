@@ -510,6 +510,9 @@ describe('chosenField (스펙 3 research R12)', () => {
     expect(chosenField({ gate: () => gate }, dir, { file })).toEqual({ reason: '판 파일에 85% 기록이 없어 분야를 넣지 않았어요' });
     write({ date: '2026-11-28', corePrecision: { num: 29, den: 33 }, prompt: 'deadbeef', model });
     expect(chosenField({ gate: () => gate }, dir, { file })).toMatchObject({ reason: expect.stringContaining('판정 판이 바뀌어') });
+    // chosen이 앞 판(바탕) 것이어도 지금 판·모델로 잰 통과 값이 있으면 분야를 넣는다(code-review 1)
+    const fresh = chosenField({ gate: () => gate }, dir, { file, measured: { prompt: fieldVersion(t), model, num: 30, den: 33 } });
+    expect(fresh && 'ask' in fresh).toBe(true);
     writeFileSync(file, '{');
     expect(chosenField({ gate: () => gate }, dir, { file })).toEqual({ reason: `분야 목록을 읽지 못해 분야를 넣지 않았어요 (분야 목록 파일이 JSON이 아니에요: ${file})` });
     expect(modelEnv({ KINGO_TAXONOMY_FILE: file }).file).toBe(file);
