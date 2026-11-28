@@ -21,6 +21,8 @@
 - **근거 고르기**: 지금 `classifierEnv`(server/model.ts:55-59)는 지금 모델의 `model_trials` 가운데 통과한 마지막 줄을 `field_version`과 상관없이 `KINGO_FIELD_MEASURED`로 넘긴다. 초안 재기 결과도 이 표에 들어가므로, 그대로 두면 적용하지 않은 초안의 결과가 근거로 뽑혀 `fieldGate`가 거부하고 분야 판정이 멈춘다(SC-002). 그래서 `classifierEnv`는 `field_version = fieldVersion(지금 판)`이고 모델이 지금 모델인 통과 줄만 고른다(재기 kind는 가리지 않는다: 같은 `field_version`이면 같은 목록을 잰 것이다). 되돌리기(FR-031)의 '그 판의 근거'도 같은 규칙이다: 그 판의 `field_version`을 지금 모델·정답셋 판·재는 방법 판으로 잰 통과 줄이 있으면 바로 되돌린다.
 - **Alternatives**: 근거를 따로 환경 변수로 넘기기 — 모델 바꾸기의 `measured`와 겹쳐 규칙이 둘이 된다.
 
+- **사용자 결정(2026-11-28)**: 모델 화면의 '처음 모델'(`initialOf`, models.ts:30-33)은 지금처럼 바탕 파일의 `chosen`을 본다(`currentTaxonomy`가 아니라 바탕). `KINGO_TAXONOMY_FILE` 파일의 `chosen`이 null이면 분야를 넣지 않고 까닭("판 파일에 85% 기록이 없어요")을 남긴다. 다시 판정(`rejudgePaths`)은 목록 셋의 폴더에 지금 판의 폴더를 더해 모두 지운다.
+
 ## R4. 판정 판에 동의어 넣기: 비었으면 지금과 같은 글
 
 - **Decision**: 분야에 `aliases?: string[]`를 더한다(없거나 빈 목록이면 지금과 같음). 세 곳만 바꾼다:
@@ -37,7 +39,8 @@
 - **요청 처리**: `server/ops/requests.ts`의 가져가기·멈춤 쿼리(57·84행)는 `kind in ('model_trial','taxonomy_trial')`로 넓히고 `returning id, kind, model, snapshot`을 받는다. 열린 재기는 하나뿐이라 고를 차례가 없다. `RequestDeps.trial`은 `(request: { id, kind, model, snapshot }, stop)`을 받고, 줄 글은 kind에 따라 "모델 재기 …"/"초안 재기 …"다.
 - **모델 쪽 고칠 곳**: `openRequest`의 `on conflict (kind) where …`(requests.ts:23-25)는 새 색인 위반을 잡지 못하므로 23505(`op_requests_one_trial`)를 409 `trial_open`으로 바꾼다. `GET /api/ops/models`와 `POST /api/ops/models/current`(models.ts:46-47)는 `request_id`의 kind가 `model_trial`인 줄(과 앞 줄, request_id null)만 쓴다. 초안 재기 결과가 모델 화면의 결과와 바꾸기 후보에 섞이지 않게 한다. 재기 폴더는 `etl/.cache/trial`이고, 판정 판이 폴더 이름에 들어 있어 다른 판과 섞이지 않는다.
 - **열린 재기 하나**: 지금 `op_requests_one_open`은 kind마다 하나다. 두 재기 kind를 합쳐 하나만 열리게 부분 유일 색인을 하나 더한다(`on ((true)) where kind in ('model_trial','taxonomy_trial') and status in (...)`).
-- **'같은 초안'**: 초안 표시는 `fieldVersion(바탕 + 지금 초안)`이다. 정의·동의어·바탕의 이름·묶음이 바뀌면 달라진다. 결과의 `field_version`과 다르면 낡음(FR-022). CSRankings·과목 영역처럼 판정에 안 쓰이는 칸은 판을 바꾸지 않는다(그것만 바뀐 바탕은 재지 않아도 된다).
+- **합치기(사용자 결정 2026-11-28)**: 초안은 지금 판 위의 차이다. 잴 목록 = `mergeDraft(합친 바탕, 초안)`이고, 합친 바탕 = 바탕 파일의 판정 판이 지금 판의 `base_version`과 같으면 지금 판, 다르면 `새 바탕 + 지금 판에서 바탕과 다른 동의어·정의`다.
+- **'같은 초안'**: 초안 표시는 `fieldVersion(잴 목록)`이다. 정의·동의어·바탕의 이름·묶음이 바뀌면 달라진다. 결과의 `field_version`과 다르면 낡음(FR-022). CSRankings·과목 영역처럼 판정에 안 쓰이는 칸은 판을 바꾸지 않는다(그것만 바뀐 바탕은 재지 않아도 된다).
 - **Alternatives**: 초안 재기를 따로 짜기 — 밤 시간·멈춤·부하·정답셋 읽기를 두 번 쓰게 된다.
 
 ## R6. 적용·되돌리기와 동시성
@@ -48,7 +51,7 @@
 ## R7. 초안의 동시 고치기: 고친 때로 막기
 
 - **Decision**: 초안 줄은 분야마다 하나이고 `updated_at`을 가진다. 저장 요청에 운영자가 본 `updated_at`(없던 줄이면 null)을 함께 보내고, 다르면 409 `draft_changed`와 지금 값을 돌려준다(FR-013).
-- **겹침 검사**: 서버에서 `바탕+초안`의 모든 이름·동의어를 `NFKC → 소문자 → 빈칸 제거`로 맞춰 비교한다. 화면도 같은 함수를 써서 미리 알리지만 결정은 서버가 한다.
+- **겹침 검사**: 서버에서 잴 목록(R5)의 모든 이름·동의어를 `NFKC → 소문자 → 빈칸 제거`로 맞춰 비교한다. 화면도 같은 함수를 써서 미리 알리지만 결정은 서버가 한다.
 
 ## R8. 보기 자료: 공지 수·가까운 분야·그림
 

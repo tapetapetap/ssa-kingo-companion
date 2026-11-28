@@ -53,7 +53,7 @@
 
 - `op_requests.kind`: `'taxonomy_trial'` 더함. `op_requests.snapshot jsonb`(초안 재기만, 뜬 전체 목록) 더함. 체크: `(kind = 'taxonomy_trial') = (snapshot is not null)`. `model`은 초안 재기에서 지금 모델 이름. 그래서 지금 체크 `(kind = 'model_trial') = (model is not null)`(010_ops.sql:4)를 떨구고 `(kind in ('model_trial','taxonomy_trial')) = (model is not null)`로 다시 만든다.
 - 색인: `op_requests_one_trial` — `create unique index on op_requests ((true)) where kind in ('model_trial','taxonomy_trial') and status in ('waiting','running','paused')`.
-- `model_trials`: `base_version text`(잴 때 바탕의 `fieldVersion`, 앞 줄은 null) 칸을 더한다. 초안 재기 결과도 여기에 든다. `request_id`의 kind로 구별한다. `metrics`에 `promptChars`(지시문 글자 수) 더함. 낡음은 `field_version`(잰 목록)·`base_version`(잰 때의 바탕)·모델·정답셋 판·재는 방법 판을 지금과 비교한다.
+- `model_trials`: `base_version text`(잴 때 바탕의 `fieldVersion`, 앞 줄은 null) 칸을 더한다. 초안 재기 결과도 여기에 든다. `request_id`의 kind로 구별한다. `metrics`에 `promptChars: { avg, max }`(표본 글마다의 분야 판정 지시문 `systemFor` 글자 수의 평균·최대, 사용자 결정) 더함. 낡음은 `field_version`(잰 목록)·`base_version`(잰 때의 바탕)·모델·정답셋 판·재는 방법 판을 지금과 비교한다.
 
 ## 판 하나의 상태
 

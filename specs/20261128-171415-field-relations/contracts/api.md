@@ -15,13 +15,13 @@
     "id": "llm", "name": "LLM", "group": "g-ai", "desc": "…", "aliases": ["거대언어모델"],      // 지금 판 값
     "draft": { "aliases": […], "desc": "…", "by": "ops@…", "updatedAt": "…" } | null,           // 초안 줄
     "csr": ["ai"], "courseAreas": ["vision"], "notices": { "core": 4, "related": 9 },             // 최근 30일
-    "flags": { "noLinks": false, "noNotices": false, "gone": false /* 초안 줄만 있고 바탕에 없음 */, "overlap": [] }
+    "flags": { "noLinks": false, "noNotices": false, "gone": false /* 초안 줄만 있고 바탕에 없음 */, "overlap": [{ "fieldId": "nlp", "name": "자연어처리", "word": "nlp" }] /* 422 alias_overlap의 with와 같은 꼴 */ }
   }],
   "csrAreas": [{ "id": "ai", "name": "Artificial intelligence" }],
   "courseAreas": [{ "id": "vision", "fields": ["llm", "nlp"] }],
   "draft": { "count": 3, "fieldVersion": "1a2b3c4d" | null /* 초안이 비면 null */ },
   "request": { /* 모델 재기와 같은 꼴, kind: "taxonomy_trial" */ } | null,
-  "trials": [{ "id": 12, "kind": "draft" | "current", "fieldVersion": "…", "model": "gemma4:12b", "at": "…",
+  "trials": [/* taxonomy_trial 요청의 결과 최근 20개(모델 화면 KEEP과 같음). kind는 결과의 field_version이 그 요청 snapshot의 fieldVersion과 같으면 draft, 아니면 current */ { "id": 12, "kind": "draft" | "current", "fieldVersion": "…", "model": "gemma4:12b", "at": "…",
                "stale": true, "staleWhy": "잰 뒤 초안이 바뀌었어요" | null, "passes": true, "metrics": { /* 모델 재기 metrics + promptChars */ } }],
   "versions": [{ "id": 3, "name": "2026-11-28-1", "at": "…", "by": "…", "corePrecision": {…}, "file": "custom-2026-11-28-1.json" | null,
                  "current": true, "revert": { "ok": false, "why": "조건이 바뀌어 다시 재야 해요" } }],
