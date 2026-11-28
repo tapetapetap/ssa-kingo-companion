@@ -90,16 +90,17 @@ deploy/compose.yaml             # jobs에 판 폴더 읽고 쓰기 볼륨, 환�
 
 | PR | 담는 것 | 이야기 |
 |---|---|---|
-| A | 동의어 칸, 판정 판·후보 글·지시문 줄(R4), `KINGO_TAXONOMY_FILE`(R2), 마이그레이션 011, `currentTaxonomy`와 다섯 곳 바꾸기, 판 이름·판 파일 쓰기, 매일 작업 연결 | US3 바탕 |
-| B | 초안 API(저장·지우기·불러오기, 겹침·409), 초안 재기(`taxonomy_trial`), 적용·되돌리기 API | US2, US3, US4 |
-| C | '분야 관계' 화면: 판 카드, 나무·찾기, 자세히(고치기 포함), 판 기록, `e2e:ops` | US1, US2, US3, US4 |
-| D | 방사형 그림 탭 | US5 |
+| A | 동의어 칸, 판정 판·후보 글·지시문 줄(R4), `KINGO_TAXONOMY_FILE`(R2), 마이그레이션 011, `currentTaxonomy`와 다섯 곳 바꾸기, 판 이름·판 파일 쓰기, 매일 작업 연결 | 바탕 |
+| B | 보기 API, '분야 관계' 화면(판 카드·나무·자세히), `e2e:ops` | US1 |
+| C | 초안 API(저장·지우기·불러오기, 겹침·409)와 고치기 화면 | US2 |
+| D | 초안 재기(`taxonomy_trial`), 적용·되돌리기 API와 화면, 판 기록 | US3, US4 |
+| E | 방사형 그림 탭 | US5 |
 
-PR마다: 시험 → 구현 → (화면이면) e2e·눈으로 보기·`impeccable audit`·`polish` → `ponytail-review` → `/code-review` → PR → CI → Claude 리뷰 → 머지. A와 B는 `/security-review`도 한다(A는 분류기 환경과 파일 쓰기, B는 운영자 입력과 적용 권한).
+PR마다: 시험 → 구현 → (화면이면) e2e·눈으로 보기·`impeccable audit`·`polish` → `ponytail-review` → `/code-review` → PR → CI → Claude 리뷰 → 머지. A와 D는 `/security-review`도 한다(A는 분류기 환경과 파일 쓰기, D는 적용 권한). C는 운영자 입력이라 `/code-review`에서 검사를 본다.
 
 **A의 첫 확인(SC-006)**: 동의어가 빈 바탕으로 `fieldVersion`이 지금 `73a2661c` 그대로인지, 후보 글 sha가 그대로인지 시험으로 고정한 뒤 시작한다.
 
-**SC-007 실측**: B가 머지되면 이 맥에서 동의어를 넣은 초안을 한 번 재서 tasks.md에 적는다(GPU·온도 한도는 목표로만, `KINGO_TEMP_LIMIT=70`).
+**SC-007 실측**: D가 머지되면 이 맥에서 동의어를 넣은 초안을 한 번 재서 tasks.md에 적는다(GPU·온도 한도는 목표로만, `KINGO_TEMP_LIMIT=70`).
 
 ## 구현 전에 할 것
 
