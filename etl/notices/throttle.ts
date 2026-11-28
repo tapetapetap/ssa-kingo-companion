@@ -17,6 +17,8 @@ export type ThrottleDeps = {
 };
 
 const LIMIT_C = 80;
+/** 재기 같은 한 번짜리 실행은 KINGO_TEMP_LIMIT로 더 낮출 수 있다. 80보다 올리지는 못한다 */
+const limitC = () => Math.min(LIMIT_C, Number(process.env.KINGO_TEMP_LIMIT) || LIMIT_C);
 // 요청 하나가 그때까지 본 가장 큰 오름폭보다 더 오를 수 있어 2°C를 남겨 둔다(2026-11-23 3회차 판정에서 82.5°C까지 오름)
 const MARGIN_C = 2;
 const STEP_MS = 5000; // 온도 대기와 표본 간격
@@ -33,6 +35,7 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
     every: (ms, fn) => { const h = setInterval(fn, ms); h.unref(); return () => { clearInterval(h); }; },
     readTemp: () => readTemp(), readGpu: () => readGpu(), logDir: LOAD_DIR, platform: process.platform, ...d
   };
+  const limit = limitC();
   let rise = 0; // 이번 실행에서 요청 하나에 오른 가장 큰 폭. 0에서 시작해 max로만 갱신한다
   let openFrom: number | null = null; // 지금 보내는 요청의 보내기 전 온도. 요청 도중의 5초 표본도 오름폭에 센다
   let broken = false;
@@ -99,7 +102,7 @@ export function createThrottle(d: Partial<ThrottleDeps> = {}): { gate: () => Gat
       noTemp: 0, // 이 문에서 온도 때문에 보내지 않은 요청 수
       async before() {
         let t = await read();
-        while (t !== null && t + rise + MARGIN_C >= LIMIT_C) {
+        while (t !== null && t + rise + MARGIN_C >= limit) {
           await deps.sleep(STEP_MS);
           t = await read();
         }

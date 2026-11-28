@@ -59,6 +59,19 @@ describe('쉼과 온도 대기 (research R6)', () => {
     expect(await createThrottle(f.deps).gate().before()).toBe(true);
     expect(f.slept).toEqual([5000]);
   });
+
+  it('KINGO_TEMP_LIMIT로 낮출 수 있고 80보다 올리지는 못한다', async () => {
+    try {
+      process.env.KINGO_TEMP_LIMIT = '70';
+      const f = fake([68, 67]);
+      expect(await createThrottle(f.deps).gate().before()).toBe(true);
+      expect(f.slept).toEqual([5000]);
+      process.env.KINGO_TEMP_LIMIT = '90';
+      const g = fake([78, 77]);
+      expect(await createThrottle(g.deps).gate().before()).toBe(true);
+      expect(g.slept).toEqual([5000]);
+    } finally { delete process.env.KINGO_TEMP_LIMIT; }
+  });
 });
 
 describe('요청 도중의 오름 (2026-11-23)', () => {
